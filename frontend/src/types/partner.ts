@@ -1,0 +1,130 @@
+export type VerificationStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+export type DocumentType =
+  | 'BUSINESS_LICENSE'
+  | 'CERTIFICATE'
+  | 'ID_CARD'
+  | 'STORE_IMAGE'
+  | 'PORTFOLIO';
+
+export interface VerificationDocument {
+  _id: string;
+  type: DocumentType;
+  url: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
+export interface ContractorProfile {
+  id: string;
+  userId: string;
+  businessName: string;
+  taxCode: string;
+  address: string;
+  city: string;
+  description: string;
+  yearsExperience: number;
+  serviceAreas: string[];
+  verificationStatus: VerificationStatus;
+  documents: VerificationDocument[];
+  rejectionReason: string;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Storefront {
+  id: string;
+  contractorId: string;
+  name: string;
+  slogan: string;
+  description: string;
+  phone: string;
+  address: string;
+  city: string;
+  storeType: 'SERVICES' | 'MATERIALS' | 'BOTH';
+  coverImage: string;
+  gallery: string[];
+  openingHours: string;
+  serviceRadiusKm: number;
+  category?: string;
+  verified?: boolean;
+  rating?: number;
+  reviewCount?: number;
+  status: 'DRAFT' | 'LIVE' | 'PAUSED';
+  location: { type: 'Point'; coordinates: [number, number] };
+}
+
+export interface CatalogService {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  basePrice: number;
+  unit: 'JOB' | 'HOUR' | 'M2' | 'DAY';
+  estimatedHours: number;
+  image: string;
+  isActive: boolean;
+}
+
+export interface CatalogMaterial {
+  id: string;
+  name: string;
+  category: string;
+  sku: string;
+  unit: string;
+  price: number;
+  stock: number;
+  minOrderQty: number;
+  image: string;
+  description: string;
+  isActive: boolean;
+}
+
+export interface WorkspacePayload {
+  profile: ContractorProfile;
+  store: Storefront | null;
+  stats: { services: number; documents: number };
+}
+
+export interface PartnerApplication extends ContractorProfile {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    avatar: string;
+    status: string;
+  } | null;
+}
+
+export const DOCUMENT_LABELS: Record<DocumentType, string> = {
+  BUSINESS_LICENSE: 'Business license',
+  CERTIFICATE: 'Certificate',
+  ID_CARD: 'Owner ID',
+  STORE_IMAGE: 'Yard / store photo',
+  PORTFOLIO: 'Portfolio',
+};
+
+export const SERVICE_CATEGORIES = [
+  'Waterproofing',
+  'Electrical',
+  'Plumbing',
+  'Painting',
+  'Masonry',
+  'Interior',
+  'General repair',
+];
+
+export const MATERIAL_CATEGORIES = [
+  'Cement',
+  'Paint',
+  'Pipe',
+  'Tiles',
+  'Steel',
+  'Waterproof coat',
+  'Tools',
+  'Fixtures',
+];

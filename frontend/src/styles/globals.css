@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bm-navy: #0b2e4a;
+  --bm-copper: #c9842a;
+  --bm-paper: #f4f1ea;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-paper-100 font-sans text-ink-800 antialiased;
+  background-image:
+    linear-gradient(rgba(11, 46, 74, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 46, 74, 0.035) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  letter-spacing: -0.03em;
+}
+
+.blueprint-frame {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c5cdd6;
+  border-radius: 999px;
+}
+
+.leaflet-container {
+  z-index: 0;
+  font-family: inherit;
+}
+
+.bm-pin-wrap {
+  background: transparent;
+  border: none;
+}
+
+.bm-pin {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  color: #f4f1ea;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(11, 46, 74, 0.35);
+  animation: bm-bounce 1.6s ease-in-out infinite;
+}
+
+@keyframes bm-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}

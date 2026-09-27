@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --admin-bg: #070b14;
+  --admin-surface: #0b1220;
+}
+
+html[data-theme='oled'] {
+  --admin-bg: #000000;
+  --admin-surface: #050505;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  background: var(--admin-bg);
+  color: #e8edf7;
+  font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(200, 148, 69, 0.28);
+  border-radius: 999px;
+}
+
+::selection {
+  background: rgba(200, 148, 69, 0.35);
+}
+
+@layer components {
+  .glass-card {
+    @apply rounded-2xl border border-white/[0.08] bg-white/[0.04] shadow-glass backdrop-blur-xl;
+  }
+}
+
+html[data-theme='oled'] .glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
+}

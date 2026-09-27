@@ -1,0 +1,106 @@
+const { User, ROLES } = require('../models/User');
+const { Order, ORDER_STATUS } = require('../models/Order');
+const { Payment, PAYMENT_STATUS } = require('../models/Payment');
+const { Commission, COMMISSION_STATUS } = require('../models/Commission');
+const { Review } = require('../models/Review');
+const { Complaint, COMPLAINT_STATUS } = require('../models/Complaint');
+
+const TTL_MS = 60 * 1000;
+let cache = { at: 0, data: null };
+
+function invalidateAnalyticsCache() {
+  cache = { at: 0, data: null };
+}
+
+async function computeAnalytics() {
+  const [
+    totalUsers,
+    customerCount,
+    contractorCount,
+    adminCount,
+    totalOrders,
+    completedOrders,
+    cancelledOrders,
+    paidAgg,
+    commissionAgg,
+    reviewAgg,
+    complaintsOpen,
+    complaintsProcessing,
+    complaintsResolved,
+    complaintsRejected,
+    complaintsTotal,
+  ] = await Promise.all([
+    User.countDocuments(),
+    User.countDocuments({ role: ROLES.CUSTOMER }),
+    User.countDocuments({ role: ROLES.CONTRACTOR }),
+    User.countDocuments({ role: ROLES.ADMIN }),
+    Order.countDocuments(),
+    Order.countDocuments({ status: ORDER_STATUS.CUSTOMER_ACCEPTED }),
+    Order.countDocuments({ status: ORDER_STATUS.CANCELLED }),
+    Payment.aggregate([
+      { $match: { status: PAYMENT_STATUS.PAID } },
+      { $group: { _id: null, revenue: { $sum: '$amount' }, count: { $sum: 1 } } },
+    ]),
+    Commission.aggregate([
+      { $match: { status: COMMISSION_STATUS.POSTED } },
+      {
+        $group: {
+          _id: null,
+          platform: { $sum: '$platformAmount' },
+          contractor: { $sum: '$contractorAmount' },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    Review.aggregate([{ $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } }]),
+    Complaint.countDocuments({ status: COMPLAINT_STATUS.OPEN }),
+    Complaint.countDocuments({ status: COMPLAINT_STATUS.PROCESSING }),
+    Complaint.countDocuments({ status: COMPLAINT_STATUS.RESOLVED }),
+    Complaint.countDocuments({ status: COMPLAINT_STATUS.REJECTED }),
+    Complaint.countDocuments(),
+  ]);
+
+  const paid = paidAgg[0] || { revenue: 0, count: 0 };
+  const commission = commissionAgg[0] || { platform: 0, contractor: 0, count: 0 };
+  const reviews = reviewAgg[0] || { avg: 0, count: 0 };
+
+  return {
+    users: {
+      total: totalUsers,
+      customer: customerCount,
+      contractor: contractorCount,
+      admin: adminCount,
+    },
+    orders: {
+      total: totalOrders,
+      completed: completedOrders,
+      cancelled: cancelledOrders,
+    },
+    finance: {
+      revenue: paid.revenue,
+      paidCount: paid.count,
+      commission: commission.platform,
+      contractorEarning: commission.contractor,
+    },
+    reviews: {
+      total: reviews.count,
+      average: reviews.count ? Math.round(reviews.avg * 10) / 10 : 0,
+    },
+    complaints: {
+      total: complaintsTotal,
+      open: complaintsOpen,
+      processing: complaintsProcessing,
+      resolved: complaintsResolved,
+      rejected: complaintsRejected,
+    },
+  };
+}
+
+async function getAnalytics() {
+  if (cache.data && Date.now() - cache.at < TTL_MS) return cache.data;
+  const data = await computeAnalytics();
+  cache = { at: Date.now(), data };
+  return data;
+}
+
+module.exports = { getAnalytics, invalidateAnalyticsCache, computeAnalytics };
