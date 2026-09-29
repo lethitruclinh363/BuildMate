@@ -28,7 +28,7 @@ export function OrderDetailView({ order, progress, request, quotation, actions, 
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-mono text-xs tracking-wide text-copper-600">{order.orderCode}</p>
+          <p className="font-mono text-xs tracking-wide text-copper-600">{order.orderCode || ''}</p>
           <h1 className="mt-1 font-display text-3xl text-navy-800">{order.title}</h1>
         </div>
         <OrderStatusBadge status={order.status} customerView={customerView} />
@@ -55,7 +55,7 @@ export function OrderDetailView({ order, progress, request, quotation, actions, 
             </div>
             <div>
               <dt className="text-xs text-ink-400">{t('orders.detail.amount')}</dt>
-              <dd className="font-display text-2xl text-navy-800">{vnd(order.amount)}</dd>
+              <dd className="font-display text-2xl text-navy-800">{vnd(order.amount ?? 0)}</dd>
             </div>
           </dl>
           {order.description ? <p className="mt-4 text-sm leading-6 text-ink-600">{order.description}</p> : null}

@@ -32,14 +32,18 @@ export function useOrderDetail(id: string | undefined) {
         setOrder(detail);
         setProgress(progressRes.data.data || []);
         await Promise.all([
-          repairApi
-            .get(detail.requestId)
-            .then((res) => setRequest(res.data.data))
-            .catch(() => setRequest(null)),
-          quotationApi
-            .get(detail.quotationId)
-            .then((res) => setQuotation(res.data.data))
-            .catch(() => setQuotation(null)),
+          detail.requestId
+            ? repairApi
+                .get(detail.requestId)
+                .then((res) => setRequest(res.data.data))
+                .catch(() => setRequest(null))
+            : Promise.resolve(setRequest(null)),
+          detail.quotationId
+            ? quotationApi
+                .get(detail.quotationId)
+                .then((res) => setQuotation(res.data.data))
+                .catch(() => setQuotation(null))
+            : Promise.resolve(setQuotation(null)),
         ]);
       })
       .catch((err) => setError(te(getApiErrorMessage(err))))

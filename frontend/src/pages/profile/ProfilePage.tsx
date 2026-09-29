@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, ShieldCheck } from 'lucide-react';
+import { Camera, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Avatar } from '@/components/ui/Avatar';
@@ -27,6 +27,10 @@ export function ProfilePage() {
   const [phone, setPhone] = useState(user?.phone || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(!user);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -35,7 +39,7 @@ export function ProfilePage() {
   const applyUser = (next: User) => {
     if (token) setSession({ user: next, token });
     setName(next.name);
-    setPhone(next.phone);
+    setPhone(next.phone ?? '');
   };
 
   const load = () => {
@@ -70,11 +74,14 @@ export function ProfilePage() {
   };
 
   const changePassword = async () => {
+    if (currentPassword.length < 8 || !passwordIsValid || newPassword !== confirmPassword) return;
+
     setPwdBusy(true);
     try {
       await api.patch('/user/password', { currentPassword, newPassword });
       setCurrentPassword('');
       setNewPassword('');
+      setConfirmPassword('');
       toast({ kind: 'success', title: t('feedback.passwordChanged') });
     } catch (err) {
       toast({ kind: 'error', title: te(getApiErrorMessage(err)) });
@@ -82,6 +89,12 @@ export function ProfilePage() {
       setPwdBusy(false);
     }
   };
+
+  const passwordIsValid =
+    newPassword.length >= 8 &&
+    newPassword.length <= 72 &&
+    /[A-Z]/.test(newPassword) &&
+    /[0-9]/.test(newPassword);
 
   const onAvatar = async (file?: File) => {
     if (!file) return;
@@ -129,7 +142,7 @@ export function ProfilePage() {
             </Badge>
             <p className="mt-2 text-xs text-ink-400">{labeled(t, 'role', user.role)}</p>
             <p className="mt-1 text-xs text-ink-400">
-              {t('profile.memberSince', { date: new Date(user.createdAt).toLocaleDateString() })}
+              {t('profile.memberSince', { date: new Date(user.createdAt || Date.now()).toLocaleDateString() })}
             </p>
           </div>
         </Card>
@@ -155,26 +168,82 @@ export function ProfilePage() {
           <Card hover={false}>
             <h2 className="font-display text-xl text-navy-800">{t('profile.password')}</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Input
-                id="current"
-                type="password"
-                label={t('profile.currentPassword')}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-              />
-              <Input
-                id="next"
-                type="password"
-                label={t('profile.newPassword')}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
+              <div className="relative">
+                <Input
+                  id="current"
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  label={t('profile.currentPassword')}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="pr-12"
+                />
+                <button
+                  type="button"
+                  aria-label={showCurrentPassword ? t('profile.hidePassword') : t('profile.showPassword')}
+                  className="absolute right-3 top-[42px] text-ink-500 transition hover:text-navy-800"
+                  onClick={() => setShowCurrentPassword((v) => !v)}
+                >
+                  {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+
+              <div className="relative">
+                <Input
+                  id="next"
+                  type={showNewPassword ? 'text' : 'password'}
+                  label={t('profile.newPassword')}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pr-12"
+                  maxLength={72}
+                  hint={t('profile.passwordRequirements')}
+                  error={newPassword.length > 0 && !passwordIsValid ? t('profile.passwordRequirements') : undefined}
+                />
+                <button
+                  type="button"
+                  aria-label={showNewPassword ? t('profile.hidePassword') : t('profile.showPassword')}
+                  className="absolute right-3 top-[42px] text-ink-500 transition hover:text-navy-800"
+                  onClick={() => setShowNewPassword((v) => !v)}
+                >
+                  {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+
+              <div className="relative">
+                <Input
+                  id="confirm"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  label={t('profile.confirmPassword')}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pr-12"
+                  maxLength={72}
+                  error={
+                    confirmPassword.length > 0 && confirmPassword !== newPassword
+                      ? t('profile.passwordMismatch')
+                      : undefined
+                  }
+                />
+                <button
+                  type="button"
+                  aria-label={showConfirmPassword ? t('profile.hidePassword') : t('profile.showPassword')}
+                  className="absolute right-3 top-[42px] text-ink-500 transition hover:text-navy-800"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
             <Button
               className="mt-4"
-              variant="outline"
+              variant="copper"
               loading={pwdBusy}
-              disabled={!currentPassword || newPassword.length < 8}
+              disabled={
+                currentPassword.length < 8 ||
+                !passwordIsValid ||
+                !confirmPassword ||
+                newPassword !== confirmPassword
+              }
               onClick={() => void changePassword()}
             >
               {t('profile.updatePassword')}
