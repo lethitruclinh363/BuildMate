@@ -37,12 +37,10 @@ function otpEmailHtml({ name, otp, purpose = 'verify' }) {
   const isReset = purpose === 'reset';
   const title = isReset ? 'Đặt lại mật khẩu' : 'Xác thực email';
   const intro = isReset
-    ? 'Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới. Mã có hiệu lực <strong>5 phút</strong> và chỉ dùng một lần.'
-    : 'Cảm ơn bạn đã đăng ký tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới để xác thực email. Mã có hiệu lực <strong>5 phút</strong> và chỉ dùng một lần.';
+    ? 'Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới. Mã có hiệu lực <strong>5 phút</strong> và chỉ sử dụng một lần.'
+    : 'Cảm ơn bạn đã đăng ký tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới để xác thực email. Mã có hiệu lực <strong>5 phút</strong> và chỉ sử dụng một lần.';
   const label = isReset ? 'MÃ ĐẶT LẠI MẬT KHẨU' : 'MÃ XÁC THỰC';
-  const footer = isReset
-    ? 'Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.'
-    : 'Nếu bạn không đăng ký BuildMate, hãy bỏ qua email này.';
+  const footer = 'Vì an toàn cho tài khoản, tuyệt đối không cung cấp mã này với bất kì ai';
 
   return `<!DOCTYPE html>
 <html lang="vi">
@@ -97,6 +95,17 @@ function otpEmailHtml({ name, otp, purpose = 'verify' }) {
 </html>`;
 }
 
+function buildOtpEmail({ name, otp, purpose = 'verify' }) {
+  const isReset = purpose === 'reset';
+  const safetyNotice = 'Vì an toàn cho tài khoản, tuyệt đối không cung cấp mã này với bất kì ai';
+  const subject = isReset ? 'BuildMate — mã đặt lại mật khẩu' : 'BuildMate — mã xác thực email';
+  const text = isReset
+    ? `BuildMate\n\nXin chào ${name || ''},\nMã đặt lại mật khẩu: ${otp}\nMã hết hạn sau 5 phút và chỉ sử dụng một lần.\n\n${safetyNotice}`
+    : `BuildMate\n\nXin chào ${name || ''},\nMã xác thực của bạn là: ${otp}\nMã hết hạn sau 5 phút và chỉ sử dụng một lần.\n\n${safetyNotice}`;
+
+  return { subject, html: otpEmailHtml({ name, otp, purpose }), text };
+}
+
 async function sendEmail({ to, subject, text, html }) {
   const mailer = getTransporter();
   if (!mailer) {
@@ -117,14 +126,7 @@ async function sendEmail({ to, subject, text, html }) {
 }
 
 async function sendOtpMail({ to, name, otp, purpose }) {
-  const isReset = purpose === 'reset';
-  const subject = isReset ? 'BuildMate — mã đặt lại mật khẩu' : 'BuildMate — mã xác thực email';
-  const html = otpEmailHtml({ name, otp, purpose });
-  const text = isReset
-    ? `BuildMate\n\nXin chào ${name || ''},\nMã đặt lại mật khẩu: ${otp}\nMã hết hạn sau 5 phút.`
-    : `BuildMate\n\nXin chào ${name || ''},\nMã xác thực của bạn là: ${otp}\nMã hết hạn sau 5 phút và chỉ dùng một lần.`;
-
-  return sendEmail({ to, subject, text, html });
+  return sendEmail({ to, ...buildOtpEmail({ name, otp, purpose }) });
 }
 
 async function sendVerificationEmail({ to, name, otp }) {
@@ -142,5 +144,6 @@ module.exports = {
   sendVerificationEmail,
   sendResetPasswordEmail,
   sendPasswordResetEmail,
+  buildOtpEmail,
   isSmtpConfigured,
 };
