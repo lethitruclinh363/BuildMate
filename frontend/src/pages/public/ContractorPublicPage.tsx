@@ -56,6 +56,10 @@ export function ContractorPublicPage() {
     );
   }
   const { contractor, store, services } = payload;
+  const displayName = contractor.businessName || contractor.name || 'Contractor';
+  const initial = displayName.charAt(0).toUpperCase();
+  const description = contractor.description || t('public.noDescription');
+  const address = contractor.address || t('public.noAddress');
 
   return (
     <PageTransition>
@@ -70,19 +74,19 @@ export function ContractorPublicPage() {
             <div className="-mt-10 px-6 pb-6">
               <div className="flex items-end gap-4">
                 <div className="grid h-20 w-20 place-items-center rounded-2xl bg-navy-800 font-display text-2xl text-paper-50">
-                  {(contractor.businessName || contractor.name).slice(0, 1)}
+                  {initial}
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="font-display text-3xl text-navy-800">{contractor.businessName}</h1>
+                    <h1 className="font-display text-3xl text-navy-800">{displayName}</h1>
                     <Badge tone="success">{t('common.verified')}</Badge>
                   </div>
-                  <p className="text-sm text-ink-400">{t('public.years', { n: contractor.yearsExperience, city: contractor.city })}</p>
+                  <p className="text-sm text-ink-400">{t('public.years', { n: contractor.yearsExperience || 0, city: contractor.city || t('public.unknownCity') })}</p>
                 </div>
               </div>
-              <p className="mt-4 text-sm leading-6 text-ink-600">{contractor.description}</p>
+              <p className="mt-4 text-sm leading-6 text-ink-600">{description}</p>
               <p className="mt-3 inline-flex items-center gap-2 text-sm text-ink-600">
-                <MapPin className="h-4 w-4 text-copper-500" /> {contractor.address}
+                <MapPin className="h-4 w-4 text-copper-500" /> {address}
               </p>
               {store ? (
               <p className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-navy-800">
@@ -109,7 +113,7 @@ export function ContractorPublicPage() {
             <Card hover={false}>
               <h2 className="font-display text-xl text-navy-800">{t('public.certificates')}</h2>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                {[...contractor.license, ...contractor.certificates].map((doc) => (
+                {((contractor.license || []) as Array<{ url: string; originalName: string }>).concat(contractor.certificates || []).map((doc) => (
                   <img key={doc.url} src={mediaUrl(doc.url)} alt={doc.originalName} className="h-28 w-full rounded-2xl object-cover" />
                 ))}
               </div>
@@ -117,7 +121,7 @@ export function ContractorPublicPage() {
             <Card hover={false}>
               <h2 className="font-display text-xl text-navy-800">{t('public.portfolio')}</h2>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                {contractor.portfolio.map((doc) => (
+                {(contractor.portfolio || []).map((doc) => (
                   <img key={doc.url} src={mediaUrl(doc.url)} alt="" className="h-28 w-full rounded-2xl object-cover" />
                 ))}
               </div>

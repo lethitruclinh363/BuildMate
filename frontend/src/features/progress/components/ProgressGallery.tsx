@@ -27,7 +27,7 @@ export function ProgressGallery({ items }: { items: ProgressUpdate[] }) {
             {item.description ? <p className="mt-2 text-sm text-ink-600">{item.description}</p> : null}
             {item.images.length ? (
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {item.images.map((src) => (
+                {item.images.map((src: string) => (
                   <img
                     key={src}
                     src={mediaUrl(src)}

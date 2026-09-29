@@ -270,6 +270,11 @@
     "role": "Role",
     "currentPassword": "Current password",
     "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordRequirements": "Use 8 to 72 characters, including at least one uppercase letter and one number.",
+    "passwordMismatch": "The passwords do not match.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "saveProfile": "Save profile",
     "updatePassword": "Update password",
     "memberSince": "Member since {date}"
