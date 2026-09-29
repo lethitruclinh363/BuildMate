@@ -23,6 +23,7 @@ const rateLimitEnabled = String(process.env.RATE_LIMIT_ENABLED || 'true').toLowe
 const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW) || 15 * 60 * 1000;
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || (isProd ? 100 : 500);
 const rateLimitAuthMax = Number(process.env.RATE_LIMIT_AUTH_MAX) || (isProd ? 10 : 30);
+const rateLimitOtpMax = Number(process.env.RATE_LIMIT_OTP_MAX) || (isProd ? 10 : 50);
 
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -38,6 +39,7 @@ const env = {
   rateLimitWindowMs,
   rateLimitMax,
   rateLimitAuthMax,
+  rateLimitOtpMax,
   // EMAIL_* (đồ án) hoặc SMTP_* (tên cũ) — cùng một transporter Nodemailer.
   smtpHost: process.env.EMAIL_HOST || process.env.SMTP_HOST || '',
   smtpPort: Number(process.env.EMAIL_PORT || process.env.SMTP_PORT) || 587,

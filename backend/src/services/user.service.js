@@ -43,6 +43,7 @@ async function changePassword(userId, { currentPassword, newPassword }, actor) {
 
   user.password = newPassword;
   await userRepository.save(user);
+  await userRepository.incrementTokenVersion(user._id);
 
   await writeAudit({
     actorId: userId,
