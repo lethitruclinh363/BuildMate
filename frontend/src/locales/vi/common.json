@@ -270,6 +270,11 @@
     "role": "Vai trò",
     "currentPassword": "Mật khẩu hiện tại",
     "newPassword": "Mật khẩu mới",
+    "confirmPassword": "Xác nhận mật khẩu mới",
+    "passwordRequirements": "Từ 8 đến 72 ký tự, có ít nhất 1 chữ in hoa và 1 chữ số.",
+    "passwordMismatch": "Mật khẩu xác nhận không khớp.",
+    "showPassword": "Hiện mật khẩu",
+    "hidePassword": "Ẩn mật khẩu",
     "saveProfile": "Lưu hồ sơ",
     "updatePassword": "Cập nhật mật khẩu",
     "memberSince": "Tham gia từ {date}"

@@ -28,7 +28,7 @@ export function CustomerComplaintPage() {
     try {
       await complaintApi.create({
         orderId: order.id,
-        againstUser: order.contractorId,
+        againstUser: order.contractorId || '',
         reason: payload.reason,
         description: payload.description,
       });

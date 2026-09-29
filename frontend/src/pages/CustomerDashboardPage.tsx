@@ -28,10 +28,10 @@ export function CustomerDashboardPage() {
     orderApi
       .customer()
       .then((res) => {
-        const rows = res.data.data || [];
-        setOrderCount(rows.filter((o) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length);
+        const rows = (res.data.data || []) as Array<{ id: string; title: string; status: string }>;
+        setOrderCount(rows.filter((o: { status: string }) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length);
         setRecentOrders(
-          rows.slice(0, 5).map((o) => ({ id: o.id, title: o.title, status: o.status }))
+          rows.slice(0, 5).map((o: { id: string; title: string; status: string }) => ({ id: o.id, title: o.title, status: o.status }))
         );
       })
       .catch(() => {
