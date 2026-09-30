@@ -1,0 +1,113 @@
+{
+  "listTitle": "My repair orders",
+  "listEyebrow": "Construction",
+  "listDesc": "Orders appear when you accept a quotation — then you can follow site progress and confirm completion.",
+  "contractorTitle": "Construction dispatch",
+  "contractorEyebrow": "Yard board",
+  "contractorDesc": "New jobs, deposits, and site progress on one board.",
+  "emptyTitle": "No orders yet",
+  "emptyBody": "Accepting a quotation creates a construction order here.",
+  "contractorEmpty": "No construction orders",
+  "contractorEmptyBody": "Orders appear when a customer accepts a quote — they are never created by hand.",
+  "filter": {
+    "all": "All",
+    "processing": "In process",
+    "in_progress": "On site",
+    "waiting": "Awaiting handover",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "kpi": {
+    "new": "New",
+    "processing": "In process",
+    "progress": "In progress",
+    "waiting": "Handover",
+    "done": "Completed"
+  },
+  "status": {
+    "fallback": "In progress",
+    "REQUEST_CREATED": "Request created",
+    "QUOTATION_SENT": "Quotation sent",
+    "QUOTATION_ACCEPTED": "Quotation accepted",
+    "DEPOSIT_PAID": "Deposit paid",
+    "STARTED": "Started",
+    "IN_PROGRESS": "In progress",
+    "COMPLETED": "Completed",
+    "CUSTOMER_ACCEPTED": "Customer accepted",
+    "CANCELLED": "Cancelled"
+  },
+  "customerStatus": {
+    "fallback": "In progress",
+    "REQUEST_CREATED": "Request created",
+    "QUOTATION_SENT": "Quotation sent",
+    "QUOTATION_ACCEPTED": "Quotation accepted",
+    "DEPOSIT_PAID": "Deposit paid",
+    "STARTED": "Started",
+    "IN_PROGRESS": "In progress",
+    "COMPLETED": "Awaiting your acceptance",
+    "CUSTOMER_ACCEPTED": "Accepted",
+    "CANCELLED": "Cancelled"
+  },
+  "timeline": {
+    "request": "Request created",
+    "quoteSent": "Quotation sent",
+    "quote": "Quotation accepted",
+    "deposit": "Deposit paid",
+    "started": "Started",
+    "progress": "In progress",
+    "completed": "Completed",
+    "accepted": "Customer accepted"
+  },
+  "progressStatus": {
+    "STARTED": "Started",
+    "IN_PROGRESS": "In progress",
+    "COMPLETED": "Completed"
+  },
+  "detail": {
+    "info": "Job information",
+    "party": "Partner / customer",
+    "store": "Store",
+    "location": "Location",
+    "amount": "Amount",
+    "timeline": "Timeline",
+    "quote": "Locked quotation"
+  },
+  "progress": {
+    "title": "Site updates",
+    "empty": "No progress notes or photos yet.",
+    "fieldStatus": "Status",
+    "fieldNote": "Description",
+    "fieldPhotos": "Photos",
+    "notePh": "Arrived, opened the wall, replaced the pipe…",
+    "submit": "Post update",
+    "accept": "Accept repair job",
+    "acceptNote": "Contractor accepted the repair job",
+    "accepted": "Repair job accepted",
+    "fileCount": "{n} photos will be appended",
+    "saved": "Progress recorded"
+  },
+  "complete": {
+    "cta": "Confirm completion",
+    "title": "Accept the finished work?",
+    "body": "Confirm after you have checked the site.",
+    "unpaidHint": "Handover does not require payment. Contractor earnings post only after PAID.",
+    "done": "Order completed"
+  },
+  "cancel": {
+    "cta": "Cancel order",
+    "title": "Cancel this order?",
+    "body": "The order is not deleted — it moves to cancelled.",
+    "done": "Order cancelled"
+  },
+  "toast": {
+    "order_created": "A repair job was created",
+    "order_completed": "The customer accepted the job",
+    "contractor_accepted_job": "The contractor accepted the job",
+    "contractor_started_job": "The contractor started the job",
+    "contractor_updated_progress": "The contractor updated progress",
+    "contractor_completed_job": "The contractor completed the job"
+  },
+  "siteFallback": "Job site in Can Tho",
+  "viewOrders": "View construction order",
+  "openQuote": "View quotation"
+}

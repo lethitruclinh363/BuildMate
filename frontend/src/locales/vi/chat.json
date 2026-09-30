@@ -1,0 +1,13 @@
+{
+  "conversations": "Cuộc trò chuyện",
+  "online": "Đang hoạt động",
+  "offline": "Ngoại tuyến",
+  "createQuote": "Tạo báo giá",
+  "sitePhotos": "Hiện trạng",
+  "placeholder": "Nhắn với đội thi công…",
+  "typing": "Đang nhập...",
+  "typingName": "{name} đang nhập...",
+  "sendMessage": "Gửi tin nhắn",
+  "crewFallback": "Đội thợ",
+  "send_message": "Gửi tin nhắn"
+}

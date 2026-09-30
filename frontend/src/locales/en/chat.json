@@ -1,0 +1,13 @@
+{
+  "conversations": "Conversations",
+  "online": "Online",
+  "offline": "Offline",
+  "createQuote": "Create quotation",
+  "sitePhotos": "Site photos",
+  "placeholder": "Message the crew…",
+  "typing": "Typing...",
+  "typingName": "{name} is typing...",
+  "sendMessage": "Send message",
+  "crewFallback": "Crew",
+  "send_message": "Send message"
+}

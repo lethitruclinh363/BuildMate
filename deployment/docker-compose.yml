@@ -1,0 +1,14 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: buildmate-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - buildmate_mongo:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: buildmate
+
+volumes:
+  buildmate_mongo:

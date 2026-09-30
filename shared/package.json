@@ -1,0 +1,6 @@
+{
+  "name": "@buildmate/shared",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Contracts, enums, and copy shared by BuildMate web and a future React Native client. No runtime API calls live here."
+}

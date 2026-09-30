@@ -1,0 +1,35 @@
+const { describe, it, before, after } = require('node:test');
+const assert = require('node:assert/strict');
+const { ensureMongo, mongoSkip } = require('./helpers/mongo');
+const { startTestServer, api } = require('./helpers/http');
+
+describe('API versioning aliases', { timeout: 20000 }, () => {
+  let dbReady = false;
+  let server;
+
+  before(async () => {
+    dbReady = await ensureMongo();
+    if (!dbReady) return;
+    server = await startTestServer();
+  });
+
+  after(async () => {
+    if (server) await server.close();
+    const { stopMongo } = require('./helpers/mongo');
+    await stopMongo();
+  });
+
+  it('serves the same health payload on /api and /api/v1', async (t) => {
+    if (!dbReady) {
+      t.skip(mongoSkip());
+      return;
+    }
+    const classic = await api(server.origin, { path: '/api/health' });
+    const versioned = await api(server.origin, { path: '/api/v1/health' });
+    assert.equal(classic.status, 200);
+    assert.equal(versioned.status, 200);
+    assert.equal(classic.json.success, true);
+    assert.equal(versioned.json.success, true);
+    assert.equal(classic.json.data.service, versioned.json.data.service);
+  });
+});

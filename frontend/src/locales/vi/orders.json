@@ -1,0 +1,113 @@
+{
+  "listTitle": "Đơn sửa chữa của tôi",
+  "listEyebrow": "Thi công",
+  "listDesc": "Theo dõi đơn được tạo khi bạn chấp nhận báo giá — xem tiến độ thi công và nghiệm thu.",
+  "contractorTitle": "Điều phối thi công",
+  "contractorEyebrow": "Bảng điều hành",
+  "contractorDesc": "Đơn mới, tiền cọc và tiến độ hiện trường trên cùng một bảng.",
+  "emptyTitle": "Không có đơn hàng",
+  "emptyBody": "Khi bạn chấp nhận báo giá, hệ thống tạo đơn thi công tại đây.",
+  "contractorEmpty": "Chưa có đơn thi công",
+  "contractorEmptyBody": "Đơn xuất hiện sau khi khách chấp nhận báo giá — không tạo tay.",
+  "filter": {
+    "all": "Tất cả",
+    "processing": "Đang xử lý",
+    "in_progress": "Đang thi công",
+    "waiting": "Chờ nghiệm thu",
+    "completed": "Hoàn thành",
+    "cancelled": "Đã hủy"
+  },
+  "kpi": {
+    "new": "Đơn mới",
+    "processing": "Đang xử lý",
+    "progress": "Đang thực hiện",
+    "waiting": "Chờ nghiệm thu",
+    "done": "Hoàn thành"
+  },
+  "status": {
+    "fallback": "Đang xử lý",
+    "REQUEST_CREATED": "Đã tạo yêu cầu",
+    "QUOTATION_SENT": "Đã gửi báo giá",
+    "QUOTATION_ACCEPTED": "Đã chấp nhận báo giá",
+    "DEPOSIT_PAID": "Đã thanh toán cọc",
+    "STARTED": "Đã bắt đầu",
+    "IN_PROGRESS": "Đang thực hiện",
+    "COMPLETED": "Hoàn thành",
+    "CUSTOMER_ACCEPTED": "Khách đã nghiệm thu",
+    "CANCELLED": "Đã hủy"
+  },
+  "customerStatus": {
+    "fallback": "Đang xử lý",
+    "REQUEST_CREATED": "Đã tạo yêu cầu",
+    "QUOTATION_SENT": "Đã nhận báo giá",
+    "QUOTATION_ACCEPTED": "Đã chấp nhận báo giá",
+    "DEPOSIT_PAID": "Đã thanh toán cọc",
+    "STARTED": "Đã bắt đầu",
+    "IN_PROGRESS": "Đang thực hiện",
+    "COMPLETED": "Chờ bạn nghiệm thu",
+    "CUSTOMER_ACCEPTED": "Bạn đã nghiệm thu",
+    "CANCELLED": "Đã hủy"
+  },
+  "timeline": {
+    "request": "Đã tạo yêu cầu",
+    "quoteSent": "Đã gửi báo giá",
+    "quote": "Đã chấp nhận báo giá",
+    "deposit": "Đã thanh toán cọc",
+    "started": "Đã bắt đầu",
+    "progress": "Đang thực hiện",
+    "completed": "Hoàn thành",
+    "accepted": "Khách đã nghiệm thu"
+  },
+  "progressStatus": {
+    "STARTED": "Đã bắt đầu",
+    "IN_PROGRESS": "Đang thực hiện",
+    "COMPLETED": "Hoàn thành"
+  },
+  "detail": {
+    "info": "Thông tin công việc",
+    "party": "Đối tác / khách",
+    "store": "Cửa hàng",
+    "location": "Địa điểm",
+    "amount": "Giá trị",
+    "timeline": "Tiến trình",
+    "quote": "Báo giá đã chốt"
+  },
+  "progress": {
+    "title": "Cập nhật hiện trường",
+    "empty": "Chưa có ảnh hoặc ghi chú tiến độ.",
+    "fieldStatus": "Trạng thái",
+    "fieldNote": "Mô tả",
+    "fieldPhotos": "Hình ảnh",
+    "notePh": "Đã đến, mở tường, thay ống…",
+    "submit": "Gửi cập nhật",
+    "accept": "Nhận công việc",
+    "acceptNote": "Nhà thầu đã nhận công việc sửa chữa",
+    "accepted": "Đã nhận công việc",
+    "fileCount": "{n} ảnh sẽ được thêm vào lịch sử",
+    "saved": "Đã ghi tiến độ"
+  },
+  "complete": {
+    "cta": "Xác nhận hoàn thành",
+    "title": "Nghiệm thu công việc?",
+    "body": "Xác nhận sau khi kiểm tra hiện trường.",
+    "unpaidHint": "Nghiệm thu không bắt buộc đã thanh toán. Hoa hồng đội thợ chỉ ghi khi đơn PAID.",
+    "done": "Đã nghiệm thu đơn"
+  },
+  "cancel": {
+    "cta": "Hủy đơn",
+    "title": "Hủy đơn thi công?",
+    "body": "Đơn không bị xóa — trạng thái chuyển sang đã hủy.",
+    "done": "Đã hủy đơn"
+  },
+  "toast": {
+    "order_created": "Đã tạo công việc sửa chữa",
+    "order_completed": "Khách hàng đã nghiệm thu",
+    "contractor_accepted_job": "Nhà thầu đã nhận công việc",
+    "contractor_started_job": "Nhà thầu đã bắt đầu thi công",
+    "contractor_updated_progress": "Nhà thầu đã cập nhật tiến độ",
+    "contractor_completed_job": "Nhà thầu đã hoàn thành công việc"
+  },
+  "siteFallback": "Công trình tại Cần Thơ",
+  "viewOrders": "Xem đơn thi công",
+  "openQuote": "Xem báo giá"
+}
