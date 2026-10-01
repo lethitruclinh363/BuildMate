@@ -12,9 +12,17 @@ const { verificationUpload } = require('../middleware/upload.middleware');
 const { validate } = require('../utils/validator');
 const {
   profileSchema,
+  publicProfileSchema,
+  verificationChangeSchema,
   documentTypeSchema,
+  portfolioSlotSchema,
+  portfolioRemoveSchema,
+  submitSchema,
   storeSchema,
-  serviceSchema,
+  registerServiceSchema,
+  offeringUpdateSchema,
+  catalogCheckSchema,
+  catalogCreateSchema,
 } = require('../validators/partner.validator');
 const contractorController = require('../controllers/contractor.controller');
 const storeController = require('../controllers/store.controller');
@@ -29,9 +37,21 @@ const catalogWrite = [...storeWrite, requireStore];
 router.get('/earnings', authenticate, authorize(ROLES.CONTRACTOR), paymentController.earnings);
 
 router.get('/dashboard-stats', ...contractorOnly, contractorController.getDashboardStats);
+router.get('/reputation', ...contractorOnly, contractorController.getReputation);
 router.get('/workspace', ...contractorOnly, contractorController.getWorkspace);
+router.get('/public-profile', ...storeWrite, contractorController.getPublicProfile);
+router.patch('/public-profile', ...storeWrite, validate(publicProfileSchema), contractorController.updatePublicProfile);
+
 router.get('/profile', ...contractorOnly, contractorController.getProfile);
 router.patch('/profile', ...contractorOnly, validate(profileSchema), contractorController.updateProfile);
+router.post(
+  '/portfolio',
+  ...contractorOnly,
+  verificationUpload.single('file'),
+  validate(portfolioSlotSchema),
+  contractorController.uploadPortfolio
+);
+router.delete('/portfolio', ...contractorOnly, validate(portfolioRemoveSchema), contractorController.removePortfolio);
 router.post(
   '/verification/documents',
   ...contractorOnly,
@@ -40,16 +60,26 @@ router.post(
   contractorController.uploadDocument
 );
 router.delete('/verification/documents/:documentId', ...contractorOnly, contractorController.removeDocument);
-router.post('/verification/submit', ...contractorOnly, contractorController.submitVerification);
+router.post('/verification/submit', ...contractorOnly, validate(submitSchema), contractorController.submitVerification);
+router.post(
+  '/verification/change-request',
+  ...storeWrite,
+  validate(verificationChangeSchema),
+  contractorController.requestVerificationChange
+);
 
 router.get('/store', ...storeWrite, loadStore, storeController.getStore);
 router.post('/store', ...storeWrite, validate(storeSchema), storeController.createStore);
 router.patch('/store', ...storeWrite, validate(storeSchema.partial()), storeController.updateStore);
 router.delete('/store', ...storeWrite, storeController.deleteStore);
 
+router.get('/service-catalog/check', ...contractorOnly, validate(catalogCheckSchema, 'query'), contractorController.checkServiceCatalog);
+router.get('/service-catalog', ...contractorOnly, contractorController.listServiceCatalog);
+router.post('/service-catalog/custom', ...contractorOnly, validate(catalogCreateSchema), contractorController.createCustomService);
+
 router.get('/services', ...catalogWrite, serviceController.list);
-router.post('/services', ...catalogWrite, validate(serviceSchema), serviceController.create);
-router.patch('/services/:id', ...catalogWrite, validate(serviceSchema.partial()), serviceController.update);
+router.post('/services/register', ...catalogWrite, validate(registerServiceSchema), serviceController.register);
+router.patch('/services/:id', ...catalogWrite, validate(offeringUpdateSchema), serviceController.update);
 router.delete('/services/:id', ...catalogWrite, serviceController.remove);
 
 module.exports = router;

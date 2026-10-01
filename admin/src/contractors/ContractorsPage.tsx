@@ -21,6 +21,7 @@ const tone: Record<string, 'success' | 'warn' | 'danger' | 'copper' | 'navy'> = 
 function PartnerDirectoryPage({ role }: { role: 'CONTRACTOR' | 'MATERIAL_STORE_OWNER' }) {
   const { t } = useTranslation();
   const copy = role === 'CONTRACTOR' ? 'crew' : 'store';
+  const queue = role === 'CONTRACTOR' ? '/partners/contractors' : '/partners/stores';
   const { data, loading, error, reload } = useAsync(() => adminApi.listVerifications(), []);
 
   if (loading) return <Spinner />;
@@ -35,7 +36,7 @@ function PartnerDirectoryPage({ role }: { role: 'CONTRACTOR' | 'MATERIAL_STORE_O
         title={t(`partners.${copy}.title`)}
         description={t(`partners.${copy}.subtitle`)}
         actions={
-          <Link to="/verification" className="rounded-xl bg-copper-500 px-4 py-2 text-sm font-semibold text-navy-950">
+          <Link to={queue} className="rounded-xl bg-copper-500 px-4 py-2 text-sm font-semibold text-navy-950">
             {t('partners.openQueue')}
           </Link>
         }
@@ -50,7 +51,7 @@ function PartnerDirectoryPage({ role }: { role: 'CONTRACTOR' | 'MATERIAL_STORE_O
           <Badge key={row.id} tone={tone[row.verificationStatus] || 'navy'}>
             {row.verificationStatus}
           </Badge>,
-          <Link key={`${row.id}-u`} to={`/verification?id=${row.id}`} className="text-copper-300">
+          <Link key={`${row.id}-u`} to={`${queue}?id=${row.id}`} className="text-copper-300">
             {t('partners.profile')}
           </Link>,
         ])}

@@ -1,6 +1,8 @@
 const http = require('http');
 const { env } = require('./config/env');
 const { connectDatabase } = require('./config/database');
+const { ensureDefaultPolicies } = require('./services/policy.service');
+const { ensureSystemCatalog } = require('./services/catalog.service');
 const { createApp } = require('./app');
 const { initSocket } = require('./sockets');
 
@@ -8,6 +10,8 @@ const { isSmtpConfigured } = require('./providers/email.provider');
 
 async function bootstrap() {
   await connectDatabase();
+  await ensureDefaultPolicies();
+  await ensureSystemCatalog();
 
   const app = createApp();
   const server = http.createServer(app);

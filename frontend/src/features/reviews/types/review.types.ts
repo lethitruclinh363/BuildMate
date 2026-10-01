@@ -10,10 +10,17 @@ export interface Review {
   comment: string;
   images: string[];
   createdAt: string;
+  customerName?: string;
+  customerAvatar?: string;
+  jobTitle?: string;
+  contractorReply?: string;
+  repliedAt?: string | null;
+  reported?: boolean;
 }
 
 export interface ReviewListPayload {
   average: number;
   count: number;
+  distribution?: Record<string, number>;
   items: Review[];
 }

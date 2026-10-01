@@ -16,6 +16,13 @@ function classifyError(err, { isProd = false } = {}) {
     return { status: 404, message: 'Resource not found', details: null };
   }
   if (err.code === 11000) {
+    const key = Object.keys(err.keyPattern || err.keyValue || {})[0];
+    if (key === 'email') {
+      return { status: 409, message: 'Email already exists', details: null };
+    }
+    if (key === 'phone' || key === 'phoneNumber') {
+      return { status: 409, message: 'Phone number already exists', details: null };
+    }
     return { status: 409, message: 'Duplicate resource', details: err.keyValue || null };
   }
   if (err.name === 'ValidationError') {

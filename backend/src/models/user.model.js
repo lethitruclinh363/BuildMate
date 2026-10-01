@@ -23,6 +23,15 @@ const USER_STATUS = Object.freeze({
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const PROFILE_STATUS = Object.freeze({
+  INCOMPLETE: 'INCOMPLETE',
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+});
+
 const userSchema = new mongoose.Schema(
   {
     // Display name. Older code used `name`; both fields stay in sync (see hooks).
@@ -51,6 +60,28 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
+    },
+    acceptedPolicy: {
+      type: Boolean,
+      default: false,
+    },
+    acceptedPolicyVersion: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    acceptedPolicyAt: {
+      type: Date,
+      default: null,
+    },
+    profileStatus: {
+      type: String,
+      enum: Object.values(PROFILE_STATUS),
+      default: PROFILE_STATUS.INCOMPLETE,
     },
     password: {
       type: String,
@@ -148,10 +179,28 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ location: '2dsphere' });
 userSchema.index({ role: 1, status: 1 });
+userSchema.index(
+  { phoneNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { phoneNumber: { $gt: '' } },
+  }
+);
+
+function syncPhoneFields(target) {
+  if (!target) return;
+  const hasPhone = target.phoneNumber !== undefined || target.phone !== undefined;
+  if (!hasPhone) return;
+  const phoneValue = String(target.phoneNumber || target.phone || '').trim();
+  if (!phoneValue) return;
+  target.phoneNumber = phoneValue;
+  target.phone = phoneValue;
+}
 
 userSchema.pre('validate', function syncName(next) {
   if (this.name && !this.fullName) this.fullName = this.name;
   if (this.fullName && !this.name) this.name = this.fullName;
+  syncPhoneFields(this);
   if (!this.fullName) {
     return next(new Error('fullName is required'));
   }
@@ -163,6 +212,7 @@ userSchema.pre('findOneAndUpdate', function syncNameOnUpdate(next) {
   const set = update.$set || update;
   if (set.name && !set.fullName) set.fullName = set.name;
   if (set.fullName && !set.name) set.name = set.fullName;
+  syncPhoneFields(set);
   return next();
 });
 
@@ -188,6 +238,11 @@ userSchema.methods.toPublic = function toPublic() {
     name: displayName,
     email: this.email,
     phone: this.phone,
+    phoneNumber: this.phoneNumber || this.phone || '',
+    acceptedPolicy: Boolean(this.acceptedPolicy),
+    acceptedPolicyVersion: this.acceptedPolicyVersion || '',
+    acceptedPolicyAt: this.acceptedPolicyAt,
+    profileStatus: this.profileStatus || PROFILE_STATUS.INCOMPLETE,
     avatar: this.avatar,
     role: this.role,
     status: this.status,
@@ -200,4 +255,4 @@ userSchema.methods.toPublic = function toPublic() {
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
-module.exports = { User, ROLES, USER_STATUS };
+module.exports = { User, ROLES, USER_STATUS, PROFILE_STATUS };

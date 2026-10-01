@@ -8,6 +8,10 @@ const { RepairRequest } = require('../models/RepairRequest');
 const { ApiError } = require('../utils/ApiError');
 const { writeAudit, listAudit, AUDIT_ACTION } = require('./audit.service');
 const analyticsService = require('./analytics.service');
+const { sendPartnerApprovedEmail } = require('../providers/email.provider');
+const catalogService = require('./catalog.service');
+const serviceService = require('./service.service');
+const { seedPublicProfile } = require('./public-profile.service');
 const commissionService = require('./commission.service');
 
 function customerPublic(user, city = '') {
@@ -84,9 +88,22 @@ async function getVerification(id) {
     'name email phone avatar status role'
   );
   if (!profile) throw new ApiError(404, 'Partner application not found');
+  const { Service } = require('../models/Service');
+  const userId = profile.userId?._id || profile.userId;
+  const offerings = userId ? await Service.find({ contractorId: userId }).select('catalogKey name completionStatus') : [];
+  const completionByKey = new Map();
+  for (const offering of offerings) {
+    if (offering.catalogKey) completionByKey.set(String(offering.catalogKey), offering.completionStatus);
+    if (offering.name) completionByKey.set(String(offering.name), offering.completionStatus);
+  }
+  const published = profile.toPublic();
 
   return {
-    ...profile.toPublic(),
+    ...published,
+    services: (published.services || []).map((item) => ({
+      ...item,
+      completionStatus: completionByKey.get(String(item.serviceId || '')) || completionByKey.get(String(item.name || '')) || null,
+    })),
     user: profile.userId
       ? {
           id: profile.userId._id,
@@ -114,7 +131,11 @@ async function approve(id, adminId) {
   profile.rejectionReason = '';
   await profile.save();
 
-  const user = await User.findByIdAndUpdate(profile.userId, { status: USER_STATUS.ACTIVE }, { new: true });
+  const user = await User.findByIdAndUpdate(
+    profile.userId,
+    { status: USER_STATUS.ACTIVE, profileStatus: 'APPROVED' },
+    { new: true }
+  );
   const storeType = user?.role === ROLES.MATERIAL_STORE_OWNER ? STORE_TYPE.MATERIALS : STORE_TYPE.SERVICES;
   const existing = await Store.findOne({ contractorId: profile.userId });
   if (!existing) {
@@ -132,9 +153,19 @@ async function approve(id, adminId) {
     existing.storeType = storeType;
     existing.status = STORE_STATUS.LIVE;
     existing.verified = true;
-    if (profile.businessName) existing.name = profile.businessName;
-    if (profile.address) existing.address = profile.address;
+    if (!existing.publicSeeded) {
+      if (profile.businessName) existing.name = profile.businessName;
+      if (profile.address) existing.address = profile.address;
+    }
     await existing.save();
+  }
+  const liveStore = existing || (await Store.findOne({ contractorId: profile.userId }));
+  if (liveStore && storeType !== STORE_TYPE.MATERIALS) {
+    await seedPublicProfile(liveStore, profile);
+  }
+  if (storeType === STORE_TYPE.SERVICES && liveStore) {
+    await catalogService.syncCustomStatuses(profile);
+    await serviceService.ensureContractorOfferings(liveStore, profile);
   }
   await writeAudit({
     actorId: adminId,
@@ -144,6 +175,17 @@ async function approve(id, adminId) {
     entityId: profile._id,
     meta: { userId: String(profile.userId), businessName: profile.businessName },
   });
+  if (user?.email) {
+    try {
+      await sendPartnerApprovedEmail({
+        to: user.email,
+        name: user.name,
+        language: user.preferredLanguage === 'en' ? 'en' : 'vi',
+      });
+    } catch (err) {
+      console.error('[email] partner approval failed', err);
+    }
+  }
   return getVerification(id);
 }
 
@@ -160,7 +202,10 @@ async function reject(id, adminId, reason) {
   profile.rejectionReason = reason;
   await profile.save();
 
-  await User.findByIdAndUpdate(profile.userId, { status: USER_STATUS.PENDING_VERIFICATION });
+  await User.findByIdAndUpdate(profile.userId, {
+    status: USER_STATUS.PENDING_VERIFICATION,
+    profileStatus: 'REJECTED',
+  });
   await Store.findOneAndUpdate(
     { contractorId: profile.userId },
     { status: STORE_STATUS.DRAFT, verified: false }

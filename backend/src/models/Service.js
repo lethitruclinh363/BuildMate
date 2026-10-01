@@ -26,8 +26,11 @@ const serviceSchema = new mongoose.Schema(
     },
     name: { type: String, required: true, trim: true, maxlength: 120 },
     category: { type: String, required: true, trim: true },
+    catalogKey: { type: String, default: '' },
+    catalogType: { type: String, enum: ['SYSTEM', 'CUSTOM', 'LEGACY'], default: 'LEGACY' },
+    completionStatus: { type: String, enum: ['INCOMPLETE', 'COMPLETED'], default: 'COMPLETED' },
     description: { type: String, trim: true, default: '', maxlength: 1000 },
-    basePrice: { type: Number, required: true, min: 0 },
+    basePrice: { type: Number, min: 0 },
     unit: {
       type: String,
       enum: ['JOB', 'HOUR', 'M2', 'DAY'],
@@ -47,6 +50,10 @@ const serviceSchema = new mongoose.Schema(
 
 serviceSchema.index({ storeId: 1, isActive: 1 });
 serviceSchema.index({ category: 1 });
+serviceSchema.index(
+  { storeId: 1, catalogKey: 1 },
+  { unique: true, partialFilterExpression: { catalogKey: { $gt: '' } } }
+);
 
 serviceSchema.methods.toPublic = function toPublic() {
   return {
@@ -56,15 +63,20 @@ serviceSchema.methods.toPublic = function toPublic() {
     name: this.name,
     category: this.category,
     description: this.description,
-    basePrice: this.basePrice,
+    catalogKey: this.catalogKey || '',
+    catalogType: this.catalogType || 'LEGACY',
+    completionStatus: this.completionStatus || 'COMPLETED',
+    basePrice: Number(this.basePrice) > 0 ? this.basePrice : null,
     unit: this.unit,
     estimatedHours: this.estimatedHours,
     image: this.image,
     images: this.images?.length ? this.images : this.image ? [this.image] : [],
     priceRange:
-      this.priceRange?.max > 0
-        ? this.priceRange
-        : { min: this.basePrice, max: this.basePrice },
+      Number(this.basePrice) > 0
+        ? this.priceRange?.max > 0
+          ? this.priceRange
+          : { min: this.basePrice, max: this.basePrice }
+        : null,
     isActive: this.isActive,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,

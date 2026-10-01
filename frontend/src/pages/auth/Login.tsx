@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { type FormEvent, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PasswordInput } from '@/components/common/PasswordInput';
-import { ROLE_HOME, type RoleHomeKey, useAuth } from '@/context/AuthContext';
+import { homeForUser, useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/lib/api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
@@ -30,13 +30,8 @@ export default function Login() {
       const session = await login(email, password);
       const next = params.get('next');
       const safeNext = Boolean(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\'));
-      const roleKey = session.user.role;
-      const dest =
-        safeNext && next
-          ? next
-          : roleKey in ROLE_HOME
-            ? ROLE_HOME[roleKey as RoleHomeKey]
-            : '/';
+      const home = homeForUser(session.user);
+      const dest = home === '/partner/onboarding' ? home : safeNext && next ? next : home;
       pushToast({ kind: 'success', title: t('auth.loginSuccess') });
       navigate(dest, { replace: true });
     } catch (err) {

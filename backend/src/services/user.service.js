@@ -1,4 +1,5 @@
 const { userRepository } = require('../repositories/user.repository');
+const { syncUserProfileStatus } = require('./profileStatus.service');
 const { ApiError } = require('../utils/ApiError');
 const { writeAudit, AUDIT_ACTION } = require('./audit.service');
 
@@ -7,6 +8,7 @@ async function getProfile(userId) {
   if (!user) {
     throw new ApiError(404, 'User not found');
   }
+  await syncUserProfileStatus(user);
   return user.toPublic();
 }
 

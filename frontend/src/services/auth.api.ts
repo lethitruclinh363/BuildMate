@@ -4,9 +4,11 @@ import type { ApiResponse, AuthPayload } from '@/types/user';
 export type RegisterBody = {
   name: string;
   email: string;
+  phoneNumber: string;
   password: string;
   role: string;
-  phone?: string;
+  acceptedPolicy: true;
+  policyLanguage: 'vi' | 'en';
 };
 
 /** Service API cho Sprint 1 Auth. Page → service → Axios → backend. */

@@ -7,6 +7,7 @@ import {
   MapPin,
   Scale,
   Star,
+  Store,
   UserRound,
   Wallet,
   Wrench,
@@ -31,13 +32,14 @@ export function customerNav(t: Translate): DashboardNavItem[] {
 export function contractorNav(t: Translate): DashboardNavItem[] {
   return [
     { to: '/contractor/dashboard', label: t('nav.contractor.overview'), icon: LayoutDashboard, end: true },
+    { to: '/contractor/profile/edit', label: t('nav.contractor.publicProfile'), icon: Store },
     { to: '/contractor/verification', label: t('nav.contractor.profile'), icon: ClipboardCheck },
     { to: '/contractor/services', label: t('nav.contractor.services'), icon: Wrench },
     { to: '/contractor/requests', label: t('nav.contractor.requests'), icon: Inbox },
     { to: '/contractor/orders', label: t('nav.contractor.orders'), icon: ClipboardList },
     { to: '/contractor/earnings', label: t('nav.contractor.revenue'), icon: Wallet },
-    { to: '/contractor/reviews', label: t('nav.contractor.reviews'), icon: Star },
+    { to: '/contractor/reputation', label: t('nav.contractor.reviews'), icon: Star },
     { to: '/contractor/notifications', label: t('nav.contractor.alerts'), icon: Bell },
-    { to: '/contractor/profile', label: t('nav.contractor.account'), icon: UserRound },
+    { to: '/contractor/account', label: t('nav.contractor.account'), icon: UserRound },
   ];
 }

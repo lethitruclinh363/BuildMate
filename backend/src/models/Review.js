@@ -33,6 +33,10 @@ const reviewSchema = new mongoose.Schema(
     rating: { type: Number, required: true, min: 1, max: 5 },
     comment: { type: String, trim: true, default: '', maxlength: 1000 },
     images: { type: [String], default: [] },
+    contractorReply: { type: String, trim: true, default: '', maxlength: 500 },
+    repliedAt: { type: Date, default: null },
+    reportedAt: { type: Date, default: null },
+    reportReason: { type: String, trim: true, default: '', maxlength: 500 },
   },
   { timestamps: true, collection: 'reviews' }
 );
@@ -50,6 +54,9 @@ reviewSchema.methods.toPublic = function toPublic() {
     rating: this.rating,
     comment: this.comment,
     images: this.images,
+    contractorReply: this.contractorReply || '',
+    repliedAt: this.repliedAt,
+    reported: Boolean(this.reportedAt),
     createdAt: this.createdAt,
   };
 };

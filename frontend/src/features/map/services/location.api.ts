@@ -1,7 +1,7 @@
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@/types/user';
-import type { NearbyPlace, PublicMaterial, PublicService } from '@/types/marketplace';
-import type { CatalogService, CatalogMaterial, Storefront, ContractorProfile } from '@/types/partner';
+import type { NearbyPlace, PublicContractorProfile, PublicHighlights, PublicMaterial, PublicService } from '@/types/marketplace';
+import type { CatalogService, CatalogMaterial, Storefront } from '@/types/partner';
 
 export const locationApi = {
   nearbyStores: (lat: number, lng: number, radius: number, extra?: Record<string, string | number | undefined>) =>
@@ -11,21 +11,15 @@ export const locationApi = {
       params: { lat, lng, radius, ...extra },
     }),
   store: (id: string) =>
-    api.get<ApiResponse<{ store: Storefront; services: CatalogService[]; materials: CatalogMaterial[]; profile: ContractorProfile | null }>>(
+    api.get<ApiResponse<{ store: Storefront; publicProfile: PublicContractorProfile | null; services: CatalogService[]; materials: CatalogMaterial[] }>>(
       `/stores/${id}`
     ),
   contractor: (id: string) =>
     api.get<
       ApiResponse<{
-        contractor: ContractorProfile & {
-          id: string;
-          name: string;
-          avatar: string;
-          phone: string;
-          certificates: { url: string; originalName: string; type: string }[];
-          portfolio: { url: string; originalName: string; type: string }[];
-          license: { url: string; originalName: string; type: string }[];
-        };
+        publicProfile: PublicContractorProfile | null;
+        highlights?: PublicHighlights;
+        contractor: { id: string; userId: string; businessName: string; name: string } | null;
         store: Storefront | null;
         services: CatalogService[];
       }>

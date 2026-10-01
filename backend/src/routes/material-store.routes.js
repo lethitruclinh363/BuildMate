@@ -4,7 +4,7 @@ const { Store, STORE_TYPE } = require('../models/Store');
 const { authenticate } = require('../middleware/auth.middleware');
 const { authorize } = require('../middleware/role.middleware');
 const { validate } = require('../utils/validator');
-const { storeSchema, materialSchema, profileSchema, documentTypeSchema } = require('../validators/partner.validator');
+const { storeSchema, materialSchema, profileSchema, documentTypeSchema, submitSchema } = require('../validators/partner.validator');
 const { verificationUpload } = require('../middleware/upload.middleware');
 const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
 const { ApiError } = require('../utils/ApiError');
@@ -53,7 +53,7 @@ router.post(
   contractorController.uploadDocument
 );
 router.delete('/verification/documents/:documentId', ...owner, contractorController.removeDocument);
-router.post('/verification/submit', ...owner, contractorController.submitVerification);
+router.post('/verification/submit', ...owner, validate(submitSchema), contractorController.submitVerification);
 
 router.get('/store', ...owner, storeController.getStore);
 router.post('/store', ...owner, validate(storeSchema), storeController.createStore);

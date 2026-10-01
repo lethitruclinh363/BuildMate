@@ -1,6 +1,8 @@
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const adminService = require('../services/admin.service');
+const catalogService = require('../services/catalog.service');
+const { CATALOG_STATUS } = require('../models/CatalogService');
 
 const stats = asyncHandler(async (_req, res) => {
   const data = await adminService.adminStats();
@@ -55,6 +57,36 @@ const getCommissionRule = asyncHandler(async (_req, res) => {
   return success(res, data, 'Commission rule retrieved');
 });
 
+const reviewCatalogService = asyncHandler(async (req, res) => {
+  const status = req.body.decision === 'reject' ? CATALOG_STATUS.REJECTED : CATALOG_STATUS.ACTIVE;
+  const data = await catalogService.reviewCatalogService(req.params.id, status, req.user.id);
+  return success(res, data, status === CATALOG_STATUS.ACTIVE ? 'Custom service approved' : 'Custom service rejected');
+});
+
+const listCatalog = asyncHandler(async (req, res) => {
+  const data = await catalogService.listForAdmin({
+    q: req.query.q,
+    category: req.query.category,
+    status: req.query.status,
+  });
+  return success(res, data, 'Service catalog retrieved');
+});
+
+const createCatalog = asyncHandler(async (req, res) => {
+  const data = await catalogService.createCatalogService({ ...req.body, adminId: req.user.id });
+  return success(res, data, 'Service added', 201);
+});
+
+const updateCatalog = asyncHandler(async (req, res) => {
+  const data = await catalogService.updateCatalogService(req.params.id, req.body);
+  return success(res, data, 'Service updated');
+});
+
+const setCatalogStatus = asyncHandler(async (req, res) => {
+  const data = await catalogService.setCatalogStatus(req.params.id, req.body.status);
+  return success(res, data, 'Service status updated');
+});
+
 const setCommissionRule = asyncHandler(async (req, res) => {
   const data = await adminService.setCommissionRule(req.body, req.user.id);
   return success(res, data, 'Commission rule updated');
@@ -72,4 +104,9 @@ module.exports = {
   analytics,
   getCommissionRule,
   setCommissionRule,
+  reviewCatalogService,
+  listCatalog,
+  createCatalog,
+  updateCatalog,
+  setCatalogStatus,
 };

@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
 import type { Locale } from '@/locales/storage';
@@ -18,6 +20,7 @@ export function LanguageSwitcher({
   className?: string;
 }) {
   const { locale, setLocale, t } = useI18n();
+  const { currentUser } = useAuth();
   const dark = variant === 'dark';
   const pillId = `lang-pill-${variant}-${placement}`;
 
@@ -40,7 +43,11 @@ export function LanguageSwitcher({
             key={opt.id}
             type="button"
             aria-pressed={active}
-            onClick={() => setLocale(opt.id)}
+            onClick={() => {
+              void setLocale(opt.id);
+              if (!currentUser || currentUser.preferredLanguage === opt.id) return;
+              void api.patch('/user/profile', { preferredLanguage: opt.id }).catch(() => undefined);
+            }}
             className={cn(
               'relative z-10 flex min-w-[4.25rem] items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold tracking-wider transition',
               active

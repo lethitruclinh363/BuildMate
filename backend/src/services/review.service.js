@@ -1,5 +1,6 @@
 const { Order, ORDER_STATUS } = require('../models/Order');
 const { Review, REVIEW_TARGET } = require('../models/Review');
+const { User } = require('../models/User');
 const { Store, STORE_TYPE } = require('../models/Store');
 const { ApiError } = require('../utils/ApiError');
 const { notify, NOTIFICATION_TYPE } = require('./notification.service');
@@ -107,15 +108,85 @@ async function createReview(customerId, payload) {
   return review.toPublic();
 }
 
+function distributionOf(rows) {
+  const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const row of rows) {
+    const star = Number(row.rating);
+    if (distribution[star] != null) distribution[star] += 1;
+  }
+  return distribution;
+}
+
 async function listForUser(targetUserId, targetType) {
   const query = { targetUserId };
   if (targetType && Object.values(REVIEW_TARGET).includes(targetType)) {
     query.targetType = targetType;
   }
   const rows = await Review.find(query).sort({ createdAt: -1 });
+  const [people, orders] = await Promise.all([
+    User.find({ _id: { $in: rows.map((row) => row.customerId) } }).select('name avatar'),
+    Order.find({ _id: { $in: rows.map((row) => row.orderId) } }).select('title'),
+  ]);
+  const byId = new Map(people.map((person) => [String(person._id), person]));
+  const titles = new Map(orders.map((order) => [String(order._id), order.title || '']));
   const count = rows.length;
   const average = count ? Math.round((rows.reduce((sum, row) => sum + row.rating, 0) / count) * 10) / 10 : 0;
-  return { average, count, items: rows.map((row) => row.toPublic()) };
+  return {
+    average,
+    count,
+    distribution: distributionOf(rows),
+    items: rows.map((row) => {
+      const customer = byId.get(String(row.customerId));
+      return {
+        ...row.toPublic(),
+        customerName: customer?.name || '',
+        customerAvatar: customer?.avatar || '',
+        jobTitle: titles.get(String(row.orderId)) || '',
+      };
+    }),
+  };
 }
 
-module.exports = { createReview, listForUser, recomputeTargetRating };
+async function ownContractorReview(contractorId, reviewId) {
+  const review = await Review.findById(reviewId);
+  if (!review || String(review.targetUserId) !== String(contractorId) || review.targetType !== REVIEW_TARGET.CONTRACTOR) {
+    throw new ApiError(404, 'Review not found');
+  }
+  return review;
+}
+
+async function replyToReview(contractorId, reviewId, reply) {
+  const review = await ownContractorReview(contractorId, reviewId);
+  review.contractorReply = String(reply || '').trim();
+  review.repliedAt = new Date();
+  await review.save();
+  return review.toPublic();
+}
+
+async function reportReview(contractorId, reviewId, reason) {
+  const review = await ownContractorReview(contractorId, reviewId);
+  if (review.reportedAt) throw new ApiError(409, 'This review was already reported');
+  review.reportedAt = new Date();
+  review.reportReason = String(reason || '').trim();
+  await review.save();
+  const admins = await User.find({ role: 'ADMIN' }).select('_id');
+  await Promise.all(admins.map((admin) => notify({
+    userId: admin._id,
+    title: 'Review reported',
+    message: review.reportReason.slice(0, 400),
+    type: NOTIFICATION_TYPE.STATUS_UPDATE,
+    link: '/partners/contractors',
+    meta: { reviewId: String(review._id), contractorId: String(contractorId), kind: 'review-report' },
+  })));
+  await writeAudit({
+    actorId: contractorId,
+    actorRole: 'CONTRACTOR',
+    action: AUDIT_ACTION.REVIEW_REPORTED,
+    entityType: 'Review',
+    entityId: review._id,
+    meta: { reason: review.reportReason },
+  });
+  return { reported: true };
+}
+
+module.exports = { createReview, listForUser, recomputeTargetRating, replyToReview, reportReview };
