@@ -1,5 +1,5 @@
 export type VerificationStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
-export type DocumentType = 'BUSINESS_LICENSE' | 'CERTIFICATE' | 'ID_CARD' | 'STORE_IMAGE' | 'PORTFOLIO';
+export type DocumentType = 'BUSINESS_LICENSE' | 'CERTIFICATE' | 'CCCD_FRONT' | 'CCCD_BACK' | 'ID_CARD' | 'STORE_IMAGE' | 'PORTFOLIO';
 export type ComplaintStatus = 'OPEN' | 'PROCESSING' | 'RESOLVED' | 'REJECTED';
 export type OrderStatus =
   | 'REQUEST_CREATED'
@@ -43,6 +43,21 @@ export interface PartnerApplication {
   description: string;
   yearsExperience: number;
   serviceAreas: string[];
+  services?: {
+    category: string;
+    name: string;
+    type?: 'SYSTEM' | 'CUSTOM';
+    serviceId?: string | null;
+    status?: 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED';
+    completionStatus?: 'INCOMPLETE' | 'COMPLETED' | null;
+  }[];
+  portfolio?: {
+    avatar: string;
+    teamLogo: string;
+    workshop: string;
+    construction: string[];
+    certificates: string[];
+  };
   verificationStatus: VerificationStatus;
   documents: VerificationDocument[];
   rejectionReason: string;

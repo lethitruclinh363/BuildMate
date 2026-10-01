@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { quotationApi, repairApi } from '@/features/chat/services/sprint4.api';
 import { getApiErrorMessage } from '@/lib/api';
+import { catalogServiceLabel } from '@/data/contractor-services';
 import { contractorApi } from '@/lib/partner-api';
 import { vnd } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
@@ -157,16 +158,19 @@ export function CreateQuotationPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.16em] text-copper-600">{t('quote.fromYard')}</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {services.slice(0, 6).map((s) => (
+              {services
+                .filter((service) => service.completionStatus !== 'INCOMPLETE' && service.completionStatus !== 'PENDING_APPROVAL' && Number(service.basePrice) > 0)
+                .slice(0, 6)
+                .map((s) => (
                 <button
                   key={s.id}
                   type="button"
                   className="rounded-full bg-navy-800/8 px-3 py-1.5 text-xs font-semibold text-navy-800"
                   onClick={() =>
-                    addItem({ type: 'LABOR', name: s.name, quantity: 1, unit: 'job', price: s.basePrice })
+                    addItem({ type: 'LABOR', name: catalogServiceLabel(s.name, t), quantity: 1, unit: 'job', price: s.basePrice || 0 })
                   }
                 >
-                  + {s.name}
+                  + {catalogServiceLabel(s.name, t)}
                 </button>
               ))}
             </div>

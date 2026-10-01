@@ -17,6 +17,30 @@ import type {
 } from '@/types/admin';
 import type { ApiResponse, User } from '@/types/api';
 
+export interface AdminCatalogService {
+  id: string;
+  name: string;
+  category: string;
+  description?: string;
+  type?: string;
+  status: string;
+  proposerName?: string;
+}
+
+export interface AdminCatalogPayload {
+  stats: { total: number; active: number; inactive: number; proposals: number };
+  items: AdminCatalogService[];
+  proposals: AdminCatalogService[];
+}
+
+export interface AdminCatalogWrite {
+  name: string;
+  category: string;
+  description?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+  acknowledgeSimilar?: boolean;
+}
+
 function unwrap<T>(payload: ApiResponse<T>) {
   return payload.data;
 }
@@ -60,6 +84,21 @@ export const adminApi = {
     bustCache(
       unwrap((await api.post<ApiResponse<PartnerApplication>>(`/admin/verifications/${id}/reject`, { reason })).data)
     ),
+
+  reviewCatalogService: async (id: string, decision: 'approve' | 'reject') =>
+    bustCache(unwrap((await api.post<ApiResponse<{ id: string; status: string }>>(`/admin/service-catalog/${id}/review`, { decision })).data)),
+
+  listCatalog: async (params?: { q?: string; category?: string; status?: string }) =>
+    unwrap((await api.get<ApiResponse<AdminCatalogPayload>>('/admin/service-catalog', { params })).data),
+
+  createCatalog: async (body: AdminCatalogWrite) =>
+    bustCache(unwrap((await api.post<ApiResponse<AdminCatalogService>>('/admin/service-catalog', body)).data)),
+
+  updateCatalog: async (id: string, body: AdminCatalogWrite) =>
+    bustCache(unwrap((await api.patch<ApiResponse<AdminCatalogService>>(`/admin/service-catalog/${id}`, body)).data)),
+
+  setCatalogStatus: async (id: string, status: 'ACTIVE' | 'INACTIVE') =>
+    bustCache(unwrap((await api.patch<ApiResponse<AdminCatalogService>>(`/admin/service-catalog/${id}/status`, { status })).data)),
 
   auditLogs: (params?: { action?: string; limit?: number }) =>
     cached(`admin-audit:${JSON.stringify(params || {})}`, 60_000, async () =>

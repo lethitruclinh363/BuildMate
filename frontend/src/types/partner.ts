@@ -2,6 +2,8 @@ export type VerificationStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
 export type DocumentType =
   | 'BUSINESS_LICENSE'
   | 'CERTIFICATE'
+  | 'CCCD_FRONT'
+  | 'CCCD_BACK'
   | 'ID_CARD'
   | 'STORE_IMAGE'
   | 'PORTFOLIO';
@@ -20,12 +22,31 @@ export interface ContractorProfile {
   id: string;
   userId: string;
   businessName: string;
+  representativeName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  workerCount?: number;
   taxCode: string;
   address: string;
   city: string;
   description: string;
   yearsExperience: number;
   serviceAreas: string[];
+  services?: {
+    category: string;
+    name: string;
+    type?: 'SYSTEM' | 'CUSTOM';
+    serviceId?: string | null;
+    status?: 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED';
+  }[];
+  portfolio?: {
+    avatar: string;
+    teamLogo: string;
+    workshop: string;
+    construction: string[];
+    certificates: string[];
+  };
+  completedSteps?: boolean[];
   verificationStatus: VerificationStatus;
   documents: VerificationDocument[];
   rejectionReason: string;
@@ -62,9 +83,12 @@ export interface CatalogService {
   name: string;
   category: string;
   description: string;
-  basePrice: number;
+  catalogKey?: string;
+  catalogType?: 'SYSTEM' | 'CUSTOM' | 'LEGACY';
+  completionStatus?: 'INCOMPLETE' | 'COMPLETED' | 'PENDING_APPROVAL';
+  basePrice: number | null;
   unit: 'JOB' | 'HOUR' | 'M2' | 'DAY';
-  estimatedHours: number;
+  estimatedHours: number | null;
   image: string;
   isActive: boolean;
 }
@@ -101,6 +125,8 @@ export interface PartnerApplication extends ContractorProfile {
 }
 
 export const DOCUMENT_LABELS: Record<DocumentType, string> = {
+  CCCD_FRONT: 'Citizen ID front',
+  CCCD_BACK: 'Citizen ID back',
   BUSINESS_LICENSE: 'Business license',
   CERTIFICATE: 'Certificate',
   ID_CARD: 'Owner ID',

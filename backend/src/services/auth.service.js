@@ -6,6 +6,8 @@ const {
   sendResetPasswordEmail,
   isSmtpConfigured,
 } = require('../providers/email.provider');
+const { acceptanceForLanguage } = require('./policy.service');
+const { syncUserProfileStatus } = require('./profileStatus.service');
 const { ApiError } = require('../utils/ApiError');
 const { signToken } = require('../utils/jwt');
 const { env } = require('../config/env');
@@ -68,8 +70,9 @@ async function issueAndSendOtp(user) {
   }
 }
 
-async function register({ name, fullName, email, password, phone, role }) {
+async function register({ name, fullName, email, password, phoneNumber, role, acceptedPolicy, policyLanguage }) {
   const displayName = fullName || name;
+  const normalizedPhone = String(phoneNumber || '').trim();
 
   if (!PUBLIC_ROLES.includes(role)) {
     throw new ApiError(400, 'Invalid role for self-registration');
@@ -77,8 +80,19 @@ async function register({ name, fullName, email, password, phone, role }) {
 
   const existing = await userRepository.findByEmail(email);
   if (existing) {
-    throw new ApiError(409, 'An account with this email already exists');
+    throw new ApiError(409, 'Email already exists');
   }
+
+  const existingPhone = await userRepository.findByPhone(normalizedPhone);
+  if (existingPhone) {
+    throw new ApiError(409, 'Phone number already exists');
+  }
+
+  if (acceptedPolicy !== true) {
+    throw new ApiError(400, 'You must accept the terms and privacy policy');
+  }
+
+  const { acceptanceVersion } = await acceptanceForLanguage(policyLanguage || 'vi');
 
   // Password để plaintext — User model pre-save hash bcrypt (12).
   const user = await userRepository.create({
@@ -86,7 +100,12 @@ async function register({ name, fullName, email, password, phone, role }) {
     fullName: displayName,
     email,
     password,
-    phone: phone || '',
+    phone: normalizedPhone,
+    phoneNumber: normalizedPhone,
+    acceptedPolicy: true,
+    acceptedPolicyVersion: acceptanceVersion,
+    acceptedPolicyAt: new Date(),
+    profileStatus: role === ROLES.CUSTOMER ? 'APPROVED' : 'INCOMPLETE',
     role,
     status: USER_STATUS.PENDING_EMAIL,
     emailVerified: false,
@@ -207,6 +226,7 @@ async function login({ email, password }) {
     throw new ApiError(403, 'Account is missing a role');
   }
 
+  await syncUserProfileStatus(user);
   const token = signToken(user);
   return { token, user: user.toPublic() };
 }

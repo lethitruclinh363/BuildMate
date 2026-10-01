@@ -3,22 +3,61 @@ export interface GeoPoint {
   coordinates: [number, number];
 }
 
+export interface PublicContractorProfile {
+  id: string;
+  contractorId: string;
+  displayName: string;
+  slogan: string;
+  description: string;
+  phone: string;
+  address: string;
+  city: string;
+  avatar: string;
+  logo: string;
+  coverImage: string;
+  gallery: string[];
+  crewPhotos: string[];
+  publicCertificates: string[];
+  achievements: string;
+  openingHours: string;
+  serviceAreas: string[];
+  yearsExperience: number;
+  workerCount: number;
+  serviceRadiusKm?: number;
+  areaCenter?: { lat: number; lng: number } | null;
+  verified: boolean;
+  rating: number;
+  reviewCount: number;
+}
+
+export interface PublicHighlights {
+  completedProjects?: number;
+  customersServed?: number;
+  completionRate?: number;
+  responseRate?: number;
+  averageResponseMinutes?: number;
+}
+
 export interface NearbyPlace {
   id: string;
   contractorId: string;
   storeName: string;
   businessName: string;
   slogan: string;
+  description?: string;
   address: string;
   city: string;
   phone: string;
   storeType: 'SERVICES' | 'MATERIALS' | 'BOTH';
   category: string;
+  avatar?: string;
+  logo?: string;
   coverImage: string;
   openingHours: string;
   verified: boolean;
   rating: number;
   reviewCount: number;
+  completedProjects?: number;
   distance: number;
   location: GeoPoint;
   services: { id: string; name: string; category: string; basePrice: number }[];

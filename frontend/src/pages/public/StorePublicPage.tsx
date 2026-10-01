@@ -7,6 +7,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { locationApi } from '@/features/map/services/location.api';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
 import { mediaUrl, vnd } from '@/lib/partner-api';
@@ -118,10 +119,10 @@ export function StorePublicPage() {
             <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {services.map((s) => (
                 <Card key={s.id}>
-                  <Badge tone="copper">{s.category}</Badge>
-                  <h3 className="mt-3 font-display text-lg text-navy-800">{s.name}</h3>
+                  <Badge tone="copper">{catalogCategoryLabel(s.category, t)}</Badge>
+                  <h3 className="mt-3 font-display text-lg text-navy-800">{catalogServiceLabel(s.name, t)}</h3>
                   <p className="mt-2 text-sm text-ink-600">{s.description}</p>
-                  <p className="mt-3 font-display text-xl text-navy-800">{vnd(s.basePrice)}</p>
+                  <p className="mt-3 font-display text-xl text-navy-800">{s.basePrice ? vnd(s.basePrice) : null}</p>
                 </Card>
               ))}
             </div>

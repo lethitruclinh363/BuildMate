@@ -50,7 +50,7 @@ export function ContractorDashboardPage() {
     { to: '/contractor/requests', label: t('contractorHome.modRequests'), hint: t('contractorHome.modRequestsHint'), icon: Inbox },
     { to: '/contractor/orders', label: t('nav.contractor.orders'), hint: t('contractorHome.nextOrder'), icon: ClipboardList },
     { to: '/contractor/earnings', label: t('nav.contractor.revenue'), hint: t('contractorHome.modEarningsHint'), icon: Wallet },
-    { to: '/contractor/reviews', label: t('nav.contractor.reviews'), hint: t('contractorHome.modReviewsHint'), icon: Star },
+    { to: '/contractor/reputation', label: t('nav.contractor.reviews'), hint: t('contractorHome.modReviewsHint'), icon: Star },
     { to: '/contractor/verification', label: t('contractorHome.modVerify'), hint: t('contractorHome.modVerifyHint'), icon: ClipboardCheck },
     { to: '/contractor/services', label: t('contractorHome.modServices'), hint: t('contractorHome.modServicesHint'), icon: Wrench },
   ];

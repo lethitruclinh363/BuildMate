@@ -10,13 +10,16 @@ import { Input } from '@/components/ui/Input';
 import { locationApi } from '@/features/map/services/location.api';
 import { AxiosError } from 'axios';
 import { repairApi } from '@/features/chat/services/sprint4.api';
+import { catalogCategoryLabel } from '@/data/contractor-services';
+import { api } from '@/lib/api';
 import { useI18n } from '@/locales';
 import { CAN_THO } from '@/types/marketplace';
-import { REPAIR_CATEGORIES } from '@/types/sprint4';
-import { cn } from '@/lib/cn';
+import type { ApiResponse } from '@/types/user';
+
+type CatalogChoice = { name: string; category: string; catalogKey?: string; serviceId?: string };
 
 type FormValues = {
-  category: 'PLUMBING' | 'ELECTRIC' | 'PAINTING' | 'WATERPROOF' | 'TILE';
+  catalogServiceId: string;
   title: string;
   description: string;
   address?: string;
@@ -33,11 +36,13 @@ export function CreateRepairRequestPage() {
   const [videos, setVideos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [serverError, setServerError] = useState('');
+  const [catalog, setCatalog] = useState<CatalogChoice[]>([]);
+  const [group, setGroup] = useState('');
 
   const schema = useMemo(
     () =>
       z.object({
-        category: z.enum(['PLUMBING', 'ELECTRIC', 'PAINTING', 'WATERPROOF', 'TILE']),
+        catalogServiceId: z.string().min(2, t('request.pickService')),
         title: z.string().min(4, t('request.titleMin')),
         description: z.string().min(8, t('request.descMin')),
         address: z.string().optional(),
@@ -53,16 +58,25 @@ export function CreateRepairRequestPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { category: 'WATERPROOF', title: '', description: '', address: '' },
+    defaultValues: { catalogServiceId: '', title: '', description: '', address: '' },
   });
 
-  const category = watch('category');
+  const catalogServiceId = watch('catalogServiceId');
+  const groups = useMemo(() => [...new Set(catalog.map((item) => item.category))], [catalog]);
+  const choices = catalog.filter((item) => !group || item.category === group);
+
+  useEffect(() => {
+    api
+      .get<ApiResponse<CatalogChoice[]>>('/service-catalog', { silent: true })
+      .then((res) => setCatalog(res.data.data || []))
+      .catch(() => setCatalog([]));
+  }, []);
 
   useEffect(() => {
     if (!contractorId) return;
     locationApi
       .contractor(contractorId)
-      .then((res) => setCrewName(res.data.data.contractor.businessName || res.data.data.contractor.name))
+      .then((res) => setCrewName(res.data.data.publicProfile?.displayName || res.data.data.contractor?.businessName || ''))
       .catch(() => undefined);
   }, [contractorId]);
 
@@ -81,7 +95,10 @@ export function CreateRepairRequestPage() {
     const form = new FormData();
     form.append('contractorId', contractorId);
     if (storeId) form.append('storeId', storeId);
-    form.append('category', values.category);
+    const picked = catalog.find((item) => (item.catalogKey || item.serviceId) === values.catalogServiceId);
+    form.append('category', picked?.category || 'Repair');
+    form.append('catalogServiceId', values.catalogServiceId);
+    form.append('serviceName', picked?.name || '');
     form.append('title', values.title);
     form.append('description', values.description);
     form.append('address', values.address || '');
@@ -106,20 +123,44 @@ export function CreateRepairRequestPage() {
         description={t('request.sendTo', { name: crewName })}
       />
       <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-2xl space-y-5 rounded-[22px] border border-navy-800/8 bg-white p-6 shadow-card">
-        <div className="flex flex-wrap gap-2">
-          {REPAIR_CATEGORIES.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setValue('category', item.value)}
-              className={cn(
-                'rounded-full px-4 py-2 text-sm font-semibold',
-                category === item.value ? 'bg-copper-400 text-navy-900' : 'bg-paper-100 text-ink-600'
-              )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1.5">
+            <span className="text-sm font-semibold text-ink-800">{t('request.pickGroup')}</span>
+            <select
+              value={group}
+              onChange={(event) => {
+                setGroup(event.target.value);
+                setValue('catalogServiceId', '');
+              }}
+              className="w-full rounded-2xl border border-navy-800/10 px-4 py-3 text-sm outline-none"
             >
-              {t(`category.${item.value}`)}
-            </button>
-          ))}
+              <option value="">{t('request.allGroups')}</option>
+              {groups.map((item) => (
+                <option key={item} value={item}>
+                  {catalogCategoryLabel(item, t)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-sm font-semibold text-ink-800">{t('request.pickService')}</span>
+            <select
+              value={catalogServiceId}
+              onChange={(event) => setValue('catalogServiceId', event.target.value, { shouldValidate: true })}
+              className="w-full rounded-2xl border border-navy-800/10 px-4 py-3 text-sm outline-none"
+            >
+              <option value="">{t('request.pickServicePlaceholder')}</option>
+              {choices.map((item) => {
+                const key = item.catalogKey || item.serviceId || item.name;
+                return (
+                  <option key={key} value={key}>
+                    {item.name}
+                  </option>
+                );
+              })}
+            </select>
+            {errors.catalogServiceId ? <p className="text-xs text-red-600">{errors.catalogServiceId.message}</p> : null}
+          </label>
         </div>
         <Input id="title" label={t('request.fieldTitle')} placeholder={t('request.titlePh')} error={errors.title?.message} {...register('title')} />
         <label className="block space-y-1.5">

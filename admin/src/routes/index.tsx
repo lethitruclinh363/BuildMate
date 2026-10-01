@@ -17,8 +17,13 @@ import { ComplaintDetailPage } from '@/complaints/ComplaintDetailPage';
 import { AnalyticsPage } from '@/analytics/AnalyticsPage';
 import { AuditPage } from '@/audit/AuditPage';
 import { SettingsPage } from '@/settings/SettingsPage';
+import { PolicyListPage } from '@/policies/PolicyListPage';
+import { PolicyFormPage } from '@/policies/PolicyFormPage';
+import { PolicyDetailPage } from '@/policies/PolicyDetailPage';
+import { PolicyHistoryPage } from '@/policies/PolicyHistoryPage';
 import { ForbiddenPage } from '@/components/ForbiddenPage';
 import { NotFoundPage } from '@/components/NotFoundPage';
+import { ServiceCatalogPage } from '@/pages/catalog/ServiceCatalogPage';
 
 export function AppRouter() {
   return (
@@ -36,9 +41,12 @@ export function AppRouter() {
             <Route path="/users/:id" element={<UserDetailPage />} />
             <Route path="/contractors" element={<ContractorsPage />} />
             <Route path="/material-stores" element={<MaterialStoresPage />} />
-            <Route path="/verification" element={<AdminVerificationPage />} />
-            <Route path="/verifications" element={<Navigate to="/verification" replace />} />
+            <Route path="/partners/contractors" element={<AdminVerificationPage actor="CONTRACTOR" />} />
+            <Route path="/partners/stores" element={<AdminVerificationPage actor="MATERIAL_STORE_OWNER" />} />
+            <Route path="/verification" element={<Navigate to="/partners/contractors" replace />} />
+            <Route path="/verifications" element={<Navigate to="/partners/contractors" replace />} />
             <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/services" element={<ServiceCatalogPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/commission" element={<CommissionPage />} />
@@ -48,6 +56,11 @@ export function AppRouter() {
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/audit" element={<AuditPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/policies" element={<PolicyListPage />} />
+            <Route path="/policies/new" element={<PolicyFormPage mode="create" />} />
+            <Route path="/policies/:id/edit" element={<PolicyFormPage mode="edit" />} />
+            <Route path="/policies/:id/history" element={<PolicyHistoryPage />} />
+            <Route path="/policies/:id" element={<PolicyDetailPage />} />
           </Route>
         </Route>
       </Route>

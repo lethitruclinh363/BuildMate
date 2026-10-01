@@ -29,9 +29,11 @@ export type RoleHomeKey = keyof typeof ROLE_HOME;
 type RegisterPayload = {
   name: string;
   email: string;
+  phoneNumber: string;
   password: string;
   role: string;
-  phone?: string;
+  acceptedPolicy: true;
+  policyLanguage: 'vi' | 'en';
 };
 
 type AuthContextValue = {
@@ -42,6 +44,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<AuthPayload>;
   logout: () => Promise<void>;
   register: (payload: RegisterPayload) => Promise<ApiResponse<{ emailSent?: boolean } | null>>;
+  refreshUser: () => Promise<User | null>;
   dashboardPath: () => string;
 };
 
@@ -52,6 +55,32 @@ function isAppRole(role?: string | null): role is RoleHomeKey {
 function dashboardPathFor(role?: string | null) {
   if (!isAppRole(role)) return '/login';
   return ROLE_HOME[role];
+}
+
+export function isPartnerRole(role?: string | null) {
+  return role === 'CONTRACTOR' || role === 'MATERIAL_STORE_OWNER' || role === 'STORE';
+}
+
+export function needsOnboarding(user: { role?: string | null; profileStatus?: string | null } | null) {
+  if (!user || !isPartnerRole(user.role)) return false;
+  return user.profileStatus !== 'APPROVED';
+}
+
+export function partnerGatePath(user: { role?: string | null; profileStatus?: string | null } | null) {
+  if (!needsOnboarding(user)) return null;
+  if (
+    user?.profileStatus === 'SUBMITTED' ||
+    user?.profileStatus === 'PENDING_APPROVAL' ||
+    user?.profileStatus === 'REJECTED'
+  ) {
+    return '/partner/onboarding/status';
+  }
+  return '/partner/onboarding';
+}
+
+export function homeForUser(user: { role?: string | null; profileStatus?: string | null } | null) {
+  if (!user?.role) return '/login';
+  return partnerGatePath(user) || dashboardPathFor(user.role);
 }
 
 function readStoredUser(): User | null {
@@ -130,6 +159,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const saved = localStorage.getItem(TOKEN_KEY);
+    if (!saved) return null;
+    const { data } = await api.get<ApiResponse<User>>('/user/profile', { silent: true });
+    applySession(saved, data.data);
+    return data.data;
+  }, [applySession]);
+
   const logout = useCallback(async () => {
     const saved = localStorage.getItem(TOKEN_KEY);
     try {
@@ -190,9 +227,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       register,
-      dashboardPath: () => dashboardPathFor(currentUser?.role),
+      refreshUser,
+      dashboardPath: () => homeForUser(currentUser),
     }),
-    [currentUser, token, ready, loading, login, logout, register]
+    [currentUser, token, ready, loading, login, logout, register, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

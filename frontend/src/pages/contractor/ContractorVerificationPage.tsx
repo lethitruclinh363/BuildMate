@@ -1,258 +1,249 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { AxiosError } from 'axios';
-import { FileText, Upload, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import { Link } from 'react-router-dom';
+import { Check, Clock3, FileText, Pencil } from 'lucide-react';
 import { VerificationBadge } from '@/components/contractor/VerificationBadge';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { TextArea } from '@/components/ui/TextArea';
+import { catalogPickLabel } from '@/data/contractor-services';
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
-import { contractorApi, mediaUrl } from '@/lib/partner-api';
+import { mediaUrl } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
-import type { ApiResponse } from '@/types/user';
-import { type DocumentType } from '@/types/partner';
+import type { ContractorProfile, DocumentType, VerificationDocument } from '@/types/partner';
 
-type FormValues = {
-  businessName: string;
-  taxCode?: string;
-  address: string;
-  city?: string;
-  yearsExperience: number;
-  serviceAreas?: string;
-  description?: string;
-};
+const DOC_GROUPS: { titleKey: string; types: DocumentType[] }[] = [
+  { titleKey: 'verify.representativeId', types: ['CCCD_FRONT', 'CCCD_BACK', 'ID_CARD'] },
+  { titleKey: 'docType.BUSINESS_LICENSE', types: ['BUSINESS_LICENSE'] },
+  { titleKey: 'docType.CERTIFICATE', types: ['CERTIFICATE'] },
+];
 
-const DOC_TYPES: DocumentType[] = ['BUSINESS_LICENSE', 'CERTIFICATE', 'ID_CARD', 'STORE_IMAGE', 'PORTFOLIO'];
+function when(value: string | null | undefined, locale: string) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'vi-VN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function fact(label: string, value: string | number | null | undefined, empty: string) {
+  const text = value === 0 || value ? String(value) : empty;
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-navy-800">{text}</p>
+    </div>
+  );
+}
 
 export function ContractorVerificationPage() {
-  const { t, te } = useI18n();
-  const schema = useMemo(
-    () =>
-      z.object({
-        businessName: z.string().min(2, t('verify.businessRequired')),
-        taxCode: z.string().optional(),
-        address: z.string().min(4, t('verify.addressRequired')),
-        city: z.string().optional(),
-        yearsExperience: z.coerce.number().min(0),
-        serviceAreas: z.string().optional(),
-        description: z.string().optional(),
-      }),
-    [t]
-  );
-  const steps = [t('verify.stepCompany'), t('verify.stepEvidence'), t('verify.stepSubmit')];
-  const { data, loading, refresh } = useContractorWorkspace();
-  const [docType, setDocType] = useState<DocumentType>('BUSINESS_LICENSE');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const { t, locale } = useI18n();
+  const { data, loading, error, refresh } = useContractorWorkspace();
 
-  const form = useForm<FormValues>({ resolver: zodResolver(schema) });
-  const locked = data?.profile.verificationStatus === 'SUBMITTED';
+  if (loading) return <DashboardSkeleton />;
+  if (error || !data) return <ErrorState body={error} onRetry={() => void refresh()} />;
 
-  useEffect(() => {
-    if (!data) return;
-    form.reset({
-      businessName: data.profile.businessName,
-      taxCode: data.profile.taxCode,
-      address: data.profile.address,
-      city: data.profile.city,
-      yearsExperience: data.profile.yearsExperience,
-      serviceAreas: data.profile.serviceAreas.join(', '),
-      description: data.profile.description,
-    });
-  }, [data, form]);
-
-  const fail = (err: unknown, fallback: string) => {
-    const ax = err as AxiosError<ApiResponse<null>>;
-    setError(te(ax.response?.data?.message) || fallback);
-  };
-
-  const save = form.handleSubmit(async (values) => {
-    setError('');
-    setMessage('');
-    setBusy(true);
-    try {
-      await contractorApi.saveProfile({
-        ...values,
-        serviceAreas: values.serviceAreas
-          ? values.serviceAreas.split(',').map((s) => s.trim()).filter(Boolean)
-          : [],
-      });
-      setMessage(t('verify.saved'));
-      await refresh();
-    } catch (err) {
-      fail(err, t('verify.saveFail'));
-    } finally {
-      setBusy(false);
-    }
-  });
-
-  const onUpload = async (file: File) => {
-    setError('');
-    setBusy(true);
-    try {
-      await contractorApi.uploadDocument(file, docType);
-      await refresh();
-    } catch (err) {
-      fail(err, t('verify.uploadFail'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submit = async () => {
-    setError('');
-    setBusy(true);
-    try {
-      await contractorApi.submit();
-      setMessage(t('verify.submitted'));
-      await refresh();
-    } catch (err) {
-      fail(err, t('verify.submitFail'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (loading || !data) return <DashboardSkeleton />;
   const profile = data.profile;
-  const stepIndex = profile.verificationStatus === 'APPROVED' ? 2 : profile.documents.length ? 1 : 0;
+  const status = profile.verificationStatus;
+  const empty = t('verify.emptyValue');
+  const photos = photoSlots(profile, t);
 
   return (
     <PageTransition>
       <PageHeader
-        eyebrow={t('verify.eyebrow')}
-        title={t('verify.title')}
-        description={t('verify.description')}
-        actions={<VerificationBadge status={profile.verificationStatus} />}
+        eyebrow={t('verify.recordEyebrow')}
+        title={t('verify.recordTitle')}
+        description={t('verify.recordDescription')}
+        actions={<VerificationBadge status={status} />}
       />
 
-      <ol className="mb-8 grid grid-cols-3 gap-2">
-        {steps.map((label, i) => (
-          <li
-            key={label}
-            className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
-              i <= stepIndex ? 'bg-navy-800 text-white' : 'bg-white text-ink-400'
-            }`}
-          >
-            0{i + 1} {label}
-          </li>
-        ))}
-      </ol>
-
-      {profile.verificationStatus === 'REJECTED' ? (
-        <Card hover={false} className="mb-6 border-red-200 bg-red-50">
-          <p className="text-sm font-semibold text-red-700">{t('forms.revision')}</p>
-          <p className="mt-1 text-sm text-red-700/80">{profile.rejectionReason}</p>
-        </Card>
-      ) : null}
-
-      {profile.verificationStatus === 'APPROVED' ? (
-        <Card hover={false} className="mb-6 border-emerald-200 bg-emerald-50">
-          <p className="font-display text-xl text-navy-800">{t('forms.livePartner')}</p>
-          <p className="mt-1 text-sm text-ink-600">{t('forms.liveHint')}</p>
-        </Card>
-      ) : null}
-
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <Card hover={false}>
-          <h2 className="font-display text-xl text-navy-800">{t('forms.companyFile')}</h2>
-          <form className="mt-5 grid gap-4" onSubmit={save}>
-            <Input id="businessName" label={t('verify.businessName')} disabled={locked} error={form.formState.errors.businessName?.message} {...form.register('businessName')} />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input id="taxCode" label={t('verify.taxCode')} disabled={locked} {...form.register('taxCode')} />
-              <Input id="yearsExperience" label={t('verify.years')} type="number" disabled={locked} {...form.register('yearsExperience')} />
-            </div>
-            <Input id="address" label={t('verify.address')} disabled={locked} error={form.formState.errors.address?.message} {...form.register('address')} />
-            <Input id="city" label={t('verify.city')} disabled={locked} {...form.register('city')} />
-            <Input id="serviceAreas" label={t('verify.areas')} hint={t('verify.areasHint')} disabled={locked} {...form.register('serviceAreas')} />
-            <TextArea id="description" label={t('verify.howWorks')} disabled={locked} {...form.register('description')} />
-            {!locked ? (
-              <Button type="submit" loading={busy}>{t('forms.saveProfile')}</Button>
-            ) : (
-              <p className="text-sm text-ink-400">{t('forms.lockedReview')}</p>
-            )}
-          </form>
-        </Card>
-
-        <div className="space-y-6">
-          <Card hover={false}>
-            <h2 className="font-display text-xl text-navy-800">{t('forms.evidence')}</h2>
-            <p className="mt-1 text-sm text-ink-400">{t('forms.evidenceHint')}</p>
-            {!locked ? (
-              <div className="mt-4 space-y-3">
-                <Select value={docType} onChange={(e) => setDocType(e.target.value as DocumentType)} label={t('verify.docType')}>
-                  {DOC_TYPES.map((value) => (
-                    <option key={value} value={value}>{t(`docType.${value}`)}</option>
-                  ))}
-                </Select>
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-navy-800/20 bg-paper-50 px-4 py-8 text-center hover:border-copper-400">
-                  <Upload className="h-5 w-5 text-navy-800" />
-                  <span className="mt-2 text-sm font-semibold">{t('forms.dropScan')}</span>
-                  <span className="text-xs text-ink-400">{t('verify.dropScanHint')}</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.jpg,.jpeg,.png,.webp"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void onUpload(file);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-              </div>
+      <Card hover={false} className={bannerClass(status)}>
+        <div className="flex items-start gap-4">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/80 text-navy-800">
+            {status === 'APPROVED' ? <Check className="h-6 w-6" /> : status === 'REJECTED' ? <Pencil className="h-5 w-5" /> : <Clock3 className="h-5 w-5" />}
+          </span>
+          <div>
+            <h2 className="font-display text-2xl text-navy-800">{bannerTitle(status, t)}</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-600">{bannerBody(status, t)}</p>
+            {status === 'REJECTED' && profile.rejectionReason ? (
+              <p className="mt-3 rounded-2xl bg-white/80 px-3 py-2 text-sm text-red-700">{profile.rejectionReason}</p>
             ) : null}
+            {status === 'DRAFT' || status === 'REJECTED' ? (
+              <Link to="/partner/onboarding" className="mt-4 inline-flex rounded-full bg-navy-800 px-4 py-2 text-sm font-semibold text-white">
+                {status === 'DRAFT' ? t('verify.continueOnboarding') : t('verify.editProfile')}
+              </Link>
+            ) : null}
+            {status === 'APPROVED' ? (
+              <Link to="/contractor/profile/edit" className="mt-4 inline-flex text-sm font-semibold text-navy-800 underline">
+                {t('verify.openPublicProfile')}
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </Card>
 
-            <ul className="mt-4 space-y-2">
-              {profile.documents.map((doc) => (
-                <li key={doc._id} className="flex items-center gap-3 rounded-2xl bg-paper-100 p-2">
-                  {doc.mimeType.startsWith('image/') ? (
-                    <img src={mediaUrl(doc.url)} alt="" className="h-12 w-12 rounded-xl object-cover" />
-                  ) : (
-                    <span className="grid h-12 w-12 place-items-center rounded-xl bg-navy-800 text-paper-50">
-                      <FileText className="h-4 w-4" />
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-navy-800">{t(`docType.${doc.type}`)}</p>
-                    <p className="truncate text-xs text-ink-400">{doc.originalName}</p>
-                  </div>
-                  {!locked ? (
-                    <button
-                      type="button"
-                      className="rounded-full p-1 hover:bg-white"
-                      onClick={() => void contractorApi.removeDocument(doc._id).then(refresh)}
-                      aria-label={t('common.remove')}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  ) : null}
+      <Card hover={false} className="mt-6 grid gap-4 sm:grid-cols-3">
+        {fact(t('verify.statusLabel'), t(status === 'SUBMITTED' ? 'verify.review' : status === 'APPROVED' ? 'verify.approved' : status === 'REJECTED' ? 'verify.revision' : 'verify.draft'), empty)}
+        {fact(t('verify.submittedOn'), when(profile.submittedAt, locale), empty)}
+        {fact(t('verify.reviewedOn'), when(profile.reviewedAt, locale), empty)}
+      </Card>
+
+      <div className="mt-6 grid gap-6">
+        <Card hover={false}>
+          <h2 className="font-display text-xl text-navy-800">{t('verify.teamSection')}</h2>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {fact(t('verify.businessName'), profile.businessName, empty)}
+            {fact(t('verify.representative'), profile.representativeName, empty)}
+            {fact(t('verify.phone'), profile.contactPhone, empty)}
+            {fact(t('verify.email'), profile.contactEmail, empty)}
+            {fact(t('verify.years'), profile.yearsExperience, empty)}
+            {fact(t('verify.workers'), profile.workerCount, empty)}
+            {fact(t('verify.address'), profile.address, empty)}
+            {fact(t('verify.city'), profile.city, empty)}
+          </div>
+          <div className="mt-4">
+            {fact(t('verify.descriptionField'), profile.description, empty)}
+          </div>
+        </Card>
+
+        <Card hover={false}>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl text-navy-800">{t('verify.servicesSection')}</h2>
+              <p className="mt-1 text-sm text-ink-400">{t('verify.servicesHint')}</p>
+            </div>
+            {status === 'APPROVED' ? (
+              <Link to="/contractor/services" className="text-sm font-semibold text-navy-800 underline">
+                {t('verify.manageServices')}
+              </Link>
+            ) : null}
+          </div>
+          {profile.services?.length ? (
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {profile.services.map((item) => (
+                <li key={`${item.type}-${item.serviceId || item.name}`} className="rounded-full bg-paper-100 px-3 py-1.5 text-sm font-semibold text-navy-800">
+                  {item.type === 'CUSTOM' ? item.name : catalogPickLabel(item, t)}
+                  {item.type === 'CUSTOM' ? <span className="ml-2 text-[11px] text-copper-500">CUSTOM</span> : null}
                 </li>
               ))}
             </ul>
-          </Card>
+          ) : (
+            <p className="mt-4 text-sm text-ink-400">{t('verify.noServices')}</p>
+          )}
+        </Card>
 
-          <Card hover={false}>
-            <h2 className="font-display text-xl text-navy-800">{t('verify.sendReview')}</h2>
-            <p className="mt-2 text-sm text-ink-600">{t('verify.sendHint')}</p>
-            {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-            {message ? <p className="mt-3 text-sm text-emerald-700">{message}</p> : null}
-            {profile.verificationStatus !== 'APPROVED' && profile.verificationStatus !== 'SUBMITTED' ? (
-              <Button className="mt-4 w-full" variant="copper" loading={busy} onClick={() => void submit()}>
-                {t('verify.submitApp')}
-              </Button>
-            ) : null}
-          </Card>
-        </div>
+        <Card hover={false}>
+          <h2 className="font-display text-xl text-navy-800">{t('verify.photosSection')}</h2>
+          {photos.length ? (
+            <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+              {photos.map((photo) => (
+                <li key={photo.key}>
+                  <img src={mediaUrl(photo.src)} alt={photo.label} className="h-36 w-full rounded-2xl object-cover" />
+                  <p className="mt-2 text-xs font-semibold text-ink-400">{photo.label}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-ink-400">{t('verify.noPhotos')}</p>
+          )}
+        </Card>
+
+        <Card hover={false}>
+          <h2 className="font-display text-xl text-navy-800">{t('verify.docsSection')}</h2>
+          <DocumentGroups documents={profile.documents} />
+        </Card>
+
+        <Card hover={false}>
+          <h2 className="font-display text-xl text-navy-800">{t('verify.historySection')}</h2>
+          <ol className="mt-4 space-y-3 text-sm text-ink-600">
+            <li>{t('verify.submittedOn')}: {when(profile.submittedAt, locale) || empty}</li>
+            <li>{t('verify.reviewedOn')}: {when(profile.reviewedAt, locale) || empty}</li>
+            <li>{t('verify.updatedOn')}: {when(profile.updatedAt, locale) || empty}</li>
+          </ol>
+        </Card>
       </div>
     </PageTransition>
   );
+}
+
+function bannerTitle(status: ContractorProfile['verificationStatus'], t: (key: string) => string) {
+  if (status === 'APPROVED') return t('verify.approvedTitle');
+  if (status === 'REJECTED') return t('verify.rejectedTitle');
+  if (status === 'DRAFT') return t('verify.draftTitle');
+  return t('verify.pendingTitle');
+}
+
+function bannerBody(status: ContractorProfile['verificationStatus'], t: (key: string) => string) {
+  if (status === 'APPROVED') return `${t('verify.approvedBody')} ${t('verify.approvedNext')}`;
+  if (status === 'REJECTED') return t('verify.rejectedBody');
+  if (status === 'DRAFT') return t('verify.draftBody');
+  return `${t('verify.pendingBody')} ${t('verify.pendingEmail')}`;
+}
+
+function bannerClass(status: ContractorProfile['verificationStatus']) {
+  if (status === 'APPROVED') return 'border-emerald-200 bg-emerald-50';
+  if (status === 'REJECTED') return 'border-red-200 bg-red-50';
+  if (status === 'SUBMITTED') return 'border-amber-200 bg-amber-50';
+  return 'border-navy-800/10 bg-white';
+}
+
+function photoSlots(profile: ContractorProfile, t: (key: string) => string) {
+  const portfolio = profile.portfolio;
+  const slots = [
+    { key: 'avatar', src: portfolio?.avatar || '', label: t('verify.avatar') },
+    { key: 'logo', src: portfolio?.teamLogo || '', label: t('verify.teamLogo') },
+    { key: 'workshop', src: portfolio?.workshop || '', label: t('verify.workshop') },
+    ...(portfolio?.construction || []).map((src, index) => ({ key: `work-${index}`, src, label: t('verify.construction') })),
+    ...(portfolio?.certificates || []).map((src, index) => ({ key: `cert-${index}`, src, label: t('verify.certificatePhoto') })),
+  ];
+  return slots.filter((item) => item.src);
+}
+
+function DocumentGroups({ documents }: { documents: VerificationDocument[] }) {
+  const { t } = useI18n();
+  if (!documents.length) return <p className="mt-4 text-sm text-ink-400">{t('verify.noDocs')}</p>;
+  return (
+    <ul className="mt-4 space-y-3">
+      {DOC_GROUPS.map((group) => {
+        const files = documents.filter((doc) => group.types.includes(doc.type));
+        return (
+          <li key={group.titleKey} className="rounded-2xl bg-paper-50 px-4 py-3">
+            <p className="text-sm font-semibold text-navy-800">
+              {files.length ? '✓ ' : ''}
+              {t(group.titleKey)}
+            </p>
+            {files.length ? (
+              <ul className="mt-2 space-y-2">
+                {files.map((doc) => (
+                  <li key={doc._id} className="flex items-center gap-3">
+                    {doc.mimeType.startsWith('image/') ? (
+                      <img src={mediaUrl(doc.url)} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                    ) : (
+                      <span className="grid h-12 w-12 place-items-center rounded-xl bg-navy-800 text-white">
+                        <FileText className="h-4 w-4" />
+                      </span>
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-navy-800">{docSide(doc.type, t)}</p>
+                      <p className="text-xs text-ink-400">{doc.originalName || t('verify.docsReady')}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-xs text-ink-400">{t('verify.docsMissing')}</p>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function docSide(type: DocumentType, t: (key: string) => string) {
+  if (type === 'CCCD_FRONT') return t('verify.docFront');
+  if (type === 'CCCD_BACK') return t('verify.docBack');
+  return t(`docType.${type}`);
 }

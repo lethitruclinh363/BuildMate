@@ -1,5 +1,6 @@
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@/types/user';
+import type { PublicHighlights } from '@/types/marketplace';
 import type { Review, ReviewListPayload, ReviewTargetType } from '../types/review.types';
 
 export const reviewApi = {
@@ -9,4 +10,8 @@ export const reviewApi = {
     api.get<ApiResponse<ReviewListPayload>>(`/reviews/user/${userId}`, {
       params: targetType ? { targetType } : undefined,
     }),
+  dashboard: () =>
+    api.get<ApiResponse<{ reviews: ReviewListPayload; highlights: PublicHighlights }>>('/contractor/reputation'),
+  reply: (id: string, reply: string) => api.post<ApiResponse<Review>>(`/reviews/${id}/reply`, { reply }),
+  report: (id: string, reason: string) => api.post<ApiResponse<{ reported: boolean }>>(`/reviews/${id}/report`, { reason }),
 };

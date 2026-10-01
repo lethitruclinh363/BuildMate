@@ -1,9 +1,12 @@
 const { Store, STORE_STATUS } = require('../models/Store');
 const { Service } = require('../models/Service');
 const { Material } = require('../models/Material');
-const { ContractorProfile, VERIFICATION_STATUS, DOCUMENT_TYPE } = require('../models/ContractorProfile');
-const { User } = require('../models/User');
+const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
 const { ApiError } = require('../utils/ApiError');
+const { publicPricedServiceMatch, foldServiceName } = require('../constants/contractor-services');
+const { presentPublicProfile, seedPublicProfile, loadPublicHighlights } = require('./public-profile.service');
+const reviewService = require('./review.service');
+const { CatalogService, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -65,48 +68,63 @@ async function getPublicStore(id) {
     profile?.verificationStatus === VERIFICATION_STATUS.APPROVED || Boolean(store.verified);
   if (!approved) throw new ApiError(404, 'Store not found');
 
+  const published = profile && store.storeType !== 'MATERIALS'
+    ? await seedPublicProfile(store, profile)
+    : store;
   const [services, materials] = await Promise.all([
-    Service.find({ storeId: store._id, isActive: true }).sort({ category: 1 }),
-    Material.find({ storeId: store._id, isActive: true }).sort({ category: 1 }),
+    Service.find({ storeId: published._id, ...publicPricedServiceMatch() }).sort({ category: 1 }),
+    Material.find({ storeId: published._id, isActive: true }).sort({ category: 1 }),
   ]);
 
   return {
-    store: store.toPublic(),
-    profile: profile ? profile.toPublic() : null,
+    store: published.toPublic(),
+    publicProfile: published.storeType === 'MATERIALS' ? null : presentPublicProfile(published),
     services: services.map((s) => s.toPublic()),
     materials: materials.map((m) => m.toPublic()),
   };
 }
 
 async function getPublicContractor(id) {
-  const user = await User.findById(id);
   const profile = await ContractorProfile.findOne({
     $or: [{ userId: id }, { _id: id }],
     verificationStatus: VERIFICATION_STATUS.APPROVED,
   });
   if (!profile) throw new ApiError(404, 'Contractor not found');
 
-  const store = await Store.findOne({
+  const found = await Store.findOne({
     contractorId: profile.userId,
     status: STORE_STATUS.LIVE,
+    storeType: { $ne: 'MATERIALS' },
   });
+  const store = found ? await seedPublicProfile(found, profile) : null;
   const services = store
-    ? await Service.find({ storeId: store._id, isActive: true })
+    ? await Service.find({ storeId: store._id, ...publicPricedServiceMatch() })
     : [];
-  const owner = user || (await User.findById(profile.userId));
+  const publicProfile = store ? presentPublicProfile(store) : null;
+  const reviewSummary = await reviewService.listForUser(profile.userId, 'CONTRACTOR');
+  if (publicProfile) {
+    publicProfile.address = '';
+    publicProfile.rating = reviewSummary.average;
+    publicProfile.reviewCount = reviewSummary.count;
+  }
+  const highlights = await loadPublicHighlights(profile.userId);
 
-  const documents = profile.documents || [];
   return {
-    contractor: {
-      ...profile.toPublic(),
-      id: profile.userId,
-      name: owner?.name || profile.businessName,
-      avatar: owner?.avatar || '',
-      phone: owner?.phone || store?.phone || '',
-      certificates: documents.filter((d) => d.type === DOCUMENT_TYPE.CERTIFICATE),
-      portfolio: documents.filter((d) => d.type === DOCUMENT_TYPE.PORTFOLIO),
-      license: documents.filter((d) => d.type === DOCUMENT_TYPE.BUSINESS_LICENSE),
-    },
+    publicProfile,
+    highlights,
+    contractor: publicProfile
+      ? {
+          id: profile.userId,
+          userId: profile.userId,
+          name: publicProfile.displayName,
+          businessName: publicProfile.displayName,
+          phone: publicProfile.phone,
+          avatar: publicProfile.avatar,
+          city: publicProfile.city,
+          description: publicProfile.description,
+          yearsExperience: publicProfile.yearsExperience,
+        }
+      : null,
     store: store ? store.toPublic() : null,
     services: services.map((s) => s.toPublic()),
   };
@@ -155,7 +173,7 @@ async function searchMaterials({ category, keyword, store }) {
 }
 
 async function searchServices({ category, keyword, store }) {
-  const match = { isActive: true };
+  const match = { ...publicPricedServiceMatch() };
   if (store) {
     const live = await assertApprovedLiveStore(store);
     if (!live) return [];
@@ -163,9 +181,29 @@ async function searchServices({ category, keyword, store }) {
   }
   if (category) match.category = category;
   if (keyword) {
+    const folded = foldServiceName(keyword);
+    const catalogHits = await CatalogService.find({
+      status: { $in: LIVE_CATALOG_STATUSES },
+      $or: [
+        { name: { $regex: escapeRegex(keyword), $options: 'i' } },
+        ...(folded ? [{ foldedName: { $regex: escapeRegex(folded), $options: 'i' } }] : []),
+      ],
+    }).select('code name');
+    const names = [keyword];
+    const keys = [];
+    for (const hit of catalogHits) {
+      names.push(hit.name);
+      if (hit.code) {
+        keys.push(hit.code);
+        const labelKey = hit.code.split('::').pop();
+        if (labelKey) names.push(labelKey);
+      }
+    }
     match.$or = [
       { name: { $regex: escapeRegex(keyword), $options: 'i' } },
       { category: { $regex: escapeRegex(keyword), $options: 'i' } },
+      ...(names.length ? [{ name: { $in: names } }] : []),
+      ...(keys.length ? [{ catalogKey: { $in: keys } }] : []),
     ];
   }
 

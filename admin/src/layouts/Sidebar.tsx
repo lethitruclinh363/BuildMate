@@ -11,9 +11,11 @@ import {
   LayoutDashboard,
   PanelLeftClose,
   Percent,
+  Scale,
   ScrollText,
   Settings,
   ShieldAlert,
+  Wrench,
   Star,
   Store,
   Users,
@@ -28,15 +30,24 @@ const items = [
   { to: '/users', key: 'users', icon: Users },
   { to: '/contractors', key: 'contractors', icon: Building2 },
   { to: '/material-stores', key: 'stores', icon: Store },
-  { to: '/verification', key: 'verification', icon: BadgeCheck },
   { to: '/orders', key: 'orders', icon: ClipboardList },
+  { to: '/services', key: 'serviceCatalog', icon: Wrench },
   { to: '/payments', key: 'payments', icon: CreditCard },
   { to: '/commission', key: 'commission', icon: Percent },
   { to: '/reviews', key: 'reviews', icon: Star },
   { to: '/complaints', key: 'complaints', icon: ShieldAlert },
   { to: '/analytics', key: 'analytics', icon: BarChart3 },
   { to: '/audit', key: 'audit', icon: ScrollText },
+] as const;
+
+const partnerItems = [
+  { to: '/partners/contractors', key: 'contractorApplications', icon: BadgeCheck },
+  { to: '/partners/stores', key: 'storeApplications', icon: Store },
+] as const;
+
+const systemItems = [
   { to: '/settings', key: 'settings', icon: Settings },
+  { to: '/policies', key: 'policies', icon: Scale },
 ] as const;
 
 export function Sidebar() {
@@ -47,6 +58,35 @@ export function Sidebar() {
   const mobileOpen = useUiStore((s) => s.mobileOpen);
   const toggleCollapsed = useUiStore((s) => s.toggleCollapsed);
   const setMobileOpen = useUiStore((s) => s.setMobileOpen);
+
+  function renderNavItem(item: (typeof items)[number] | (typeof systemItems)[number] | (typeof partnerItems)[number]) {
+    const Icon = item.icon;
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        title={t(`nav.${item.key}`)}
+        onClick={() => setMobileOpen(false)}
+        className={({ isActive }) =>
+          cn(
+            'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/55 transition hover:bg-white/6 hover:text-white',
+            collapsed && 'justify-center px-2',
+            isActive && 'bg-copper-500/15 text-copper-300'
+          )
+        }
+      >
+        {({ isActive }) => (
+          <>
+            {isActive ? <span className="absolute left-0 top-1.5 h-7 w-0.5 rounded-full bg-copper-400 shadow-[0_0_12px_#c89445]" /> : null}
+            <motion.span whileHover={{ scale: 1.12 }} className="grid place-items-center">
+              <Icon className="h-4 w-4" />
+            </motion.span>
+            {!collapsed ? t(`nav.${item.key}`) : null}
+          </>
+        )}
+      </NavLink>
+    );
+  }
 
   const nav = (
     <>
@@ -65,34 +105,15 @@ export function Sidebar() {
         </button>
       </div>
       <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
-        {items.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              title={t(`nav.${item.key}`)}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                cn(
-                  'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/55 transition hover:bg-white/6 hover:text-white',
-                  collapsed && 'justify-center px-2',
-                  isActive && 'bg-copper-500/15 text-copper-300'
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive ? <span className="absolute left-0 top-1.5 h-7 w-0.5 rounded-full bg-copper-400 shadow-[0_0_12px_#c89445]" /> : null}
-                  <motion.span whileHover={{ scale: 1.12 }} className="grid place-items-center">
-                    <Icon className="h-4 w-4" />
-                  </motion.span>
-                  {!collapsed ? t(`nav.${item.key}`) : null}
-                </>
-              )}
-            </NavLink>
-          );
-        })}
+        {items.map((item) => renderNavItem(item))}
+        <p className={cn('px-3 pb-1 pt-4 text-[10px] uppercase tracking-[0.18em] text-white/35', collapsed && 'px-2 text-center')}>
+          {collapsed ? '·' : t('nav.partners')}
+        </p>
+        {partnerItems.map((item) => renderNavItem(item))}
+        <p className={cn('px-3 pb-1 pt-4 text-[10px] uppercase tracking-[0.18em] text-white/35', collapsed && 'px-2 text-center')}>
+          {collapsed ? '·' : t('nav.system')}
+        </p>
+        {systemItems.map((item) => renderNavItem(item))}
       </nav>
       <div className="mt-auto border-t border-white/8">
         {!collapsed && user ? (

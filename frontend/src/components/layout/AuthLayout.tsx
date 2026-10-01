@@ -29,8 +29,8 @@ export function AuthLayout() {
           <p className="text-sm text-white/50">{t('auth.authPanelFoot')}</p>
         </div>
       </aside>
-      <main className="flex items-center justify-center bg-paper-100 px-4 py-10">
-        <div className="w-full max-w-md">
+      <main className="flex min-h-screen flex-col overflow-y-auto bg-paper-100 px-4 py-10">
+        <div className="m-auto w-full max-w-md">
           <div className="mb-8 flex items-center justify-between">
             <div className="lg:hidden">
               <Logo />

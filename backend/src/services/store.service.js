@@ -51,10 +51,12 @@ async function syncOwnerStore(ownerId, lockedType, fields) {
   if (!store) {
     store = await Store.create({ contractorId: ownerId, ...patch });
   } else {
-    store.name = patch.name || store.name;
-    store.address = patch.address || store.address;
-    store.city = patch.city;
-    store.description = patch.description;
+    if (!store.publicSeeded) {
+      store.name = patch.name || store.name;
+      store.address = patch.address || store.address;
+      store.city = patch.city;
+      store.description = patch.description;
+    }
     store.storeType = lockedType;
     store.status = patch.status;
     store.verified = patch.verified;

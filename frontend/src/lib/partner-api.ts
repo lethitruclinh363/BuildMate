@@ -9,6 +9,8 @@ import type {
   WorkspacePayload,
 } from '@/types/partner';
 import type { ContractorDashboardStats } from '@/features/analytics/types/dashboard-stats';
+import type { PublicContractorProfile } from '@/types/marketplace';
+import type { ContractorServiceCategory, ContractorServicePick, ServiceNameCheck } from '@/data/contractor-services';
 
 const origin = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
 
@@ -26,9 +28,30 @@ export function vnd(value: number) {
 
 export const contractorApi = {
   workspace: () => api.get<ApiResponse<WorkspacePayload>>('/contractor/workspace'),
+  getProfile: () => api.get<ApiResponse<ContractorProfile>>('/contractor/profile'),
+  getPublicProfile: () =>
+    api.get<ApiResponse<{ publicProfile: PublicContractorProfile; services: CatalogService[] }>>('/contractor/public-profile'),
+  savePublicProfile: (body: Partial<PublicContractorProfile>) =>
+    api.patch<ApiResponse<PublicContractorProfile>>('/contractor/public-profile', body),
+  requestVerificationChange: (note: string) =>
+    api.post<ApiResponse<{ requested: boolean }>>('/contractor/verification/change-request', { note }),
   dashboardStats: () => api.get<ApiResponse<ContractorDashboardStats>>('/contractor/dashboard-stats'),
   saveProfile: (body: Partial<ContractorProfile>) =>
     api.patch<ApiResponse<ContractorProfile>>('/contractor/profile', body),
+  uploadPortfolio: (file: File, slot: 'avatar' | 'teamLogo' | 'workshop' | 'construction' | 'certificate', onProgress?: (percent: number) => void) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('slot', slot);
+    return api.post<ApiResponse<ContractorProfile>>('/contractor/portfolio', form, {
+      timeout: 60000,
+      onUploadProgress: (event) => {
+        if (!onProgress || !event.total) return;
+        onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+      },
+    });
+  },
+  removePortfolio: (slot: 'avatar' | 'teamLogo' | 'workshop' | 'construction' | 'certificate', url: string) =>
+    api.delete<ApiResponse<ContractorProfile>>('/contractor/portfolio', { data: { slot, url } }),
   uploadDocument: (file: File, type: DocumentType) => {
     const form = new FormData();
     form.append('file', file);
@@ -39,21 +62,27 @@ export const contractorApi = {
   },
   removeDocument: (id: string) =>
     api.delete<ApiResponse<ContractorProfile>>(`/contractor/verification/documents/${id}`),
-  submit: () => api.post<ApiResponse<ContractorProfile>>('/contractor/verification/submit'),
+  submit: () => api.post<ApiResponse<ContractorProfile>>('/contractor/verification/submit', { acceptedTerms: true }),
   getStore: () => api.get<ApiResponse<Storefront | null>>('/contractor/store'),
   createStore: (body: Partial<Storefront> & { lng?: number; lat?: number }) =>
     api.post<ApiResponse<Storefront>>('/contractor/store', body),
   updateStore: (body: Partial<Storefront> & { lng?: number; lat?: number }) =>
     api.patch<ApiResponse<Storefront>>('/contractor/store', body),
   listServices: () => api.get<ApiResponse<CatalogService[]>>('/contractor/services'),
-  saveService: (body: Partial<CatalogService>, id?: string) =>
-    id
-      ? api.patch<ApiResponse<CatalogService>>(`/contractor/services/${id}`, body)
-      : api.post<ApiResponse<CatalogService>>('/contractor/services', body),
-  deleteService: (id: string) => api.delete(`/contractor/services/${id}`),
+  registerService: (catalogKey: string) =>
+    api.post<ApiResponse<CatalogService>>('/contractor/services/register', { catalogKey }),
+  saveService: (body: { basePrice: number; unit: CatalogService['unit']; estimatedHours?: number; description?: string; image?: string }, id: string) =>
+    api.patch<ApiResponse<CatalogService>>(`/contractor/services/${id}`, body),
+  listServiceCatalog: () =>
+    api.get<ApiResponse<ContractorServicePick[]>>('/contractor/service-catalog', { silent: true }),
+  checkServiceCatalog: (name: string) =>
+    api.get<ApiResponse<ServiceNameCheck>>('/contractor/service-catalog/check', { params: { name }, silent: true }),
+  createCustomService: (body: { name: string; category: ContractorServiceCategory; description?: string }) =>
+    api.post<ApiResponse<ContractorServicePick>>('/contractor/service-catalog/custom', body),
 };
 
 export const materialStoreApi = {
+  getProfile: () => api.get<ApiResponse<ContractorProfile>>('/material-store/profile'),
   workspace: () =>
     api.get<ApiResponse<{ profile: ContractorProfile; store: Storefront | null; approved: boolean }>>(
       '/material-store/workspace'
@@ -70,7 +99,7 @@ export const materialStoreApi = {
   },
   removeDocument: (id: string) =>
     api.delete<ApiResponse<ContractorProfile>>(`/material-store/verification/documents/${id}`),
-  submit: () => api.post<ApiResponse<ContractorProfile>>('/material-store/verification/submit'),
+  submit: () => api.post<ApiResponse<ContractorProfile>>('/material-store/verification/submit', { acceptedTerms: true }),
   getStore: () => api.get<ApiResponse<Storefront | null>>('/material-store/store'),
   createStore: (body: Partial<Storefront> & { lng?: number; lat?: number }) =>
     api.post<ApiResponse<Storefront>>('/material-store/store', body),

@@ -14,6 +14,14 @@ class UserRepository extends BaseRepository {
     return this.findOne({ email });
   }
 
+  findByPhone(phoneNumber) {
+    const value = String(phoneNumber || '').trim();
+    if (!value) return null;
+    return this.findOne({
+      $or: [{ phoneNumber: value }, { phone: value }],
+    });
+  }
+
   findByEmailWithPassword(email) {
     return this.model.findOne({ email }).select('+password +tokenVersion');
   }

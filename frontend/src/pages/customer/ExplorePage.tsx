@@ -15,6 +15,8 @@ import { RadiusSelector } from '@/features/map/components/RadiusSelector';
 import { FilterDrawer, type MarketplaceFilters } from '@/features/map/components/FilterDrawer';
 import { useCurrentLocation } from '@/features/map/hooks/useCurrentLocation';
 import { locationApi } from '@/features/map/services/location.api';
+import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
+import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
@@ -34,6 +36,7 @@ export function ExplorePage() {
   const [services, setServices] = useState<PublicService[]>([]);
   const [materials, setMaterials] = useState<PublicMaterial[]>([]);
   const [activeId, setActiveId] = useState<string>();
+  const [groups, setGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +64,13 @@ export function ExplorePage() {
       .catch((err) => setError(te(getApiErrorMessage(err))))
       .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    api
+      .get<{ data: { category: string }[] }>('/service-catalog', { silent: true })
+      .then((res) => setGroups([...new Set((res.data.data || []).map((item) => item.category))]))
+      .catch(() => setGroups([]));
+  }, []);
 
   useEffect(() => {
     load();
@@ -91,7 +101,7 @@ export function ExplorePage() {
       />
 
       <div className="mb-5 flex flex-wrap gap-2">
-        {SEARCH_CHIPS.map((item) => (
+        {(groups.length ? groups.map((category) => ({ category, label: catalogCategoryLabel(category, t) })) : SEARCH_CHIPS.map((item) => ({ category: item.category, label: t(item.labelKey) }))).map((item) => (
           <button
             key={item.category}
             type="button"
@@ -102,7 +112,7 @@ export function ExplorePage() {
               filters.category === item.category ? 'bg-copper-400 text-navy-900' : 'bg-white text-ink-600 shadow-card'
             }`}
           >
-            {t(item.labelKey)}
+            {item.label}
           </button>
         ))}
       </div>
@@ -173,10 +183,10 @@ export function ExplorePage() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {services.slice(0, 8).map((s) => (
               <Card key={s.id}>
-                <Badge tone="copper">{s.category}</Badge>
-                <h3 className="mt-3 font-display text-lg text-navy-800">{s.name}</h3>
+                <Badge tone="copper">{catalogCategoryLabel(s.category, t)}</Badge>
+                <h3 className="mt-3 font-display text-lg text-navy-800">{catalogServiceLabel(s.name, t)}</h3>
                 <p className="mt-1 text-sm text-ink-400">{s.store?.name}</p>
-                <p className="mt-3 font-display text-xl text-navy-800">{vnd(s.basePrice)}</p>
+                <p className="mt-3 font-display text-xl text-navy-800">{s.basePrice ? vnd(s.basePrice) : null}</p>
               </Card>
             ))}
           </div>

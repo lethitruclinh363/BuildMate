@@ -11,6 +11,8 @@ import Register from '@/pages/auth/Register';
 import VerifyEmail from '@/pages/auth/VerifyEmail';
 import ForgotPassword from '@/pages/auth/ForgotPassword';
 import StoreDashboard, { StoreLayout } from '@/pages/store/StoreDashboard';
+import PartnerOnboardingPage from '@/pages/partner/PartnerOnboardingPage';
+import PartnerStatusPage from '@/pages/partner/PartnerStatusPage';
 import ProtectedRoute, { GuestOnly } from '@/routes/ProtectedRoute';
 import { CustomerDashboardPage } from '@/pages/CustomerDashboardPage';
 import { ContractorDashboardPage } from '@/pages/ContractorDashboardPage';
@@ -18,6 +20,9 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 
 const ContractorVerificationPage = lazy(() =>
   import('@/pages/contractor/ContractorVerificationPage').then((m) => ({ default: m.ContractorVerificationPage }))
+);
+const ContractorPublicProfilePage = lazy(() =>
+  import('@/pages/contractor/ContractorPublicProfilePage').then((m) => ({ default: m.ContractorPublicProfilePage }))
 );
 const ContractorServicesPage = lazy(() =>
   import('@/pages/contractor/ContractorServicesPage').then((m) => ({ default: m.ContractorServicesPage }))
@@ -109,6 +114,8 @@ export function App() {
           </Route>
 
           <Route element={<ProtectedRoute />}>
+              <Route path="/partner/onboarding" element={<PartnerOnboardingPage />} />
+              <Route path="/partner/onboarding/status" element={<PartnerStatusPage />} />
               <Route element={<ProtectedRoute roles={['CUSTOMER']} />}>
                 <Route element={<CustomerLayout />}>
                   <Route path="/customer/dashboard" element={<CustomerDashboardPage />} />
@@ -138,12 +145,15 @@ export function App() {
                   <Route path="/contractor/orders" element={<ContractorOrdersPage />} />
                   <Route path="/contractor/orders/:id" element={<ContractorOrderDetailPage />} />
                   <Route path="/contractor/earnings" element={<ContractorEarningsPage />} />
-                  <Route path="/contractor/reviews" element={<ContractorReviewsPage />} />
+                  <Route path="/contractor/reputation" element={<ContractorReviewsPage />} />
+                  <Route path="/contractor/reviews" element={<Navigate to="/contractor/reputation" replace />} />
                   <Route path="/contractor/chat/:roomId" element={<ChatPage />} />
                   <Route path="/contractor/quotation/create/:requestId" element={<CreateQuotationPage />} />
                   <Route path="/contractor/quotation/create" element={<ContractorRequestsPage />} />
                   <Route path="/contractor/notifications" element={<NotificationsPage />} />
-                  <Route path="/contractor/profile" element={<ProfilePage />} />
+                  <Route path="/contractor/profile/edit" element={<ContractorPublicProfilePage />} />
+                  <Route path="/contractor/profile" element={<Navigate to="/contractor/profile/edit" replace />} />
+                  <Route path="/contractor/account" element={<ProfilePage />} />
                 </Route>
               </Route>
               <Route element={<ProtectedRoute roles={['STORE', 'MATERIAL_STORE_OWNER']} />}>

@@ -1,12 +1,13 @@
 const { z } = require('zod');
-const { REPAIR_CATEGORY } = require('../models/RepairRequest');
 const { MESSAGE_TYPE } = require('../models/Message');
 const { QUOTE_ITEM_TYPE } = require('../models/Quotation');
 
 const createRepairSchema = z.object({
   contractorId: z.string().min(8),
   storeId: z.string().optional().or(z.literal('')),
-  category: z.enum(Object.values(REPAIR_CATEGORY)),
+  category: z.string().trim().min(2).max(40),
+  catalogServiceId: z.string().trim().max(80).optional().or(z.literal('')),
+  serviceName: z.string().trim().max(80).optional().or(z.literal('')),
   title: z.string().trim().min(4).max(140),
   description: z.string().trim().min(8).max(2000),
   address: z.string().trim().max(200).optional().or(z.literal('')),

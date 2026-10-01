@@ -1,4 +1,4 @@
-const { RepairRequest, REQUEST_STATUS } = require('../models/RepairRequest');
+const { RepairRequest, REQUEST_STATUS, REPAIR_CATEGORY } = require('../models/RepairRequest');
 const { Store, STORE_STATUS, STORE_TYPE } = require('../models/Store');
 const { User } = require('../models/User');
 const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
@@ -7,6 +7,7 @@ const { ApiError } = require('../utils/ApiError');
 const { createRoomForRequest } = require('./chat.service');
 const { notify, NOTIFICATION_TYPE } = require('./notification.service');
 const { writeAudit, AUDIT_ACTION } = require('./audit.service');
+const { CatalogService, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
 
 async function populateCard(request) {
   const [customer, contractor, store, room] = await Promise.all([
@@ -25,6 +26,19 @@ async function populateCard(request) {
 }
 
 async function createRequest(customerId, payload) {
+  let category = payload.category;
+  let serviceName = payload.serviceName || '';
+  let catalogServiceId = payload.catalogServiceId || '';
+  if (catalogServiceId) {
+    const query = /^[a-f0-9]{24}$/i.test(catalogServiceId) ? { _id: catalogServiceId } : { code: catalogServiceId };
+    const catalog = await CatalogService.findOne({ ...query, status: { $in: LIVE_CATALOG_STATUSES } });
+    if (!catalog) throw new ApiError(400, 'This service cannot be registered.');
+    category = catalog.category;
+    serviceName = catalog.name;
+    catalogServiceId = catalog.code || String(catalog._id);
+  } else if (!Object.values(REPAIR_CATEGORY).includes(category)) {
+    throw new ApiError(400, 'Select a valid service');
+  }
   const contractor = await User.findById(payload.contractorId);
   if (!contractor || contractor.role !== 'CONTRACTOR') {
     throw new ApiError(404, 'Contractor not found');
@@ -59,7 +73,9 @@ async function createRequest(customerId, payload) {
     customerId,
     contractorId: contractor._id,
     storeId: store?._id || null,
-    category: payload.category,
+    category,
+    serviceName,
+    catalogServiceId,
     title: payload.title,
     description: payload.description,
     images: payload.images || [],

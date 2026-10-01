@@ -10,6 +10,14 @@ const refundSchema = z.object({
   reason: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
+const reviewReplySchema = z.object({
+  reply: z.string().trim().min(2).max(500),
+}).strict();
+
+const reviewReportSchema = z.object({
+  reason: z.string().trim().min(8).max(500),
+}).strict();
+
 const reviewSchema = z.object({
   orderId: z.string().min(8),
   targetUserId: z.string().min(8),
@@ -41,6 +49,8 @@ module.exports = {
   checkoutSchema,
   refundSchema,
   reviewSchema,
+  reviewReplySchema,
+  reviewReportSchema,
   complaintSchema,
   complaintPatchSchema,
   commissionRuleSchema,

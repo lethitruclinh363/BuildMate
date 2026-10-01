@@ -17,6 +17,8 @@ const paymentRoutes = require('./payment.routes');
 const reviewRoutes = require('./review.routes');
 const complaintRoutes = require('./complaint.routes');
 const materialStoreRoutes = require('./material-store.routes');
+const policyRoutes = require('./policy.routes');
+const catalogRoutes = require('./catalog.routes');
 
 const router = express.Router();
 
@@ -28,6 +30,8 @@ router.get('/health', (_req, res) => {
   });
 });
 
+router.use('/policies', policyRoutes);
+router.use('/service-catalog', catalogRoutes);
 router.use('/auth', authRoutes);
 router.use('/user', userRoutes);
 router.use('/contractor', contractorRoutes);
