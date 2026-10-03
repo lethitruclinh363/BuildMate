@@ -17,6 +17,8 @@ const paymentRoutes = require('./payment.routes');
 const reviewRoutes = require('./review.routes');
 const complaintRoutes = require('./complaint.routes');
 const materialStoreRoutes = require('./material-store.routes');
+const materialCheckoutRoutes = require('./material-checkout.routes');
+const materialOrderRoutes = require('./material-order.routes');
 const policyRoutes = require('./policy.routes');
 const catalogRoutes = require('./catalog.routes');
 
@@ -36,6 +38,8 @@ router.use('/auth', authRoutes);
 router.use('/user', userRoutes);
 router.use('/contractor', contractorRoutes);
 router.use('/material-store', materialStoreRoutes);
+router.use('/material-checkout', materialCheckoutRoutes);
+router.use('/material-orders', materialOrderRoutes);
 router.use('/admin/auth', adminAuthRoutes);
 router.use('/admin', adminRoutes);
 router.use('/location', locationRoutes);

@@ -8,8 +8,12 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
+import { StoreProfileShowcase } from '@/pages/public/StoreProfileShowcase';
+import type { MaterialCategoryPick } from '@/data/material-categories';
+import type { PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 import { locationApi } from '@/features/map/services/location.api';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
+import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
 import { mediaUrl, vnd } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
 import type { CatalogMaterial, CatalogService, Storefront } from '@/types/partner';
@@ -32,6 +36,10 @@ export function StorePublicPage() {
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<{
     store: Storefront;
+    publicProfile?: PublicStoreProfile | null;
+    categories?: MaterialCategoryPick[];
+    visibility?: 'LIVE' | 'INACTIVE' | 'PAUSED';
+    reviews?: { average: number; count: number; items: PublicStoreReview[] } | null;
     services: CatalogService[];
     materials: CatalogMaterial[];
   } | null>(null);
@@ -61,7 +69,36 @@ export function StorePublicPage() {
       </PageTransition>
     );
   }
+  if (payload.visibility && payload.visibility !== 'LIVE') {
+    return (
+      <PageTransition>
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <ErrorState
+            title={payload.store?.name || t('errors.notFoundStore')}
+            body={payload.visibility === 'PAUSED' ? t('activation.pausedPublic') : t('activation.notPublic')}
+          />
+          <div className="mt-4 text-center">
+            <Button asChild>
+              <Link to="/explore">{t('common.backToMap')}</Link>
+            </Button>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
   const { store, services, materials } = payload;
+  if (store.storeType === 'MATERIALS' && payload.publicProfile) {
+    return (
+      <PageTransition>
+        <StoreProfileShowcase
+          profile={{ ...payload.publicProfile, verified: true, displayName: payload.publicProfile.displayName || store.name }}
+          categories={payload.categories || []}
+          materials={materials}
+          reviews={payload.reviews}
+        />
+      </PageTransition>
+    );
+  }
   const hours = openingStatus(store.openingHours, t);
   const sellsMaterials = store.storeType === 'MATERIALS';
 
@@ -141,6 +178,7 @@ export function StorePublicPage() {
                   <p className="mt-3 font-display text-xl text-navy-800">
                     {vnd(m.price)} <span className="text-sm font-sans font-normal text-ink-400">/{m.unit}</span>
                   </p>
+                  <AddToMaterialCart material={m} storeId={String(store.id)} storeName={store.name} />
                 </Card>
               ))}
             </div>

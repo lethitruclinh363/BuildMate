@@ -49,6 +49,7 @@ export interface ProgressUpdate {
   description: string;
   images: string[];
   createdAt: string;
+  actorId?: string | null;
   [key: string]: unknown;
 }
 

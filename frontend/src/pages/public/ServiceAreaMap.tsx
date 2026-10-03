@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Circle, MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MAP_TILES } from '@/features/map/lib/tiles';
 import { t } from '@/locales';
 
 class MapGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -35,7 +36,7 @@ export function ServiceAreaMap({ lat, lng, radiusKm }: { lat: number; lng: numbe
         zoomControl={false}
         attributionControl={false}
       >
-        <TileLayer url="https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" />
+        <TileLayer url={MAP_TILES.url} />
         <Circle
           center={[lat, lng]}
           radius={Math.max(radiusKm, 1) * 1000}

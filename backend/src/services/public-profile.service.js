@@ -6,6 +6,8 @@ const { RepairRequest } = require('../models/RepairRequest');
 const { Quotation, QUOTATION_STATUS } = require('../models/Quotation');
 const { ApiError } = require('../utils/ApiError');
 const { publicPricedServiceMatch } = require('../constants/contractor-services');
+const { assertDeliveryPolicy } = require('../utils/delivery-policy');
+const { hasValidLocation } = require('./activation.service');
 
 function presentPublicProfile(store) {
   return {
@@ -15,6 +17,8 @@ function presentPublicProfile(store) {
     slogan: store.slogan || '',
     description: store.description || '',
     phone: store.phone || '',
+    contactName: store.contactName || '',
+    contactEmail: store.contactEmail || '',
     address: store.address || '',
     city: store.city || '',
     avatar: store.avatar || '',
@@ -24,12 +28,20 @@ function presentPublicProfile(store) {
     crewPhotos: store.crewPhotos || [],
     publicCertificates: store.publicCertificates || [],
     achievements: store.achievements || '',
+    showroomNote: store.showroomNote || '',
+    deliveryNote: store.deliveryNote || '',
+    deliveryEnabled: Boolean(store.deliveryEnabled),
+    baseDeliveryFee: store.baseDeliveryFee || 0,
+    freeDeliveryRadiusKm: store.freeDeliveryRadiusKm || 0,
+    deliveryFeePerKm: store.deliveryFeePerKm || 0,
+    minimumOrderAmount: store.minimumOrderAmount || 0,
     openingHours: store.openingHours || '',
     serviceAreas: store.serviceAreas || [],
     yearsExperience: store.displayYears ?? 0,
     workerCount: store.displayWorkerCount ?? 0,
     serviceRadiusKm: store.serviceRadiusKm || 0,
-    areaCenter: areaCenter(store),
+    areaCenter: hasValidLocation(store) ? areaCenter(store) : null,
+    locationReady: hasValidLocation(store),
     verified: Boolean(store.verified),
     rating: store.rating || 0,
     reviewCount: store.reviewCount || 0,
@@ -176,10 +188,146 @@ async function updatePublicProfile(userId, body) {
   return presentPublicProfile(store);
 }
 
+const STORE_PUBLIC_FIELDS = new Set([
+  'displayName', 'slogan', 'description', 'phone', 'contactName', 'contactEmail', 'address', 'city',
+  'coverImage', 'avatar', 'logo', 'openingHours', 'showroomNote', 'deliveryNote',
+  'gallery', 'serviceAreas', 'serviceRadiusKm',
+]);
+
+function presentMaterialPublic(store) {
+  return {
+    ...presentPublicProfile(store),
+    profileType: 'STORE',
+    showroomNote: store.showroomNote || '',
+    deliveryNote: store.deliveryNote || '',
+  };
+}
+
+async function seedMaterialPublicProfile(storeOrId, profile) {
+  const store = storeOrId?.save ? storeOrId : await Store.findById(storeOrId);
+  if (!store || store.publicSeeded || !profile) return store;
+  if (store.storeType !== STORE_TYPE.MATERIALS) return store;
+  fillIfEmpty(store, 'description', profile.description);
+  fillIfEmpty(store, 'phone', profile.contactPhone);
+  fillIfEmpty(store, 'contactName', profile.representativeName);
+  fillIfEmpty(store, 'contactEmail', profile.contactEmail);
+  fillIfEmpty(store, 'address', profile.address);
+  fillIfEmpty(store, 'city', profile.city);
+  const photos = (profile.documents || []).filter((doc) => doc.type === 'STORE_IMAGE').map((doc) => doc.url).filter(Boolean);
+  fillIfEmpty(store, 'gallery', photos.slice(0, 8));
+  store.publicSeeded = true;
+  await store.save();
+  return store;
+}
+
+async function loadApprovedMaterialStore(userId) {
+  const profile = await ContractorProfile.findOne({ userId });
+  if (!profile || profile.verificationStatus !== VERIFICATION_STATUS.APPROVED) {
+    throw new ApiError(403, 'This partner is not verified yet');
+  }
+  const store = await Store.findOne({ contractorId: userId, storeType: STORE_TYPE.MATERIALS });
+  if (!store) throw new ApiError(404, 'Store not found');
+  return { profile, store: await seedMaterialPublicProfile(store, profile) };
+}
+
+async function registeredCategories(profile) {
+  const materialCategoryService = require('./material-category.service');
+  const rows = await materialCategoryService.categoriesForProfile(profile);
+  return rows.map((item) => ({
+    name: item.name,
+    type: item.type === 'CUSTOM' ? 'CUSTOM' : 'SYSTEM',
+    status: item.status || 'APPROVED',
+  }));
+}
+
+async function getMaterialPublicProfile(userId) {
+  const { profile, store } = await loadApprovedMaterialStore(userId);
+  const { Material } = require('../models/Material');
+  const reviewService = require('./review.service');
+  const [materials, reviews] = await Promise.all([
+    Material.find({ storeId: store._id, isActive: true }).sort({ name: 1 }),
+    reviewService.listForUser(userId, 'MATERIAL_STORE'),
+  ]);
+  return {
+    publicProfile: presentMaterialPublic(store),
+    categories: await registeredCategories(profile),
+    materials: materials.map((item) => item.toPublic()),
+    reviews: {
+      average: reviews.average,
+      count: reviews.count,
+      items: reviews.items.slice(0, 8),
+    },
+    verified: {
+      businessName: profile.businessName || '',
+      representativeName: profile.representativeName || '',
+      contactEmail: profile.contactEmail || '',
+      contactPhone: profile.contactPhone || '',
+      taxCode: profile.taxCode || '',
+      address: profile.address || '',
+      city: profile.city || '',
+      verificationStatus: profile.verificationStatus,
+      submittedAt: profile.submittedAt,
+      reviewedAt: profile.reviewedAt,
+    },
+  };
+}
+
+async function updateMaterialPublicProfile(userId, body) {
+  const extra = Object.keys(body).filter((key) => !STORE_PUBLIC_FIELDS.has(key));
+  if (extra.length) {
+    throw new ApiError(422, 'Verified details cannot be changed from the public profile');
+  }
+  const { store } = await loadApprovedMaterialStore(userId);
+  const map = {
+    displayName: 'name',
+    slogan: 'slogan',
+    description: 'description',
+    phone: 'phone',
+    contactName: 'contactName',
+    contactEmail: 'contactEmail',
+    address: 'address',
+    city: 'city',
+    coverImage: 'coverImage',
+    avatar: 'avatar',
+    logo: 'logo',
+    openingHours: 'openingHours',
+    showroomNote: 'showroomNote',
+    deliveryNote: 'deliveryNote',
+    serviceRadiusKm: 'serviceRadiusKm',
+  };
+  for (const [incoming, key] of Object.entries(map)) {
+    if (body[incoming] !== undefined) store[key] = body[incoming];
+  }
+  if (Array.isArray(body.gallery)) store.gallery = body.gallery.filter(Boolean).slice(0, 12);
+  if (Array.isArray(body.serviceAreas)) store.serviceAreas = body.serviceAreas.filter(Boolean).slice(0, 8);
+  assertDeliveryPolicy(store, {});
+  store.publicSeeded = true;
+  await store.save();
+  return presentMaterialPublic(store);
+}
+
+async function publicSnapshots(userIds) {
+  const ids = (userIds || []).filter(Boolean);
+  if (!ids.length) return new Map();
+  const stores = await Store.find({ contractorId: { $in: ids } });
+  const map = new Map();
+  for (const store of stores) {
+    map.set(String(store.contractorId), {
+      ...presentPublicProfile(store),
+      profileType: store.storeType === STORE_TYPE.MATERIALS ? 'STORE' : 'CONTRACTOR',
+    });
+  }
+  return map;
+}
+
 module.exports = {
   presentPublicProfile,
   loadPublicHighlights,
   seedPublicProfile,
+  seedMaterialPublicProfile,
   getPublicProfile,
   updatePublicProfile,
+  getMaterialPublicProfile,
+  updateMaterialPublicProfile,
+  publicSnapshots,
 };

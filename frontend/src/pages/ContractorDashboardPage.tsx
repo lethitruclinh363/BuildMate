@@ -20,6 +20,7 @@ import { Card } from '@/components/ui/Card';
 import { ContractorOrderTrendChart } from '@/features/analytics/components/ContractorOrderTrendChart';
 import { ContractorRevenueChart } from '@/features/analytics/components/ContractorRevenueChart';
 import { useContractorDashboardStats } from '@/features/analytics/hooks/useContractorDashboardStats';
+import { ActivationPanel } from '@/components/partner/ActivationPanel';
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
 import { vnd } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
@@ -35,7 +36,7 @@ function OpsKpi({ label, value, hint }: { label: string; value: string; hint?: s
 }
 
 export function ContractorDashboardPage() {
-  const { data: workspace, loading: workspaceLoading } = useContractorWorkspace();
+  const { data: workspace, loading: workspaceLoading, refresh } = useContractorWorkspace();
   const { data: stats, loading: statsLoading, error: statsError, reload: reloadStats } = useContractorDashboardStats();
   const { t } = useI18n();
 
@@ -71,7 +72,9 @@ export function ContractorDashboardPage() {
         actions={<VerificationBadge status={profile.verificationStatus} />}
       />
 
-      {profile.verificationStatus !== 'APPROVED' ? (
+      {profile.verificationStatus === 'APPROVED' ? (
+        <ActivationPanel activation={workspace.activation} onChanged={() => void refresh()} />
+      ) : (
         <Card hover={false} className="mb-6 border-copper-200 bg-copper-50/70">
           <p className="font-display text-xl text-navy-800">{banner}</p>
           <p className="mt-1 text-sm text-ink-600">{profile.rejectionReason || t('contractorHome.locked')}</p>
@@ -81,7 +84,7 @@ export function ContractorDashboardPage() {
             </Link>
           </Button>
         </Card>
-      ) : null}
+      )}
 
       {statsError ? (
         <div className="mb-6">

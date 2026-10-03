@@ -6,7 +6,11 @@ import { z } from 'zod';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
+import { Bookmark } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
+import { LocationPicker } from '@/features/map/components/LocationPicker';
+import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
+import { loadSavedPlace, placeFromRecord, saveSavedPlace } from '@/features/map/lib/location';
 import { locationApi } from '@/features/map/services/location.api';
 import { AxiosError } from 'axios';
 import { repairApi } from '@/features/chat/services/sprint4.api';
@@ -22,7 +26,6 @@ type FormValues = {
   catalogServiceId: string;
   title: string;
   description: string;
-  address?: string;
 };
 
 export function CreateRepairRequestPage() {
@@ -38,6 +41,10 @@ export function CreateRepairRequestPage() {
   const [serverError, setServerError] = useState('');
   const [catalog, setCatalog] = useState<CatalogChoice[]>([]);
   const [group, setGroup] = useState('');
+  const saved = useMemo(() => loadSavedPlace(), []);
+  const [origin, setOrigin] = useState<MapOrigin>(CAN_THO);
+  const [chosen, setChosen] = useState(false);
+  const [address, setAddress] = useState('');
 
   const schema = useMemo(
     () =>
@@ -45,7 +52,6 @@ export function CreateRepairRequestPage() {
         catalogServiceId: z.string().min(2, t('request.pickService')),
         title: z.string().min(4, t('request.titleMin')),
         description: z.string().min(8, t('request.descMin')),
-        address: z.string().optional(),
       }),
     [t]
   );
@@ -58,7 +64,7 @@ export function CreateRepairRequestPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { catalogServiceId: '', title: '', description: '', address: '' },
+    defaultValues: { catalogServiceId: '', title: '', description: '' },
   });
 
   const catalogServiceId = watch('catalogServiceId');
@@ -86,9 +92,27 @@ export function CreateRepairRequestPage() {
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
   }, [images]);
 
+  function pickSite(next: MapOrigin) {
+    setOrigin(next);
+    setChosen(true);
+    if (next.label) setAddress(next.label);
+  }
+
+  function useSaved() {
+    if (!saved) return;
+    setOrigin({ lat: saved.lat, lng: saved.lng, label: saved.label || saved.address });
+    setAddress(saved.address || saved.label);
+    setChosen(true);
+  }
+
   const onSubmit = async (values: FormValues) => {
     if (!contractorId) {
       setServerError(t('request.pickContractor'));
+      return;
+    }
+    const site = placeFromRecord({ lat: origin.lat, lng: origin.lng, address, label: address });
+    if (!chosen || !site || site.address.length < 4) {
+      setServerError(t('map.pickRequired'));
       return;
     }
     setServerError('');
@@ -101,9 +125,10 @@ export function CreateRepairRequestPage() {
     form.append('serviceName', picked?.name || '');
     form.append('title', values.title);
     form.append('description', values.description);
-    form.append('address', values.address || '');
-    form.append('lat', String(CAN_THO.lat));
-    form.append('lng', String(CAN_THO.lng));
+    form.append('address', site.address);
+    form.append('lat', String(site.lat));
+    form.append('lng', String(site.lng));
+    saveSavedPlace(site);
     images.forEach((f) => form.append('images', f));
     videos.forEach((f) => form.append('videos', f));
     try {
@@ -173,7 +198,22 @@ export function CreateRepairRequestPage() {
           />
           {errors.description ? <span className="text-xs text-red-600">{errors.description.message}</span> : null}
         </label>
-        <Input id="address" label={t('request.fieldAddress')} placeholder={t('request.addressPh')} {...register('address')} />
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-ink-800">{t('request.fieldAddress')}</p>
+          {saved ? (
+            <Button type="button" variant="outline" onClick={useSaved}>
+              <Bookmark className="h-4 w-4" /> {t('map.useSaved')}
+            </Button>
+          ) : null}
+          <LocationPicker variant="panel" origin={origin} onPick={pickSite} />
+          <Input
+            id="address"
+            label={t('request.fieldAddress')}
+            placeholder={t('request.addressPh')}
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+          />
+        </div>
         <div>
           <p className="text-sm font-semibold text-ink-800">{t('request.media')}</p>
           <input

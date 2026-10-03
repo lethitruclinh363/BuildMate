@@ -32,6 +32,12 @@ export interface ContractorProfile {
   description: string;
   yearsExperience: number;
   serviceAreas: string[];
+  materialCategories?: {
+    name: string;
+    type?: 'SYSTEM' | 'CUSTOM';
+    categoryId?: string | null;
+    status?: 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED';
+  }[];
   services?: {
     category: string;
     name: string;
@@ -70,6 +76,12 @@ export interface Storefront {
   gallery: string[];
   openingHours: string;
   serviceRadiusKm: number;
+  deliveryEnabled?: boolean;
+  baseDeliveryFee?: number;
+  freeDeliveryRadiusKm?: number;
+  deliveryFeePerKm?: number;
+  minimumOrderAmount?: number;
+  deliveryNote?: string;
   category?: string;
   verified?: boolean;
   rating?: number;
@@ -107,10 +119,27 @@ export interface CatalogMaterial {
   isActive: boolean;
 }
 
+export interface ActivationCheck {
+  key: string;
+  ok: boolean;
+}
+
+export interface ActivationReadiness {
+  kind: 'CONTRACTOR' | 'STORE';
+  checks: ActivationCheck[];
+  profileReady: boolean;
+  percent: number;
+  activationStatus: 'INACTIVE' | 'LIVE' | 'PAUSED';
+  verificationStatus: string;
+  visible: boolean;
+  ready: boolean;
+}
+
 export interface WorkspacePayload {
   profile: ContractorProfile;
   store: Storefront | null;
   stats: { services: number; documents: number };
+  activation?: ActivationReadiness;
 }
 
 export interface PartnerApplication extends ContractorProfile {

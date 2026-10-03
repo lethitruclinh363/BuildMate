@@ -15,10 +15,24 @@ const createRepairSchema = z.object({
   lng: z.coerce.number().min(-180).max(180).optional(),
 });
 
-const sendMessageSchema = z.object({
-  type: z.enum(Object.values(MESSAGE_TYPE)).optional(),
-  content: z.string().max(4000).optional().default(''),
+const chatLocationSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  address: z.string().max(300).optional().default(''),
+  label: z.string().max(120).optional().default(''),
 });
+
+const sendMessageSchema = z
+  .object({
+    type: z.enum(Object.values(MESSAGE_TYPE)).optional(),
+    content: z.string().max(4000).optional().default(''),
+    location: chatLocationSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.type === MESSAGE_TYPE.LOCATION && !value.location) {
+      ctx.addIssue({ code: 'custom', path: ['location'], message: 'Coordinates are invalid' });
+    }
+  });
 
 const quotationItemSchema = z.object({
   type: z.enum(Object.values(QUOTE_ITEM_TYPE)),

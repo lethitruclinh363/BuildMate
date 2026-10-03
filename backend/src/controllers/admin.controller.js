@@ -2,6 +2,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const adminService = require('../services/admin.service');
 const catalogService = require('../services/catalog.service');
+const materialCategoryService = require('../services/material-category.service');
 const { CATALOG_STATUS } = require('../models/CatalogService');
 
 const stats = asyncHandler(async (_req, res) => {
@@ -82,6 +83,21 @@ const updateCatalog = asyncHandler(async (req, res) => {
   return success(res, data, 'Service updated');
 });
 
+const listMaterialCategories = asyncHandler(async (_req, res) => {
+  const data = await materialCategoryService.listForAdmin();
+  return success(res, data, 'Material categories retrieved');
+});
+
+const createMaterialCategory = asyncHandler(async (req, res) => {
+  const data = await materialCategoryService.createAdminSystemCategory(req.body);
+  return success(res, data, 'Material category added', 201);
+});
+
+const updateMaterialCategory = asyncHandler(async (req, res) => {
+  const data = await materialCategoryService.updateAdminSystemCategory(req.params.id, req.body);
+  return success(res, data, 'Material category updated');
+});
+
 const setCatalogStatus = asyncHandler(async (req, res) => {
   const data = await catalogService.setCatalogStatus(req.params.id, req.body.status);
   return success(res, data, 'Service status updated');
@@ -109,4 +125,7 @@ module.exports = {
   createCatalog,
   updateCatalog,
   setCatalogStatus,
+  listMaterialCategories,
+  createMaterialCategory,
+  updateMaterialCategory,
 };

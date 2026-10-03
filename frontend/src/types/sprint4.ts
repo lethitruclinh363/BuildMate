@@ -8,7 +8,7 @@ export const REPAIR_CATEGORIES = [
 
 export type RepairCategory = (typeof REPAIR_CATEGORIES)[number]['value'];
 export type RequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED';
-export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'QUOTATION';
+export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'QUOTATION' | 'LOCATION';
 export type QuotationStatus =
   | 'DRAFT'
   | 'SENT'
@@ -77,6 +77,7 @@ export interface ChatMessage {
   senderId: string;
   type: MessageType;
   content: string;
+  location?: { lat: number; lng: number; address: string; label: string } | null;
   quotationId: string | null;
   quotation?: Quotation | null;
   read: boolean;

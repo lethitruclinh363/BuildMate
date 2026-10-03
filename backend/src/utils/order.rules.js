@@ -45,6 +45,14 @@ const CANCELLABLE_ORDER_STATUSES = [
   ORDER_STATUS.DEPOSIT_PAID,
 ];
 
+/** Allowed progress writes for the current order status. Same status = site journal. */
+const PROGRESS_TRANSITIONS = Object.freeze({
+  [ORDER_STATUS.QUOTATION_ACCEPTED]: Object.freeze([PROGRESS_STATUS.STARTED]),
+  [ORDER_STATUS.DEPOSIT_PAID]: Object.freeze([PROGRESS_STATUS.STARTED]),
+  [ORDER_STATUS.STARTED]: Object.freeze([PROGRESS_STATUS.STARTED, PROGRESS_STATUS.IN_PROGRESS]),
+  [ORDER_STATUS.IN_PROGRESS]: Object.freeze([PROGRESS_STATUS.IN_PROGRESS, PROGRESS_STATUS.COMPLETED]),
+});
+
 function generateOrderCode() {
   const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
@@ -59,7 +67,13 @@ function orderStatusAfterProgress(currentStatus, progressStatus) {
     return currentStatus;
   }
   if (progressStatus === PROGRESS_STATUS.COMPLETED) {
-    return ORDER_STATUS.COMPLETED;
+    if (
+      currentStatus === ORDER_STATUS.IN_PROGRESS ||
+      currentStatus === ORDER_STATUS.COMPLETED
+    ) {
+      return ORDER_STATUS.COMPLETED;
+    }
+    return currentStatus;
   }
   const rank = STATUS_RANK[currentStatus] || 0;
   if (progressStatus === PROGRESS_STATUS.STARTED && rank > 0 && rank < STATUS_RANK[ORDER_STATUS.STARTED]) {
@@ -73,6 +87,11 @@ function orderStatusAfterProgress(currentStatus, progressStatus) {
     return ORDER_STATUS.IN_PROGRESS;
   }
   return currentStatus;
+}
+
+function isValidProgressTransition(currentStatus, nextStatus) {
+  const allowed = PROGRESS_TRANSITIONS[currentStatus];
+  return Boolean(allowed && allowed.includes(nextStatus));
 }
 
 function orderStatusAfterDeposit(currentStatus) {
@@ -91,6 +110,7 @@ module.exports = {
   OPEN_ORDER_STATUSES,
   CANCELLABLE_ORDER_STATUSES,
   generateOrderCode,
+  isValidProgressTransition,
   orderStatusAfterProgress,
   orderStatusAfterDeposit,
 };

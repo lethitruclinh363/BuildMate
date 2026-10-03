@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { rememberGpsOrigin, requestCurrentPosition, type GeoErrorKind } from '@/features/map/lib/location';
 import { CAN_THO } from '@/types/marketplace';
 
 export interface MapOrigin {
@@ -7,31 +8,23 @@ export interface MapOrigin {
   label?: string;
 }
 
+export type GpsStatus = 'idle' | 'asking' | 'ready' | GeoErrorKind;
+
 export function useCurrentLocation() {
   const [origin, setOrigin] = useState<MapOrigin>(CAN_THO);
-  const [status, setStatus] = useState<'idle' | 'asking' | 'ready' | 'denied'>('idle');
+  const [status, setStatus] = useState<GpsStatus>('idle');
 
   const locate = useCallback(() => {
-    if (!navigator.geolocation) {
-      setStatus('denied');
-      return;
-    }
     setStatus('asking');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setOrigin({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          label: 'GPS',
-        });
+    requestCurrentPosition()
+      .then((point) => {
+        rememberGpsOrigin(point);
+        setOrigin({ ...point, label: 'GPS' });
         setStatus('ready');
-      },
-      () => {
-        setOrigin({ ...CAN_THO, label: 'Can Tho centre' });
-        setStatus('denied');
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+      })
+      .catch((err: { kind?: GeoErrorKind }) => {
+        setStatus(err.kind === 'denied' ? 'denied' : 'unavailable');
+      });
   }, []);
 
   return { origin, setOrigin, locate, status };

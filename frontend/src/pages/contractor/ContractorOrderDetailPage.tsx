@@ -9,20 +9,19 @@ import { Card } from '@/components/ui/Card';
 import { OrderDetailView } from '@/features/orders/components/OrderDetail';
 import { useOrderDetail } from '@/features/orders/hooks/useOrderDetail';
 import { orderApi } from '@/features/orders/services/order.api';
-import { canCancelOrder } from '@/features/orders/types/orderStatus';
+import { allowedProgressStatuses, canCancelOrder } from '@/features/orders/types/orderStatus';
 import type { OrderStatus } from '@/features/orders/types/order.types';
 import { ProgressUpdateForm } from '@/features/progress/components/ProgressUpdateForm';
 import { getApiErrorMessage } from '@/lib/api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 
-const OPEN_FOR_PROGRESS: OrderStatus[] = ['QUOTATION_ACCEPTED', 'DEPOSIT_PAID', 'STARTED', 'IN_PROGRESS'];
 const READY_TO_START: OrderStatus[] = ['QUOTATION_ACCEPTED', 'DEPOSIT_PAID'];
 
 export function ContractorOrderDetailPage() {
   const { id } = useParams();
   const { t, te } = useI18n();
-  const { order, progress, request, quotation, loading, error, reload } = useOrderDetail(id);
+  const { order, progress, request, quotation, loading, error, reload, noteProgress } = useOrderDetail(id);
   const push = useToastStore((s) => s.push);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -30,7 +29,7 @@ export function ContractorOrderDetailPage() {
   if (loading) return <DashboardSkeleton />;
   if (error || !order) return <ErrorState body={error || undefined} onRetry={reload} />;
 
-  const canWork = OPEN_FOR_PROGRESS.includes(order.status);
+  const progressChoices = allowedProgressStatuses(order.status);
 
   return (
     <PageTransition>
@@ -58,7 +57,8 @@ export function ContractorOrderDetailPage() {
                   setBusy(true);
                   void orderApi
                     .addProgress(order.id, { status: 'STARTED', description: t('orders.progress.acceptNote') })
-                    .then(() => {
+                    .then((res) => {
+                      noteProgress(res.data.data);
                       push({ kind: 'success', title: t('orders.progress.accepted') });
                       reload();
                     })
@@ -69,13 +69,15 @@ export function ContractorOrderDetailPage() {
                 {t('orders.progress.accept')}
               </Button>
             ) : null}
-            {canWork ? (
+            {progressChoices.length ? (
               <ProgressUpdateForm
+                currentStatus={order.status}
                 busy={busy}
                 onSubmit={async (payload) => {
                   setBusy(true);
                   try {
-                    await orderApi.addProgress(order.id, payload);
+                    const res = await orderApi.addProgress(order.id, payload);
+                    noteProgress(res.data.data);
                     push({ kind: 'success', title: t('orders.progress.saved') });
                     reload();
                   } catch (err) {

@@ -15,6 +15,8 @@ import type { CatalogService } from '@/types/partner';
 import type { PublicContractorProfile, PublicHighlights } from '@/types/marketplace';
 import type { Review } from '@/features/reviews/types/review.types';
 import { ImageViewer, MediaFrame, type ViewerSlide } from '@/components/media/ProfileMedia';
+import { LocationViewer } from '@/features/map/components/LocationViewer';
+import { directionsUrl } from '@/features/map/lib/location';
 import { ServiceAreaMap } from './ServiceAreaMap';
 
 const UNITS = {
@@ -263,6 +265,19 @@ export function ContractorProfileShowcase({
               {profile.serviceAreas.map((area) => (
                 <Badge key={area} tone="mist">{area}</Badge>
               ))}
+            </div>
+          ) : null}
+          {profile.locationReady && profile.areaCenter ? (
+            <div className="mt-4">
+              <LocationViewer lat={profile.areaCenter.lat} lng={profile.areaCenter.lng} address={profile.city || undefined} />
+              <a
+                className="mt-3 inline-flex text-sm font-semibold text-navy-800 underline"
+                href={directionsUrl(profile.areaCenter.lat, profile.areaCenter.lng)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t('public.directions')}
+              </a>
             </div>
           ) : null}
           {profile.areaCenter && profile.serviceRadiusKm ? (

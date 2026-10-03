@@ -25,9 +25,52 @@ export interface PublicContractorProfile {
   workerCount: number;
   serviceRadiusKm?: number;
   areaCenter?: { lat: number; lng: number } | null;
+  locationReady?: boolean;
   verified: boolean;
   rating: number;
   reviewCount: number;
+}
+
+export interface PublicStoreProfile {
+  id: string;
+  contractorId: string;
+  profileType?: 'STORE' | 'CONTRACTOR';
+  displayName: string;
+  slogan: string;
+  description: string;
+  phone: string;
+  contactName?: string;
+  contactEmail?: string;
+  address: string;
+  city: string;
+  avatar: string;
+  logo: string;
+  coverImage: string;
+  gallery: string[];
+  openingHours: string;
+  serviceAreas: string[];
+  serviceRadiusKm?: number;
+  deliveryEnabled?: boolean;
+  baseDeliveryFee?: number;
+  freeDeliveryRadiusKm?: number;
+  deliveryFeePerKm?: number;
+  minimumOrderAmount?: number;
+  yearsExperience?: number;
+  areaCenter?: { lat: number; lng: number } | null;
+  locationReady?: boolean;
+  showroomNote?: string;
+  deliveryNote?: string;
+  verified: boolean;
+  rating: number;
+  reviewCount: number;
+}
+
+export interface PublicStoreReview {
+  id: string;
+  rating: number;
+  comment: string;
+  customerName?: string;
+  createdAt?: string;
 }
 
 export interface PublicHighlights {
@@ -59,9 +102,14 @@ export interface NearbyPlace {
   reviewCount: number;
   completedProjects?: number;
   distance: number;
+  distanceMeters?: number;
+  serviceRadiusKm?: number;
+  deliveryEnabled?: boolean;
+  baseDeliveryFee?: number;
   location: GeoPoint;
   services: { id: string; name: string; category: string; basePrice: number }[];
   products?: { id: string; name: string; category: string; price: number; unit: string }[];
+  materialCategories?: { name: string; type?: 'SYSTEM' | 'CUSTOM' }[];
 }
 
 export interface PublicService {

@@ -85,9 +85,16 @@ describe('marketplace catalog LIVE+APPROVED gate', { timeout: 90000 }, () => {
     });
     cleanup.profiles.push(okProfile._id, pendingProfile._id);
 
+    okProfile.materialCategories = [{ name: 'Cement', type: 'SYSTEM' }];
+    await okProfile.save();
+
     const liveStore = await Store.create({
       contractorId: approvedUser._id,
       name: 'Live Approved Store',
+      description: 'Waterproofing crew for Can Tho homes',
+      phone: '0901234567',
+      avatar: '/uploads/crew.png',
+      coverImage: '/uploads/cover.png',
       address: 'Can Tho',
       city: 'Can Tho',
       storeType: 'BOTH',
@@ -151,6 +158,50 @@ describe('marketplace catalog LIVE+APPROVED gate', { timeout: 90000 }, () => {
 
     await assert.rejects(() => marketplace.getPublicStore(pendingStore._id), (err) => err.statusCode === 404);
     const pub = await marketplace.getPublicStore(liveStore._id);
+    assert.equal(pub.visibility, 'LIVE');
     assert.equal(pub.store.name, 'Live Approved Store');
+
+    const quietUser = await User.create({
+      name: 'Quiet Co',
+      email: `mkt.quiet.${stamp}@buildmate.test`,
+      password: 'Demo@1234',
+      role: ROLES.CONTRACTOR,
+      status: USER_STATUS.ACTIVE,
+    });
+    cleanup.users.push(quietUser._id);
+    const quietProfile = await ContractorProfile.create({
+      userId: quietUser._id,
+      businessName: 'Quiet Yard',
+      verificationStatus: VERIFICATION_STATUS.APPROVED,
+    });
+    cleanup.profiles.push(quietProfile._id);
+    const quietStore = await Store.create({
+      contractorId: quietUser._id,
+      name: 'Quiet Approved Store',
+      description: 'Approved crew that has not activated yet',
+      phone: '0901234567',
+      avatar: '/uploads/quiet.png',
+      address: 'Can Tho',
+      city: 'Can Tho',
+      storeType: 'SERVICES',
+      status: STORE_STATUS.INACTIVE,
+      location: { type: 'Point', coordinates: [105.74, 10.04] },
+    });
+    cleanup.stores.push(quietStore._id);
+    const quietService = await Service.create({
+      storeId: quietStore._id,
+      contractorId: quietUser._id,
+      name: 'Inactive Waterproof',
+      category: 'Waterproofing',
+      basePrice: 300000,
+      isActive: true,
+    });
+    cleanup.services.push(quietService._id);
+
+    const after = await marketplace.searchServices({ category: 'Waterproofing' });
+    assert.equal(after.some((item) => item.name === 'Inactive Waterproof'), false);
+    const hidden = await marketplace.getPublicStore(quietStore._id);
+    assert.equal(hidden.visibility, 'INACTIVE');
+    assert.equal(hidden.services.length, 0);
   });
 });

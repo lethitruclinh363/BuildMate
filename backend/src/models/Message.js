@@ -5,6 +5,7 @@ const MESSAGE_TYPE = Object.freeze({
   IMAGE: 'IMAGE',
   VIDEO: 'VIDEO',
   QUOTATION: 'QUOTATION',
+  LOCATION: 'LOCATION',
 });
 
 const messageSchema = new mongoose.Schema(
@@ -26,6 +27,12 @@ const messageSchema = new mongoose.Schema(
       default: MESSAGE_TYPE.TEXT,
     },
     content: { type: String, default: '', maxlength: 4000 },
+    location: {
+      lat: { type: Number },
+      lng: { type: Number },
+      address: { type: String, default: '', maxlength: 300 },
+      label: { type: String, default: '', maxlength: 120 },
+    },
     quotationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Quotation',
@@ -45,6 +52,15 @@ messageSchema.methods.toPublic = function toPublic() {
     senderId: this.senderId,
     type: this.type,
     content: this.content,
+    location:
+      this.location && Number.isFinite(this.location.lat) && Number.isFinite(this.location.lng)
+        ? {
+            lat: this.location.lat,
+            lng: this.location.lng,
+            address: this.location.address || '',
+            label: this.location.label || '',
+          }
+        : null,
     quotationId: this.quotationId,
     read: this.read,
     createdAt: this.createdAt,

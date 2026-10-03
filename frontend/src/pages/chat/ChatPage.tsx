@@ -1,12 +1,14 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ImagePlus, Send } from 'lucide-react';
+import { ImagePlus, MapPin, Send } from 'lucide-react';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
+import { LocationMessage } from '@/features/chat/components/LocationMessage';
+import { SendLocationModal, type ChatLocationDraft } from '@/features/chat/components/SendLocationModal';
 import { TypingDots } from '@/features/chat/components/TypingDots';
 import { chatApi } from '@/features/chat/services/sprint4.api';
 import { QuotationCard } from '@/features/quotation/components/QuotationCard';
@@ -28,6 +30,8 @@ export function ChatPage() {
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [sendingLocation, setSendingLocation] = useState(false);
   const [typingName, setTypingName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +39,8 @@ export function ChatPage() {
   const typingTimer = useRef<number | undefined>(undefined);
 
   const isCustomer = user?.role === 'CUSTOMER';
-  const chatBase = isCustomer ? '/customer/chat' : '/contractor/chat';
+  const chatBase =
+    user?.role === 'MATERIAL_STORE_OWNER' ? '/store/chat' : isCustomer ? '/customer/chat' : '/contractor/chat';
 
   useEffect(() => {
     if (!roomId) return;
@@ -108,6 +113,20 @@ export function ChatPage() {
       emitTyping(true);
       if (typingTimer.current) window.clearTimeout(typingTimer.current);
       typingTimer.current = window.setTimeout(() => emitTyping(false), 1200);
+    }
+  };
+
+  const sendLocation = async (location: ChatLocationDraft) => {
+    if (!roomId || sendingLocation) return;
+    setSendingLocation(true);
+    try {
+      const { data } = await chatApi.sendLocation(roomId, location);
+      setMessages((prev) => (prev.some((item) => item.id === data.data.id) ? prev : [...prev, data.data]));
+      setLocationOpen(false);
+    } catch (err) {
+      setError(te(getApiErrorMessage(err)));
+    } finally {
+      setSendingLocation(false);
     }
   };
 
@@ -200,7 +219,9 @@ export function ChatPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className={cn('flex', mine ? 'justify-end' : 'justify-start')}
                 >
-                  {msg.type === 'QUOTATION' && msg.quotation ? (
+                  {msg.type === 'LOCATION' && msg.location ? (
+                    <LocationMessage location={msg.location} />
+                  ) : msg.type === 'QUOTATION' && msg.quotation ? (
                     <div className="w-full max-w-sm">
                       <QuotationCard
                         quote={msg.quotation}
@@ -235,6 +256,13 @@ export function ChatPage() {
           </div>
 
           <form onSubmit={onSubmit} className="flex items-end gap-2 border-t border-navy-800/8 bg-white p-3">
+            <button
+              type="button"
+              className="inline-flex h-11 items-center gap-2 rounded-full bg-paper-100 px-3 text-sm font-semibold text-navy-800"
+              onClick={() => setLocationOpen(true)}
+            >
+              <MapPin className="h-4 w-4" /> {t('chat.sendLocation')}
+            </button>
             <label className="grid h-11 w-11 cursor-pointer place-items-center rounded-full bg-paper-100 text-navy-800">
               <ImagePlus className="h-4 w-4" />
               <input
@@ -259,6 +287,12 @@ export function ChatPage() {
               <Send className="h-4 w-4" />
             </Button>
           </form>
+          <SendLocationModal
+            open={locationOpen}
+            busy={sendingLocation}
+            onOpenChange={setLocationOpen}
+            onSend={(location) => void sendLocation(location)}
+          />
         </section>
       </div>
     </PageTransition>

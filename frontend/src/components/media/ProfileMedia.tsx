@@ -44,14 +44,20 @@ export function MediaFrame({
   const status = visual.src === resolved ? visual.status : 'loading';
 
   useLayoutEffect(() => {
-    const img = imgRef.current;
-    if (!img || !resolved) return;
-    if (!img.complete) return;
-    const ok = img.naturalWidth > 0;
-    setVisual({ src: resolved, status: ok ? 'ready' : 'error' });
-    if (!ok && import.meta.env.DEV) {
-      console.error('[BuildMate Image] Failed to load:\nURL:', resolved);
+    const image = imgRef.current;
+    if (!image || !resolved) return;
+    let cancelled = false;
+    function settle() {
+      if (cancelled || !image) return;
+      if (!image.complete || image.naturalWidth <= 0) return;
+      setVisual({ src: resolved, status: 'ready' });
     }
+    settle();
+    const timer = window.setTimeout(settle, 80);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [resolved]);
 
   return (
@@ -67,6 +73,7 @@ export function MediaFrame({
         <>
           {status === 'loading' ? <div className="absolute inset-0 animate-pulse bg-navy-800/10" /> : null}
           <img
+            key={resolved}
             ref={imgRef}
             src={resolved}
             alt={alt}
@@ -256,13 +263,20 @@ function ViewerImage({
   const status = visual.src === resolved ? visual.status : 'loading';
 
   useLayoutEffect(() => {
-    const img = imgRef.current;
-    if (!img || !img.complete) return;
-    const ok = img.naturalWidth > 0;
-    setVisual({ src: resolved, status: ok ? 'ready' : 'error' });
-    if (!ok && import.meta.env.DEV) {
-      console.error('[BuildMate Image] Failed to load:\nURL:', resolved);
+    const image = imgRef.current;
+    if (!image || !resolved) return;
+    let cancelled = false;
+    function settle() {
+      if (cancelled || !image) return;
+      if (!image.complete || image.naturalWidth <= 0) return;
+      setVisual({ src: resolved, status: 'ready' });
     }
+    settle();
+    const timer = window.setTimeout(settle, 80);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [resolved]);
 
   if (status === 'error') {
@@ -278,6 +292,7 @@ function ViewerImage({
     <>
       {status === 'loading' ? <div className="pointer-events-none absolute h-16 w-16 animate-pulse rounded-full bg-white/20" /> : null}
       <img
+        key={resolved}
         ref={imgRef}
         src={resolved}
         alt={slide.alt}

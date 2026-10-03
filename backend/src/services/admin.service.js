@@ -13,6 +13,9 @@ const catalogService = require('./catalog.service');
 const serviceService = require('./service.service');
 const { seedPublicProfile } = require('./public-profile.service');
 const commissionService = require('./commission.service');
+const materialCategoryService = require('./material-category.service');
+const { publicSnapshots } = require('./public-profile.service');
+const activationService = require('./activation.service');
 
 function customerPublic(user, city = '') {
   return {
@@ -65,20 +68,32 @@ async function listVerifications(status) {
   const profiles = await ContractorProfile.find(filter)
     .sort({ submittedAt: -1, updatedAt: -1 })
     .populate('userId', 'name email phone avatar status role');
+  const categoriesByProfile = await materialCategoryService.selectionsForProfiles(profiles);
+  const snapshots = await publicSnapshots(profiles.map((profile) => profile.userId?._id || profile.userId));
 
-  return profiles.map((profile) => ({
-    ...profile.toPublic(),
-    user: profile.userId
-      ? {
-          id: profile.userId._id,
-          name: profile.userId.name,
-          email: profile.userId.email,
-          phone: profile.userId.phone,
-          avatar: profile.userId.avatar,
-          status: profile.userId.status,
-          role: profile.userId.role,
-        }
-      : null,
+  return Promise.all(profiles.map(async (profile) => {
+    const published = profile.toPublic();
+    const categories = categoriesByProfile.get(String(profile._id));
+    if (categories) published.materialCategories = categories;
+    const ownerId = String(profile.userId?._id || profile.userId || '');
+    const snapshot = snapshots.get(ownerId);
+    if (snapshot) published.publicProfile = snapshot;
+    const activation = ownerId ? await activationService.getActivationReadiness(ownerId) : null;
+    return {
+      ...published,
+      activation,
+      user: profile.userId
+        ? {
+            id: profile.userId._id,
+            name: profile.userId.name,
+            email: profile.userId.email,
+            phone: profile.userId.phone,
+            avatar: profile.userId.avatar,
+            status: profile.userId.status,
+            role: profile.userId.role,
+          }
+        : null,
+    };
   }));
 }
 
@@ -97,8 +112,16 @@ async function getVerification(id) {
     if (offering.name) completionByKey.set(String(offering.name), offering.completionStatus);
   }
   const published = profile.toPublic();
+  const categoriesByProfile = await materialCategoryService.selectionsForProfiles([profile]);
+  const categories = categoriesByProfile.get(String(profile._id));
+  if (categories) published.materialCategories = categories;
+  const snapshots = await publicSnapshots([profile.userId?._id || profile.userId]);
+  const snapshot = snapshots.get(String(profile.userId?._id || profile.userId || ''));
+  if (snapshot) published.publicProfile = snapshot;
+  const activation = userId ? await activationService.getActivationReadiness(userId) : null;
 
   return {
+    activation,
     ...published,
     services: (published.services || []).map((item) => ({
       ...item,
@@ -146,12 +169,12 @@ async function approve(id, adminId) {
       city: profile.city || 'Can Tho',
       description: profile.description || '',
       storeType,
-      status: STORE_STATUS.LIVE,
+      status: STORE_STATUS.INACTIVE,
       verified: true,
     });
   } else {
     existing.storeType = storeType;
-    existing.status = STORE_STATUS.LIVE;
+    existing.status = STORE_STATUS.INACTIVE;
     existing.verified = true;
     if (!existing.publicSeeded) {
       if (profile.businessName) existing.name = profile.businessName;

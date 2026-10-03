@@ -6,6 +6,7 @@ import { GlassCard } from '@/components/GlassCard';
 import { PageHeader } from '@/components/PageHeader';
 import { getApiErrorMessage } from '@/services/api';
 import { adminApi, type AdminCatalogPayload, type AdminCatalogService } from '@/services/admin.api';
+import { MaterialCatalogPanel } from '@/pages/catalog/MaterialCatalogPanel';
 import { useToastStore } from '@/stores/toast.store';
 
 const GROUPS = ['Electrical', 'Plumbing', 'Painting', 'Tiling', 'Interior', 'Repair', 'Construction'] as const;
@@ -25,6 +26,7 @@ export function ServiceCatalogPage() {
   const [similar, setSimilar] = useState<string[]>([]);
   const [acknowledgeSimilar, setAcknowledgeSimilar] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<'services' | 'materials'>('services');
 
   const load = async (next?: { q?: string; category?: string; status?: string }) => {
     const payload = await adminApi.listCatalog({
@@ -113,7 +115,22 @@ export function ServiceCatalogPage() {
 
   return (
     <div>
-      <PageHeader eyebrow={t('nav.system')} title={t('catalog.title')} description={t('catalog.description')} />
+      <PageHeader
+        eyebrow={t('nav.system')}
+        title={t('catalog.title')}
+        description={tab === 'materials' ? t('catalog.materials.description') : t('catalog.description')}
+      />
+      <div className="mb-5 flex flex-wrap gap-2">
+        <FilterChip active={tab === 'services'} onClick={() => setTab('services')}>
+          {t('catalog.materials.tabServices')}
+        </FilterChip>
+        <FilterChip active={tab === 'materials'} onClick={() => setTab('materials')}>
+          {t('catalog.materials.tabMaterials')}
+        </FilterChip>
+      </div>
+      {tab === 'materials' ? <MaterialCatalogPanel /> : null}
+      {tab === 'services' ? (
+      <>
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           [stats?.total ?? 0, t('catalog.total')],
@@ -308,6 +325,8 @@ export function ServiceCatalogPage() {
             </div>
           </GlassCard>
         </div>
+      ) : null}
+      </>
       ) : null}
     </div>
   );

@@ -55,6 +55,7 @@ function attachChatHandlers(socket) {
         type: payload.type,
         content: payload.content,
         quotationId: payload.quotationId,
+        location: payload.location,
       });
       if (typeof ack === 'function') ack({ ok: true, data });
     } catch (err) {

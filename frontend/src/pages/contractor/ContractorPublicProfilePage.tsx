@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { PageHeader } from '@/components/dashboard/PageHeader';
@@ -11,6 +11,8 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
 import { catalogServiceLabel } from '@/data/contractor-services';
+import { PartnerLocationSection } from '@/features/map/components/PartnerLocationSection';
+import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
 import { locationApi } from '@/features/map/services/location.api';
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
 import { api, getApiErrorMessage } from '@/lib/api';
@@ -21,6 +23,7 @@ import type { ApiResponse } from '@/types/user';
 import type { CatalogService, ContractorProfile } from '@/types/partner';
 import type { PublicContractorProfile, PublicHighlights } from '@/types/marketplace';
 import { ImageViewer, MediaFrame, type ViewerSlide } from '@/components/media/ProfileMedia';
+import { useHashFocus } from '@/components/partner/useHashFocus';
 import { ContractorProfileShowcase } from '@/pages/public/ContractorProfileShowcase';
 
 type PhotoKey = 'gallery' | 'crewPhotos' | 'publicCertificates';
@@ -66,6 +69,8 @@ function areasText(profile: PublicContractorProfile) {
 
 export function ContractorPublicProfilePage() {
   const { t, locale } = useI18n();
+  const navigate = useNavigate();
+  const { hash } = useLocation();
   const pushToast = useToastStore((state) => state.push);
   const workspace = useContractorWorkspace();
   const [loading, setLoading] = useState(true);
@@ -98,12 +103,37 @@ export function ContractorPublicProfilePage() {
   }, []);
 
   useEffect(() => {
+    const id = hash.replace(/^#/, '');
+    if (id === 'introduction' || id === 'display-name') setOpen((current) => ({ ...current, about: true }));
+    if (['working-hours', 'service-area', 'public-contact'].includes(id)) {
+      setOpen((current) => ({ ...current, activity: true }));
+    }
+  }, [hash]);
+  useHashFocus(!loading);
+
+  useEffect(() => {
     if (!profile.contractorId) return;
     locationApi
       .contractor(String(profile.contractorId))
       .then((res) => setHighlights(res.data.data.highlights || {}))
       .catch(() => undefined);
   }, [profile.contractorId]);
+
+  async function saveLocation(origin: MapOrigin) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await contractorApi.updateStore({ lat: origin.lat, lng: origin.lng });
+      const next = { ...profile, areaCenter: { lat: origin.lat, lng: origin.lng }, locationReady: true };
+      setProfile(next);
+      setSaved(next);
+      pushToast({ kind: 'success', title: t('publicProfile.locationSaved') });
+    } catch (err) {
+      pushToast({ kind: 'error', title: getApiErrorMessage(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function setField<K extends keyof PublicContractorProfile>(key: K, value: PublicContractorProfile[K]) {
     setProfile((current) => ({ ...current, [key]: value }));
@@ -150,6 +180,7 @@ export function ContractorPublicProfilePage() {
     setBusy(true);
     setError('');
     try {
+      const before = await contractorApi.workspace();
       const serviceAreas = areas.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 8);
       const res = await contractorApi.savePublicProfile({
         displayName: profile.displayName,
@@ -173,7 +204,10 @@ export function ContractorPublicProfilePage() {
       setSaved(res.data.data);
       setAreas(areasText(res.data.data));
       setOpen({});
-      pushToast({ kind: 'success', title: t('publicProfile.saved') });
+      const after = await contractorApi.workspace();
+      const becameReady = !before.data.data.activation?.ready && after.data.data.activation?.ready;
+      pushToast({ kind: 'success', title: becameReady ? t('activation.completeToast') : t('activation.savedToast') });
+      navigate('/contractor/dashboard');
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -278,6 +312,7 @@ export function ContractorPublicProfilePage() {
         <Card hover={false}>
           <h2 className="font-display text-xl text-navy-800">{t('publicProfile.brand')}</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div id="avatar" className="section-anchor">
             <BrandSlot
               label={t('publicProfile.avatar')}
               changeLabel={t('publicProfile.change')}
@@ -289,6 +324,8 @@ export function ContractorPublicProfilePage() {
               onOpen={() => setViewer(openBrand(profile, 'avatar', t))}
               onPick={(file) => void onSingle('avatar', file)}
             />
+            </div>
+            <div id="logo" className="section-anchor">
             <BrandSlot
               label={t('publicProfile.logo')}
               changeLabel={t('publicProfile.change')}
@@ -300,8 +337,9 @@ export function ContractorPublicProfilePage() {
               onOpen={() => setViewer(openBrand(profile, 'logo', t))}
               onPick={(file) => void onSingle('logo', file)}
             />
+            </div>
           </div>
-          <div className="mt-4">
+          <div id="cover" className="section-anchor mt-4">
             <BrandSlot
               label={t('publicProfile.cover')}
               changeLabel={t('publicProfile.change')}
@@ -326,9 +364,13 @@ export function ContractorPublicProfilePage() {
           />
           {open.about ? (
             <div className="mt-4 grid gap-4">
-              <Input label={t('publicProfile.displayName')} value={profile.displayName} onChange={(event) => setField('displayName', event.target.value)} required />
+              <div id="display-name" className="section-anchor">
+                <Input label={t('publicProfile.displayName')} value={profile.displayName} onChange={(event) => setField('displayName', event.target.value)} required />
+              </div>
               <Input label={t('publicProfile.slogan')} value={profile.slogan} onChange={(event) => setField('slogan', event.target.value)} />
-              <TextArea label={t('publicProfile.intro')} value={profile.description} onChange={(event) => setField('description', event.target.value)} />
+              <div id="introduction" className="section-anchor">
+                <TextArea label={t('publicProfile.intro')} value={profile.description} onChange={(event) => setField('description', event.target.value)} />
+              </div>
             </div>
           ) : (
             <p className="mt-3 text-sm text-ink-600">{profile.displayName}{profile.slogan ? ` · ${profile.slogan}` : ''}</p>
@@ -347,9 +389,15 @@ export function ContractorPublicProfilePage() {
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <Input label={t('publicProfile.experience')} type="number" min={0} max={80} value={profile.yearsExperience} onChange={(event) => setField('yearsExperience', Number(event.target.value))} />
               <Input label={t('publicProfile.workers')} type="number" min={0} max={500} value={profile.workerCount} onChange={(event) => setField('workerCount', Number(event.target.value))} />
-              <Input label={t('publicProfile.areas')} hint={t('publicProfile.areasHint')} value={areas} onChange={(event) => setAreas(event.target.value)} />
-              <Input label={t('publicProfile.hours')} value={profile.openingHours} onChange={(event) => setField('openingHours', event.target.value)} />
-              <Input label={t('publicProfile.phone')} value={profile.phone} onChange={(event) => setField('phone', event.target.value)} />
+              <div id="service-area" className="section-anchor">
+                <Input label={t('publicProfile.areas')} hint={t('publicProfile.areasHint')} value={areas} onChange={(event) => setAreas(event.target.value)} />
+              </div>
+              <div id="working-hours" className="section-anchor">
+                <Input label={t('publicProfile.hours')} value={profile.openingHours} onChange={(event) => setField('openingHours', event.target.value)} />
+              </div>
+              <div id="public-contact" className="section-anchor">
+                <Input label={t('publicProfile.phone')} value={profile.phone} onChange={(event) => setField('phone', event.target.value)} />
+              </div>
               <Input label={t('publicProfile.city')} value={profile.city} onChange={(event) => setField('city', event.target.value)} />
             </div>
           ) : (
@@ -357,6 +405,19 @@ export function ContractorPublicProfilePage() {
               {[profile.city, profile.openingHours, profile.phone].filter(Boolean).join(' · ') || t('verify.emptyValue')}
             </p>
           )}
+        </Card>
+
+        <Card hover={false}>
+          <PartnerLocationSection
+            title={t('publicProfile.locationTitle')}
+            hint={t('publicProfile.locationHint')}
+            lat={profile.areaCenter?.lat}
+            lng={profile.areaCenter?.lng}
+            label={profile.city}
+            ready={profile.locationReady}
+            saving={busy}
+            onSave={(origin) => void saveLocation(origin)}
+          />
         </Card>
 
         <Card hover={false}>
@@ -436,6 +497,9 @@ export function ContractorPublicProfilePage() {
         </Card>
 
         <div className="sticky bottom-3 z-20 flex justify-end gap-2 rounded-full border border-navy-800/8 bg-white/95 p-2 shadow-card">
+          <Button asChild type="button" variant="ghost">
+            <Link to="/contractor/dashboard">{t('activation.backDashboard')}</Link>
+          </Button>
           <Button type="button" variant="ghost" onClick={cancelEdits}>{t('publicProfile.cancel')}</Button>
           <Button type="submit" disabled={busy}>{t('publicProfile.save')}</Button>
         </div>

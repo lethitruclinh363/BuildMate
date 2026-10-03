@@ -8,6 +8,7 @@ const { createRoomForRequest } = require('./chat.service');
 const { notify, NOTIFICATION_TYPE } = require('./notification.service');
 const { writeAudit, AUDIT_ACTION } = require('./audit.service');
 const { CatalogService, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
+const { requirePlace } = require('../utils/geo');
 
 async function populateCard(request) {
   const [customer, contractor, store, room] = await Promise.all([
@@ -48,6 +49,9 @@ async function createRequest(customerId, payload) {
     verificationStatus: VERIFICATION_STATUS.APPROVED,
   });
   if (!profile) throw new ApiError(400, 'This partner is not verified yet');
+  const activationService = require('./activation.service');
+  const readiness = await activationService.getActivationReadiness(contractor._id);
+  if (!readiness.visible) throw new ApiError(400, 'This partner is not accepting new requests');
 
   if (payload.storeId) {
     const requested = await Store.findById(payload.storeId);
@@ -66,8 +70,11 @@ async function createRequest(customerId, payload) {
     storeType: STORE_TYPE.SERVICES,
   });
 
-  const lng = payload.lng !== undefined ? Number(payload.lng) : store?.location?.coordinates?.[0];
-  const lat = payload.lat !== undefined ? Number(payload.lat) : store?.location?.coordinates?.[1];
+  const site = requirePlace(
+    { lat: payload.lat, lng: payload.lng, address: payload.address, label: payload.address },
+    { addressMax: 300, labelMax: 300 }
+  );
+  if (!site) throw new ApiError(422, 'Coordinates are invalid');
 
   const request = await RepairRequest.create({
     customerId,
@@ -80,11 +87,8 @@ async function createRequest(customerId, payload) {
     description: payload.description,
     images: payload.images || [],
     videos: payload.videos || [],
-    address: payload.address || '',
-    location: {
-      type: 'Point',
-      coordinates: [Number.isFinite(lng) ? lng : 105.746, Number.isFinite(lat) ? lat : 10.045],
-    },
+    address: site.address,
+    location: site.point,
   });
 
   const room = await createRoomForRequest(request);

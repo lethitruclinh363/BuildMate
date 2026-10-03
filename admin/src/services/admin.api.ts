@@ -33,6 +33,24 @@ export interface AdminCatalogPayload {
   proposals: AdminCatalogService[];
 }
 
+export interface AdminMaterialCategory {
+  id: string | null;
+  name: string;
+  labels?: { vi?: string; en?: string };
+  group: string;
+  type: 'SYSTEM' | 'CUSTOM';
+  status: string;
+  createdAt?: string | null;
+  locked?: boolean;
+  storeName?: string | null;
+  ownerId?: string | null;
+}
+
+export interface AdminMaterialCatalog {
+  system: AdminMaterialCategory[];
+  custom: AdminMaterialCategory[];
+}
+
 export interface AdminCatalogWrite {
   name: string;
   category: string;
@@ -99,6 +117,14 @@ export const adminApi = {
 
   setCatalogStatus: async (id: string, status: 'ACTIVE' | 'INACTIVE') =>
     bustCache(unwrap((await api.patch<ApiResponse<AdminCatalogService>>(`/admin/service-catalog/${id}/status`, { status })).data)),
+
+  listMaterialCategories: async () => unwrap((await api.get<ApiResponse<AdminMaterialCatalog>>('/admin/material-categories')).data),
+
+  createMaterialCategory: async (name: string) =>
+    bustCache(unwrap((await api.post<ApiResponse<AdminMaterialCategory>>('/admin/material-categories', { name })).data)),
+
+  updateMaterialCategory: async (id: string, name: string) =>
+    bustCache(unwrap((await api.patch<ApiResponse<AdminMaterialCategory>>(`/admin/material-categories/${id}`, { name })).data)),
 
   auditLogs: (params?: { action?: string; limit?: number }) =>
     cached(`admin-audit:${JSON.stringify(params || {})}`, 60_000, async () =>
