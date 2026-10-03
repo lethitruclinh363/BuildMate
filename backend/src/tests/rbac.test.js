@@ -4,7 +4,7 @@ const { ensureMongo, mongoSkip } = require('./helpers/mongo');
 const { startTestServer, api } = require('./helpers/http');
 const { createParty, cleanupParty } = require('./helpers/party');
 const { User, ROLES, USER_STATUS } = require('../models/User');
-const { signToken } = require('../services/auth.service');
+const { signToken } = require('../services/authService');
 
 describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
   let dbReady = false;
@@ -18,7 +18,7 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
     if (!dbReady) return;
     server = await startTestServer();
     party = await createParty(`rbac-${Date.now()}`);
-    const { customerAction } = require('../services/quotation.service');
+    const { customerAction } = require('../services/quotationService');
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
     orderId = accepted.order.id;
     admin = await User.create({

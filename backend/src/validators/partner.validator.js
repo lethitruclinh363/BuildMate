@@ -6,7 +6,7 @@ const {
   findSystemService,
   normalizeServiceName,
   isCategory,
-} = require('../constants/contractor-services');
+} = require('../constants/contractorServices');
 
 const contactPhoneSchema = z
   .string()

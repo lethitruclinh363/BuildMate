@@ -4,7 +4,7 @@ const { ensureMongo, mongoSkip } = require('./helpers/mongo');
 const { startTestServer, api } = require('./helpers/http');
 const { createParty, cleanupParty } = require('./helpers/party');
 const { User, ROLES, USER_STATUS } = require('../models/User');
-const { signToken } = require('../services/auth.service');
+const { signToken } = require('../services/authService');
 const dashboardService = require('../services/contractorDashboard.service');
 
 describe('Phase 3 contractor dashboard-stats', { timeout: 90000 }, () => {
@@ -56,7 +56,7 @@ describe('Phase 3 contractor dashboard-stats', { timeout: 90000 }, () => {
     assert.equal(empty.recentRequests.length, 0);
     assert.equal(empty.needsAssign.length, 0);
 
-    const { customerAction } = require('../services/quotation.service');
+    const { customerAction } = require('../services/quotationService');
     await customerAction(party.quotation._id, party.customer._id, 'accept');
 
     const scoped = await dashboardService.getDashboardStats(party.contractor._id);

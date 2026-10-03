@@ -1,8 +1,8 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { ensureMongo, mongoSkip } = require('./helpers/mongo');
-const { applyMarketplaceFilters } = require('../services/location.service');
-const marketplace = require('../services/marketplace.service');
+const { applyMarketplaceFilters } = require('../services/locationService');
+const marketplace = require('../services/marketplaceService');
 
 describe('marketplace filters', () => {
   const rows = [
