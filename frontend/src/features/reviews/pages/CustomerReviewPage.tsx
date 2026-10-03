@@ -104,7 +104,7 @@ export function CustomerReviewPage() {
               <ReviewForm
                 title={t('review.serviceTitle')}
                 busy={busyTarget === 'CONTRACTOR'}
-                onSubmit={(payload) => void submit('CONTRACTOR', order.contractorId, payload)}
+                onSubmit={(payload) => void submit('CONTRACTOR', order.contractorId || '', payload)}
               />
             )}
           </Card>

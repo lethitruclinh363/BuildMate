@@ -39,15 +39,15 @@ export function CreateQuotationPage() {
       const next = req.data.data;
       setRequest(next);
       setServices(svcs.data.data);
-      const list = quotes.data.data;
-      const last = list[0];
+      const list = Array.isArray(quotes.data.data) ? quotes.data.data : [];
+      const last = list[0] as { status?: string; items?: QuotationItem[]; transportCost?: number; estimatedDays?: number; modificationNote?: string } | undefined;
       if (last?.status === 'MODIFICATION_REQUEST') {
-        setItems(last.items);
-        setTransportCost(last.transportCost);
-        setEstimatedDays(last.estimatedDays);
+        setItems(last.items || []);
+        setTransportCost(last.transportCost ?? 100000);
+        setEstimatedDays(last.estimatedDays ?? 3);
         setNote(last.modificationNote || '');
       }
-      if (list.some((q) => q.status === 'ACCEPTED')) {
+      if (list.some((q: { status?: string }) => q.status === 'ACCEPTED')) {
         setLockedReason(te('A quotation was already accepted'));
       } else if (next.status === 'REJECTED') {
         setLockedReason(te('This request was rejected'));

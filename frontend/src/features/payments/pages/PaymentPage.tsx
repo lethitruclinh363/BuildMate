@@ -65,7 +65,7 @@ export function PaymentPage() {
       <div className="space-y-6">
         <PaymentSummaryCard
           summary={data.summary}
-          orderCode={order.orderCode}
+          orderCode={order.orderCode || ''}
           title={order.title}
           contractor={request?.contractor?.name}
         />
