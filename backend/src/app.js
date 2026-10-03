@@ -6,9 +6,9 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const { env } = require('./config/env');
 const apiRoutes = require('./routes');
-const { notFound, errorHandler } = require('./middleware/error.middleware');
-const { mongoSanitize } = require('./middleware/sanitize.middleware');
-const { apiLimiter, authLimiter, otpRequestLimiter } = require('./middleware/rateLimit.middleware');
+const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const { mongoSanitize } = require('./middleware/sanitizeMiddleware');
+const { apiLimiter, authLimiter, otpRequestLimiter } = require('./middleware/rateLimitMiddleware');
 
 function allowedOrigins() {
   return String(env.clientUrl || process.env.CLIENT_URL || '')

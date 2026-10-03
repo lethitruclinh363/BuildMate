@@ -7,9 +7,9 @@ const { User, ROLES, USER_STATUS } = require('../models/User');
 const { Order, ORDER_STATUS } = require('../models/Order');
 const { Payment } = require('../models/Payment');
 const { Commission } = require('../models/Commission');
-const { signToken } = require('../services/auth.service');
-const commissionService = require('../services/commission.service');
-const { invalidateAnalyticsCache } = require('../services/analytics.service');
+const { signToken } = require('../services/authService');
+const commissionService = require('../services/commissionService');
+const { invalidateAnalyticsCache } = require('../services/analyticsService');
 
 async function progressAll(origin, token, orderId) {
   for (const status of ['STARTED', 'IN_PROGRESS', 'COMPLETED']) {

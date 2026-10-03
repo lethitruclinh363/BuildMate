@@ -1,7 +1,7 @@
 const { Quotation, QUOTATION_STATUS } = require('../models/Quotation');
 const { RepairRequest } = require('../models/RepairRequest');
 const { Order } = require('../models/Order');
-const orderService = require('../services/order.service');
+const orderService = require('../services/orderService');
 
 async function seedSprint51() {
   const leak = await RepairRequest.findOne({ title: 'Bathroom leak above the downstairs ceiling' });

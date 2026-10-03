@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { verificationDocsReady } = require('../services/contractor.service');
+const { verificationDocsReady } = require('../services/contractorService');
 
 function profile(types) {
   return { documents: types.map((type) => ({ type, url: `/uploads/${type}.jpg` })) };

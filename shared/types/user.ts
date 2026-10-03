@@ -8,6 +8,7 @@ export interface User {
   phone?: string;
   role: UserRole;
   status: UserStatus;
+  profileStatus?: string | null;
   avatar?: string;
   preferredLanguage?: string;
   createdAt?: string;

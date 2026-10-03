@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { buildOtpEmail } = require('../providers/email.provider');
+const { buildOtpEmail } = require('../providers/emailProvider');
 
 const safetyNotice = 'Vì an toàn cho tài khoản, tuyệt đối không cung cấp mã này với bất kì ai';
 
