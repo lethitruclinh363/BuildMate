@@ -10,6 +10,7 @@ const { acceptanceForLanguage } = require('./policy.service');
 const { syncUserProfileStatus } = require('./profileStatus.service');
 const { ApiError } = require('../utils/ApiError');
 const { signToken } = require('../utils/jwt');
+const { env } = require('../config/env');
 
 const PUBLIC_ROLES = [
   ROLES.CUSTOMER,
@@ -18,28 +19,40 @@ const PUBLIC_ROLES = [
 ];
 
 const OTP_TTL_MS = 5 * 60 * 1000;
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
 
 function generateOtp() {
   return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
-function otpExpiry() {
-  return new Date(Date.now() + OTP_TTL_MS);
+function hashOtp(purpose, code) {
+  return crypto.createHmac('sha256', env.jwtSecret).update(`${purpose}:${String(code || '').trim()}`).digest('hex');
 }
 
-/** So sánh OTP cùng độ dài — tránh lệch thời gian khi đoán mã. */
-function codesMatch(input, stored) {
-  const a = String(input || '').trim();
-  const b = String(stored || '').trim();
-  if (!a || !b || a.length !== b.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+function codesMatch(input, stored, purpose) {
+  const code = String(input || '').trim();
+  const saved = String(stored || '').trim();
+  if (!code || !saved) return false;
+
+  const savedHash = /^[a-f\d]{64}$/i.test(saved) ? saved.toLowerCase() : hashOtp(purpose, saved);
+  const inputHash = hashOtp(purpose, code);
+  return crypto.timingSafeEqual(Buffer.from(inputHash, 'hex'), Buffer.from(savedHash, 'hex'));
 }
 
 async function issueAndSendOtp(user) {
   const otp = generateOtp();
-  user.verificationCode = otp;
-  user.verificationExpire = otpExpiry();
-  await userRepository.save(user);
+  const sentAt = new Date();
+  const issued = await userRepository.issueVerificationOtp({
+    userId: user._id,
+    codeHash: hashOtp('verify', otp),
+    expiresAt: new Date(sentAt.getTime() + OTP_TTL_MS),
+    sentAt,
+    cooldownBefore: new Date(sentAt.getTime() - OTP_RESEND_COOLDOWN_MS),
+  });
+  if (!issued) {
+    throw new ApiError(429, 'Please wait before requesting another verification code');
+  }
 
   try {
     const result = await sendVerificationEmail({
@@ -126,15 +139,34 @@ async function verifyEmail({ email, code }) {
     throw new ApiError(400, 'Verification code has expired');
   }
 
-  if (!codesMatch(code, user.verificationCode)) {
+  if ((user.verificationAttempts || 0) >= OTP_MAX_ATTEMPTS) {
+    throw new ApiError(429, 'Too many incorrect verification codes. Request a new code later');
+  }
+
+  if (!codesMatch(code, user.verificationCode, 'verify')) {
+    const attempt = await userRepository.incrementOtpAttempts({
+      userId: user._id,
+      kind: 'verification',
+      codeHash: user.verificationCode,
+      now: new Date(),
+      maxAttempts: OTP_MAX_ATTEMPTS,
+    });
+    if (!attempt || attempt.verificationAttempts >= OTP_MAX_ATTEMPTS) {
+      throw new ApiError(429, 'Too many incorrect verification codes. Request a new code later');
+    }
     throw new ApiError(400, 'Invalid verification code');
   }
 
-  user.emailVerified = true;
-  user.status = USER_STATUS.ACTIVE;
-  user.verificationCode = '';
-  user.verificationExpire = null;
-  await userRepository.save(user);
+  const verified = await userRepository.consumeVerificationOtp({
+    userId: user._id,
+    codeHash: user.verificationCode,
+    now: new Date(),
+    maxAttempts: OTP_MAX_ATTEMPTS,
+    activeStatus: USER_STATUS.ACTIVE,
+  });
+  if (!verified) {
+    throw new ApiError(409, 'Verification code expired or was already used');
+  }
 
   return { message: 'Email verified successfully' };
 }
@@ -199,11 +231,12 @@ async function login({ email, password }) {
   return { token, user: user.toPublic() };
 }
 
-function logout() {
+async function logout(userId) {
+  await userRepository.incrementTokenVersion(userId);
   return { loggedOut: true };
 }
 
-function assertResetOtp(user, code) {
+async function assertResetOtp(user, code) {
   if (!user.resetPasswordToken) {
     throw new ApiError(400, 'No reset code. Please request a new one');
   }
@@ -212,7 +245,21 @@ function assertResetOtp(user, code) {
     throw new ApiError(400, 'Reset code has expired');
   }
 
-  if (!codesMatch(code, user.resetPasswordToken)) {
+  if ((user.resetPasswordAttempts || 0) >= OTP_MAX_ATTEMPTS) {
+    throw new ApiError(429, 'Too many incorrect reset codes. Request a new code later');
+  }
+
+  if (!codesMatch(code, user.resetPasswordToken, 'reset')) {
+    const attempt = await userRepository.incrementOtpAttempts({
+      userId: user._id,
+      kind: 'reset',
+      codeHash: user.resetPasswordToken,
+      now: new Date(),
+      maxAttempts: OTP_MAX_ATTEMPTS,
+    });
+    if (!attempt || attempt.resetPasswordAttempts >= OTP_MAX_ATTEMPTS) {
+      throw new ApiError(429, 'Too many incorrect reset codes. Request a new code later');
+    }
     throw new ApiError(400, 'Invalid reset code');
   }
 }
@@ -225,9 +272,15 @@ async function forgotPassword({ email }) {
   }
 
   const otp = generateOtp();
-  user.resetPasswordToken = otp;
-  user.resetPasswordExpire = otpExpiry();
-  await userRepository.save(user);
+  const sentAt = new Date();
+  const issued = await userRepository.issueResetPasswordOtp({
+    userId: user._id,
+    codeHash: hashOtp('reset', otp),
+    expiresAt: new Date(sentAt.getTime() + OTP_TTL_MS),
+    sentAt,
+    cooldownBefore: new Date(sentAt.getTime() - OTP_RESEND_COOLDOWN_MS),
+  });
+  if (!issued) return { ...generic, emailSent: true };
 
   try {
     const result = await sendResetPasswordEmail({
@@ -257,7 +310,7 @@ async function verifyResetCode({ email, code }) {
     throw new ApiError(404, 'Account not found');
   }
 
-  assertResetOtp(user, code);
+  await assertResetOtp(user, code);
 
   return { message: 'Reset code is valid' };
 }
@@ -268,13 +321,25 @@ async function resetPassword({ email, code, newPassword }) {
     throw new ApiError(404, 'Account not found');
   }
 
-  assertResetOtp(user, code);
+  await assertResetOtp(user, code);
+
+  const consumed = await userRepository.consumeResetPasswordOtp({
+    userId: user._id,
+    codeHash: user.resetPasswordToken,
+    now: new Date(),
+    maxAttempts: OTP_MAX_ATTEMPTS,
+  });
+  if (!consumed) {
+    throw new ApiError(409, 'Reset code expired or was already used');
+  }
 
   // Plaintext — pre-save hook hash bcrypt.
   user.password = newPassword;
   user.resetPasswordToken = '';
   user.resetPasswordExpire = null;
+  user.resetPasswordAttempts = 0;
   await userRepository.save(user);
+  await userRepository.incrementTokenVersion(user._id);
 
   return { message: 'Password has been reset' };
 }

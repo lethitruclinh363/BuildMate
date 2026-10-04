@@ -8,7 +8,7 @@ const { env } = require('./config/env');
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/error.middleware');
 const { mongoSanitize } = require('./middleware/sanitize.middleware');
-const { apiLimiter, authLimiter } = require('./middleware/rateLimit.middleware');
+const { apiLimiter, authLimiter, otpRequestLimiter } = require('./middleware/rateLimit.middleware');
 
 function allowedOrigins() {
   return String(env.clientUrl || process.env.CLIENT_URL || '')
@@ -59,7 +59,13 @@ function createApp() {
 
   const apiRate = apiLimiter();
   const authRate = authLimiter();
+  const otpRate = otpRequestLimiter();
   app.use('/api', apiRate);
+  for (const apiPrefix of ['/api', '/api/v1']) {
+    app.use(`${apiPrefix}/auth/register`, otpRate);
+    app.use(`${apiPrefix}/auth/resend-code`, otpRate);
+    app.use(`${apiPrefix}/auth/forgot-password`, otpRate);
+  }
   app.use('/api/auth', authRate);
   app.use('/api/v1/auth', authRate);
   app.use('/api/admin/auth', authRate);

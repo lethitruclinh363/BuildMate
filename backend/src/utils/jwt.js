@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const { env } = require('../config/env');
 
 /**
- * Payload bắt buộc: { id, role }.
+ * Payload bắt buộc: { id, role, tokenVersion }.
  * Sign + verify cố định HS256 (không nhận alg "none").
  */
 function signToken(user) {
@@ -12,7 +12,7 @@ function signToken(user) {
   }
 
   return jwt.sign(
-    { id, role: user.role },
+    { id, role: user.role, tokenVersion: Number.isInteger(user.tokenVersion) ? user.tokenVersion : 0 },
     env.jwtSecret,
     { expiresIn: env.jwtExpiresIn, algorithm: 'HS256' }
   );

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Camera, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { PageTransition } from '@/components/motion/PageTransition';
@@ -13,10 +14,13 @@ import { api, getApiErrorMessage } from '@/lib/api';
 import { mediaUrl } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
+import { useAuth } from '@/context/AuthContext';
 import { useToastStore } from '@/store/toast.store';
 import type { ApiResponse, User } from '@/types/user';
 
 export function ProfilePage() {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const { t, te } = useI18n();
   const user = useAuthStore((s) => s.user);
   const setSession = useAuthStore((s) => s.setSession);
@@ -83,6 +87,8 @@ export function ProfilePage() {
       setNewPassword('');
       setConfirmPassword('');
       toast({ kind: 'success', title: t('feedback.passwordChanged') });
+      await logout();
+      navigate(`/login?email=${encodeURIComponent(user.email)}`, { replace: true });
     } catch (err) {
       toast({ kind: 'error', title: te(getApiErrorMessage(err)) });
     } finally {

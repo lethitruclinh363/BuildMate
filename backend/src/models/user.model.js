@@ -94,6 +94,7 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(ROLES),
       required: true,
     },
+    tokenVersion: { type: Number, default: 0, min: 0, select: false },
     avatar: {
       type: String,
       default: '',
@@ -112,6 +113,8 @@ const userSchema = new mongoose.Schema(
       select: false,
       default: '',
     },
+    verificationAttempts: { type: Number, default: 0, min: 0, select: false },
+    verificationSentAt: { type: Date, default: null, select: false },
     verificationExpire: {
       type: Date,
       select: false,
@@ -122,6 +125,8 @@ const userSchema = new mongoose.Schema(
       select: false,
       default: '',
     },
+    resetPasswordAttempts: { type: Number, default: 0, min: 0, select: false },
+    resetPasswordSentAt: { type: Date, default: null, select: false },
     resetPasswordExpire: {
       type: Date,
       select: false,
@@ -155,9 +160,14 @@ const userSchema = new mongoose.Schema(
       virtuals: true,
       transform(_doc, ret) {
         delete ret.password;
+        delete ret.tokenVersion;
         delete ret.verificationCode;
+        delete ret.verificationAttempts;
+        delete ret.verificationSentAt;
         delete ret.verificationExpire;
         delete ret.resetPasswordToken;
+        delete ret.resetPasswordAttempts;
+        delete ret.resetPasswordSentAt;
         delete ret.resetPasswordExpire;
         delete ret.refreshToken;
         delete ret.__v;
