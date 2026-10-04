@@ -1,5 +1,5 @@
 import { LocateFixed, MapPin, Navigation } from 'lucide-react';
-import { Component, useCallback, useEffect, useState, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useCallback, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import L from 'leaflet';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -37,8 +37,15 @@ class MapGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
 
 function FollowPin({ origin }: { origin: MapOrigin }) {
   const map = useMap();
+  const first = useRef(true);
   useEffect(() => {
-    map.panTo([origin.lat, origin.lng]);
+    const view: [number, number] = [origin.lat, origin.lng];
+    if (first.current) {
+      first.current = false;
+      map.setView(view, Math.max(map.getZoom(), 15));
+      return;
+    }
+    map.flyTo(view, Math.max(map.getZoom(), 15), { duration: 0.7 });
   }, [origin.lat, origin.lng, map]);
   return null;
 }

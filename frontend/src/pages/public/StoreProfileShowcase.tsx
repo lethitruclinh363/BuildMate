@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ImageViewer, MediaFrame, type ViewerSlide } from '@/components/media/ProfileMedia';
 import { LocationViewer } from '@/features/map/components/LocationViewer';
-import { directionsUrl } from '@/features/map/lib/location';
+import { MapPlaceActions } from '@/features/map/components/MapPlaceActions';
 import { ServiceAreaMap } from '@/pages/public/ServiceAreaMap';
 import { categoryDisplayLabel, foldCategoryName } from '@/data/material-categories';
 import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
@@ -286,19 +286,15 @@ export function StoreProfileShowcase({
         </div>
         {profile.locationReady && profile.areaCenter ? (
           <div className="mt-4">
-            <LocationViewer
-              lat={profile.areaCenter.lat}
-              lng={profile.areaCenter.lng}
-              address={[profile.address, profile.city].filter(Boolean).join(', ') || undefined}
-            />
-            <a
-              className="mt-3 inline-flex text-sm font-semibold text-navy-800 underline"
-              href={directionsUrl(profile.areaCenter.lat, profile.areaCenter.lng)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {t('storePublic.directions')}
-            </a>
+            <h3 className="text-sm font-semibold text-navy-800">{t('storePublic.locationTitle')}</h3>
+            <div className="mt-3">
+              <LocationViewer
+                lat={profile.areaCenter.lat}
+                lng={profile.areaCenter.lng}
+                address={[profile.address, profile.city].filter(Boolean).join(', ') || undefined}
+              />
+            </div>
+            <MapPlaceActions lat={profile.areaCenter.lat} lng={profile.areaCenter.lng} />
           </div>
         ) : null}
         {profile.areaCenter ? (

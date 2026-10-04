@@ -111,7 +111,7 @@
     "noResults": "No matching address.",
     "searchFailed": "Address search is unavailable. Try again.",
     "reverseFailed": "Could not read an address for this point.",
-    "gpsDenied": "Location permission was denied.",
+    "gpsDenied": "Current location is unavailable. You can still search for an address or drop a pin on the map.",
     "gpsUnavailable": "Current location is unavailable on this device.",
     "gpsBlocked": "Location permission was denied.",
     "save": "Save location",

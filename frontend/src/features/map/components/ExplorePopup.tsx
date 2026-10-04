@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Navigation, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatDistance } from '@/features/map/lib/distance';
-import { directionsUrl } from '@/features/map/lib/location';
+import { openGoogleMapsDirections } from '@/features/map/lib/location';
 import { catalogCategoryLabel } from '@/data/contractor-services';
 import { chatApi } from '@/features/chat/services/sprint4.api';
 import { vnd } from '@/lib/partner-api';
@@ -35,7 +35,6 @@ export function ExplorePopup({
   const distance = formatDistance(place.distanceMeters ?? place.distance * 1000);
   const categories = [...new Set(place.services.map((service) => catalogCategoryLabel(service.category, t)))].slice(0, 3);
   const profilePath = kind === 'contractor' ? `/contractors/${place.contractorId}` : `/stores/${place.id}`;
-  const directions = point ? directionsUrl(point.lat, point.lng) : '';
 
   async function openChat() {
     const fallback = kind === 'contractor' ? repairCreatePath(place.contractorId) : `/stores/${place.id}`;
@@ -93,11 +92,9 @@ export function ExplorePopup({
         <Button type="button" size="sm" variant="outline" onClick={() => void openChat()}>
           {t('explore.chat')}
         </Button>
-        {directions ? (
-          <Button asChild size="sm" variant="copper">
-            <a href={directions} target="_blank" rel="noreferrer">
-              <Navigation className="h-4 w-4" /> {t('explore.directions')}
-            </a>
+        {point ? (
+          <Button type="button" size="sm" variant="copper" onClick={() => openGoogleMapsDirections(point.lat, point.lng)}>
+            <Navigation className="h-4 w-4" /> {t('explore.directions')}
           </Button>
         ) : null}
       </div>

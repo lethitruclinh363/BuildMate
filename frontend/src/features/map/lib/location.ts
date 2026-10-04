@@ -71,6 +71,12 @@ export function directionsUrl(lat: number, lng: number, origin?: LatLng | null) 
   return sharedDirectionsUrl(lat, lng, origin);
 }
 
+export function openGoogleMapsDirections(lat: number, lng: number, origin?: LatLng | null) {
+  const url = directionsUrl(lat, lng, origin);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  return url;
+}
+
 export function mapSearchUrl(lat: number, lng: number) {
   return sharedMapSearchUrl(lat, lng);
 }

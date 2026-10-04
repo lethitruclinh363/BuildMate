@@ -143,6 +143,7 @@ function cardIsPublic(card, catalog) {
       openingHours: card?.openingHours,
       phone: card?.phone,
       location: card?.location,
+      locationConfirmed: card?.locationConfirmed === true,
       status: STORE_STATUS.LIVE,
     },
     user: { status: card?.accountStatus || USER_STATUS.ACTIVE },

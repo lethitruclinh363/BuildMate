@@ -111,7 +111,7 @@
     "noResults": "Không tìm thấy địa chỉ phù hợp.",
     "searchFailed": "Không tìm được địa chỉ. Thử lại sau.",
     "reverseFailed": "Không đọc được địa chỉ từ vị trí này.",
-    "gpsDenied": "Trình duyệt đã chặn quyền vị trí.",
+    "gpsDenied": "Không thể truy cập vị trí hiện tại. Bạn vẫn có thể tìm địa chỉ hoặc ghim vị trí trên bản đồ.",
     "gpsUnavailable": "Không lấy được vị trí hiện tại trên thiết bị này.",
     "gpsBlocked": "Trình duyệt đã chặn quyền vị trí.",
     "save": "Lưu vị trí",

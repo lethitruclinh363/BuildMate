@@ -85,6 +85,7 @@ function toCard(doc, catalog) {
     deliveryEnabled: Boolean(doc.deliveryEnabled),
     baseDeliveryFee: doc.baseDeliveryFee || 0,
     location: doc.location,
+    locationConfirmed: doc.locationConfirmed === true,
     services,
     products,
   };

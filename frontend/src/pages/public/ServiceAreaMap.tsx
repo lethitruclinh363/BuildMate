@@ -34,9 +34,8 @@ export function ServiceAreaMap({ lat, lng, radiusKm }: { lat: number; lng: numbe
         scrollWheelZoom={false}
         dragging={false}
         zoomControl={false}
-        attributionControl={false}
       >
-        <TileLayer url={MAP_TILES.url} />
+        <TileLayer attribution={MAP_TILES.attribution} url={MAP_TILES.url} />
         <Circle
           center={[lat, lng]}
           radius={Math.max(radiusKm, 1) * 1000}
