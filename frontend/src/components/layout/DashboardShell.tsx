@@ -15,6 +15,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { NotificationBell } from '@/features/notification/components/NotificationBell';
+import { MaterialOrderLiveListener } from '@/features/material-orders/material-order-live';
 import { OrderRealtimeListener } from '@/features/orders/components/OrderRealtimeListener';
 import { FinanceRealtimeListener } from '@/features/payments/components/FinanceRealtimeListener';
 import { cn } from '@/lib/cn';
@@ -236,6 +237,7 @@ export function DashboardShell({
         </header>
         <main className={cn('flex-1', theme.dense ? 'p-3 md:p-6' : 'p-4 md:p-8')}>
           <OrderRealtimeListener />
+          <MaterialOrderLiveListener />
           <FinanceRealtimeListener />
           {children ?? <Outlet />}
         </main>

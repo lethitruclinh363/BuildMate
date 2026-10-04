@@ -8,6 +8,7 @@ const STORE_TYPE = Object.freeze({
 
 const STORE_STATUS = Object.freeze({
   DRAFT: 'DRAFT',
+  INACTIVE: 'INACTIVE',
   LIVE: 'LIVE',
   PAUSED: 'PAUSED',
 });
@@ -25,6 +26,8 @@ const storeSchema = new mongoose.Schema(
     slogan: { type: String, trim: true, default: '', maxlength: 140 },
     description: { type: String, trim: true, default: '', maxlength: 2000 },
     phone: { type: String, trim: true, default: '' },
+    contactName: { type: String, trim: true, default: '', maxlength: 80 },
+    contactEmail: { type: String, trim: true, default: '', maxlength: 120 },
     address: { type: String, trim: true, default: '' },
     city: { type: String, trim: true, default: 'Can Tho' },
     storeType: {
@@ -39,6 +42,13 @@ const storeSchema = new mongoose.Schema(
     crewPhotos: { type: [String], default: [] },
     publicCertificates: { type: [String], default: [] },
     achievements: { type: String, trim: true, default: '', maxlength: 500 },
+    showroomNote: { type: String, trim: true, default: '', maxlength: 500 },
+    deliveryNote: { type: String, trim: true, default: '', maxlength: 500 },
+    deliveryEnabled: { type: Boolean, default: false },
+    baseDeliveryFee: { type: Number, default: 0, min: 0 },
+    freeDeliveryRadiusKm: { type: Number, default: 0, min: 0, max: 50 },
+    deliveryFeePerKm: { type: Number, default: 0, min: 0 },
+    minimumOrderAmount: { type: Number, default: 0, min: 0 },
     displayYears: { type: Number, default: null, min: 0, max: 80 },
     displayWorkerCount: { type: Number, default: null, min: 0, max: 500 },
     serviceAreas: { type: [String], default: [] },
@@ -54,13 +64,14 @@ const storeSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: Object.values(STORE_STATUS),
-      default: STORE_STATUS.LIVE,
+      default: STORE_STATUS.INACTIVE,
     },
     // Sprint 3 nearby search
     location: {
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], default: [105.787, 10.045] },
     },
+    locationConfirmed: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
@@ -76,6 +87,8 @@ storeSchema.methods.toPublic = function toPublic() {
     slogan: this.slogan,
     description: this.description,
     phone: this.phone,
+    contactName: this.contactName || '',
+    contactEmail: this.contactEmail || '',
     address: this.address,
     city: this.city,
     storeType: this.storeType,
@@ -86,6 +99,13 @@ storeSchema.methods.toPublic = function toPublic() {
     crewPhotos: this.crewPhotos || [],
     publicCertificates: this.publicCertificates || [],
     achievements: this.achievements || '',
+    showroomNote: this.showroomNote || '',
+    deliveryNote: this.deliveryNote || '',
+    deliveryEnabled: Boolean(this.deliveryEnabled),
+    baseDeliveryFee: this.baseDeliveryFee || 0,
+    freeDeliveryRadiusKm: this.freeDeliveryRadiusKm || 0,
+    deliveryFeePerKm: this.deliveryFeePerKm || 0,
+    minimumOrderAmount: this.minimumOrderAmount || 0,
     displayYears: this.displayYears,
     displayWorkerCount: this.displayWorkerCount,
     serviceAreas: this.serviceAreas || [],
@@ -100,6 +120,7 @@ storeSchema.methods.toPublic = function toPublic() {
     materialReviewCount: this.materialReviewCount,
     status: this.status,
     location: this.location,
+    locationConfirmed: Boolean(this.locationConfirmed),
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

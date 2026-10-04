@@ -9,12 +9,22 @@ const storeService = require('./storeService');
 const { Service } = require('../models/Service');
 const { ApiError } = require('../utils/ApiError');
 const { MIME_BY_EXT, extensionOf } = require('../utils/upload');
+<<<<<<< HEAD:backend/src/services/contractorService.js
 const { ensureContractorProfile } = require('../middleware/contractorMiddleware');
 const { setProfileStatus, PROFILE_STATUS } = require('./profileStatusService');
 const { servicesBlockReason } = require('../constants/contractorServices');
 const catalogService = require('./catalogService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
+=======
+const { ensureContractorProfile } = require('../middleware/contractor.middleware');
+const { setProfileStatus, PROFILE_STATUS } = require('./profileStatus.service');
+const { servicesBlockReason } = require('../constants/contractor-services');
+const catalogService = require('./catalog.service');
+const materialCategoryService = require('./material-category.service');
+const { writeAudit, AUDIT_ACTION } = require('./audit.service');
+const { notify, NOTIFICATION_TYPE } = require('./notification.service');
+>>>>>>> origin/Duc:backend/src/services/contractor.service.js
 
 const MAX_DOCUMENTS = 8;
 const VERIFY_SINGLETONS = new Set(['CCCD_FRONT', 'CCCD_BACK', 'BUSINESS_LICENSE', 'CERTIFICATE']);
@@ -58,9 +68,23 @@ async function updateProfile(userId, payload) {
 
   assertVerificationEditable(profile);
 
+  const user = await User.findById(userId).select('role');
   const rest = { ...payload };
   delete rest.services;
   delete rest.completedSteps;
+  delete rest.materialCategories;
+  if (
+    user?.role === 'MATERIAL_STORE_OWNER' &&
+    (Array.isArray(payload.materialCategories) || Array.isArray(payload.serviceAreas))
+  ) {
+    const source = Array.isArray(payload.materialCategories) ? payload.materialCategories : payload.serviceAreas;
+    const resolved = await materialCategoryService.resolveForOwner(userId, source);
+    profile.materialCategories = resolved;
+    profile.serviceAreas = resolved.map((item) => item.name);
+    profile.markModified('materialCategories');
+    profile.markModified('serviceAreas');
+    delete rest.serviceAreas;
+  }
   Object.assign(profile, rest);
   if (Array.isArray(payload.completedSteps)) {
     const steps = payload.completedSteps.map((flag) => flag === true);
@@ -90,7 +114,6 @@ async function updateProfile(userId, payload) {
   ) {
     await setProfileStatus(userId, PROFILE_STATUS.DRAFT);
   }
-  const user = await User.findById(userId).select('role');
   if (
     user?.role === 'CONTRACTOR' &&
     profile.businessName &&
@@ -236,8 +259,9 @@ function applicationReady(profile, role) {
       && Boolean(profile.portfolio?.teamLogo)
       && Boolean(profile.portfolio?.workshop);
   }
+  const categories = profile.materialCategories?.length ? profile.materialCategories : profile.serviceAreas;
   return (profile.description || '').trim().length >= 10
-    && (profile.serviceAreas || []).length >= 1
+    && (categories || []).length >= 1
     && hasDocument(profile, new Set(['STORE_IMAGE', 'PORTFOLIO']));
 }
 
@@ -254,6 +278,14 @@ async function submitVerification(userId, payload) {
     await catalogService.syncCustomStatuses(profile);
     const serviceReason = servicesBlockReason(profile.services);
     if (serviceReason) throw new ApiError(400, serviceReason);
+  }
+  if (user?.role === 'MATERIAL_STORE_OWNER') {
+    const source = profile.materialCategories?.length ? profile.materialCategories : profile.serviceAreas;
+    const resolved = await materialCategoryService.resolveForOwner(userId, source || []);
+    profile.materialCategories = resolved;
+    profile.serviceAreas = resolved.map((item) => item.name);
+    profile.markModified('materialCategories');
+    profile.markModified('serviceAreas');
   }
 
   if (!applicationReady(profile, user?.role)) {
@@ -284,10 +316,13 @@ async function getMaterialWorkspace(userId) {
   const profile = await ensureContractorProfile(userId);
   await storeService.enforceStoreType(userId, STORE_TYPE.MATERIALS);
   const store = await Store.findOne({ contractorId: userId });
+  const activationService = require('./activation.service');
+  const activation = await activationService.getActivationReadiness(userId);
   return {
     profile: profile.toPublic(),
     store: store ? store.toPublic() : null,
     approved: profile.verificationStatus === VERIFICATION_STATUS.APPROVED,
+    activation,
   };
 }
 
@@ -297,9 +332,11 @@ async function requestVerificationChange(userId, note) {
     throw new ApiError(409, 'Only a verified partner can request an update');
   }
   const text = String(note || '').trim();
+  const actor = await User.findById(userId).select('role');
+  const storeOwner = actor?.role === 'MATERIAL_STORE_OWNER' || actor?.role === 'STORE';
   await writeAudit({
     actorId: userId,
-    actorRole: 'CONTRACTOR',
+    actorRole: storeOwner ? 'MATERIAL_STORE_OWNER' : 'CONTRACTOR',
     action: AUDIT_ACTION.PROFILE_UPDATE,
     entityType: 'ContractorProfile',
     entityId: profile._id,
@@ -311,7 +348,7 @@ async function requestVerificationChange(userId, note) {
     title: 'Verification update requested',
     message: text.slice(0, 400),
     type: NOTIFICATION_TYPE.STATUS_UPDATE,
-    link: '/partners/contractors',
+    link: storeOwner ? '/partners/stores' : '/partners/contractors',
     meta: { contractorId: String(userId), kind: 'verification-change-request' },
   })));
   return { requested: true };
@@ -323,6 +360,8 @@ async function getWorkspace(userId) {
   await storeService.enforceStoreType(userId, STORE_TYPE.SERVICES);
   const store = await Store.findOne({ contractorId: userId });
   const services = store ? await Service.countDocuments({ storeId: store._id }) : 0;
+  const activationService = require('./activation.service');
+  const activation = await activationService.getActivationReadiness(userId);
 
   return {
     profile: profile.toPublic(),
@@ -331,6 +370,7 @@ async function getWorkspace(userId) {
       services,
       documents: profile.documents.length,
     },
+    activation,
   };
 }
 

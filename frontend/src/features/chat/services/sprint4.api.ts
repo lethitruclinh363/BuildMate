@@ -18,6 +18,8 @@ export const chatApi = {
   messages: (id: string) => api.get<ApiResponse<ChatMessage[]>>(`/chat/rooms/${id}/messages`),
   send: (id: string, content: string) =>
     api.post<ApiResponse<ChatMessage>>(`/chat/rooms/${id}/messages`, { type: 'TEXT', content }),
+  sendLocation: (id: string, location: { lat: number; lng: number; address: string; label: string }) =>
+    api.post<ApiResponse<ChatMessage>>(`/chat/rooms/${id}/messages`, { type: 'LOCATION', location }),
   media: (id: string, file: File) => {
     const form = new FormData();
     form.append('file', file);

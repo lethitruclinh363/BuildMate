@@ -5,7 +5,11 @@ const { User, ROLES, USER_STATUS } = require('../models/user.model');
 
 const deliveredVerificationCodes = [];
 const deliveredResetCodes = [];
+<<<<<<< HEAD
 const emailProvider = require('../providers/emailProvider');
+=======
+const emailProvider = require('../providers/email.provider');
+>>>>>>> origin/Duc
 emailProvider.sendVerificationEmail = async ({ otp }) => {
   deliveredVerificationCodes.push(otp);
   return { sent: true, skipped: false };
@@ -15,7 +19,11 @@ emailProvider.sendResetPasswordEmail = async ({ otp }) => {
   return { sent: true, skipped: false };
 };
 
+<<<<<<< HEAD
 const authService = require('../services/authService');
+=======
+const authService = require('../services/auth.service');
+>>>>>>> origin/Duc
 
 let dbReady = false;
 const testEmails = [];

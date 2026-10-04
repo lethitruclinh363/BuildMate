@@ -25,7 +25,10 @@ export default function ProtectedRoute({ roles }: ProtectedRouteProps) {
   const location = useLocation();
 
   if (loading) return <ScreenLoader />;
-  if (!token || !currentUser) return <Navigate to="/login" replace />;
+  if (!token || !currentUser) {
+    const next = `${location.pathname}${location.search}`;
+    return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
+  }
 
   if (roles && roles.length) {
     const role = currentUser.role;

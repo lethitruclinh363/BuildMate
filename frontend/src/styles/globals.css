@@ -15,6 +15,15 @@ body,
   min-height: 100%;
 }
 
+.section-anchor {
+  scroll-margin-top: 100px;
+}
+
+.highlight-target {
+  border-radius: 16px;
+  box-shadow: 0 0 0 3px rgba(201, 132, 42, 0.7);
+}
+
 body {
   @apply bg-paper-100 font-sans text-ink-800 antialiased;
   background-image:
@@ -55,6 +64,21 @@ h3,
 .bm-pin-wrap {
   background: transparent;
   border: none;
+}
+
+.bm-pin-selected .bm-pin {
+  width: 40px;
+  height: 40px;
+  animation: none;
+  outline: 7px solid rgba(201, 132, 42, 0.45);
+  box-shadow: 0 12px 24px rgba(11, 46, 74, 0.4);
+}
+
+.bm-pin-still .bm-pin {
+  width: 34px;
+  height: 34px;
+  animation: none;
+  outline: 6px solid rgba(201, 132, 42, 0.35);
 }
 
 .bm-pin {

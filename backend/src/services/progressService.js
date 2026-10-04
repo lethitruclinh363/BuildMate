@@ -1,7 +1,7 @@
 const { Order, ORDER_STATUS } = require('../models/Order');
 const { ProgressUpdate, PROGRESS_STATUS } = require('../models/ProgressUpdate');
 const { ApiError } = require('../utils/ApiError');
-const { orderStatusAfterProgress } = require('../utils/order.rules');
+const { isValidProgressTransition, orderStatusAfterProgress } = require('../utils/order.rules');
 const { contractorJobNotice } = require('../utils/contractor-notice');
 const { notify } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
@@ -27,20 +27,24 @@ async function addProgress(orderId, user, payload) {
     throw new ApiError(403, 'You cannot update progress on this order');
   }
 
-  const status = payload.status;
-  if (!Object.values(PROGRESS_STATUS).includes(status)) {
+  const nextStatus = payload.status;
+  if (!Object.values(PROGRESS_STATUS).includes(nextStatus)) {
     throw new ApiError(400, 'Invalid progress status');
   }
   const images = payload.images || [];
   if (!String(payload.description || '').trim() && !images.length) {
     throw new ApiError(400, 'Description or images are required');
   }
+  if (!isValidProgressTransition(order.status, nextStatus)) {
+    throw new ApiError(409, 'Invalid progress transition');
+  }
 
   const doc = {
     orderId: order._id,
-    status,
+    status: nextStatus,
     description: payload.description || '',
     images,
+    actorId: user.id,
   };
   if (payload.lng !== undefined && payload.lat !== undefined) {
     doc.location = { type: 'Point', coordinates: [Number(payload.lng), Number(payload.lat)] };
@@ -48,9 +52,9 @@ async function addProgress(orderId, user, payload) {
 
   const progress = await ProgressUpdate.create(doc);
   const previousStatus = order.status;
-  const notice = contractorJobNotice(previousStatus, status);
+  const notice = contractorJobNotice(previousStatus, nextStatus);
 
-  const next = orderStatusAfterProgress(previousStatus, status);
+  const next = orderStatusAfterProgress(previousStatus, nextStatus);
   if (next !== order.status) {
     order.status = next;
     await order.save();
@@ -71,7 +75,7 @@ async function addProgress(orderId, user, payload) {
     action: AUDIT_ACTION.PROGRESS_UPDATED,
     entityType: 'ProgressUpdate',
     entityId: progress._id,
-    meta: { orderId: String(order._id), status },
+    meta: { orderId: String(order._id), status: nextStatus },
   });
 
   const payloadOut = { order: order.toPublic(), progress: progress.toPublic(), type: notice.type };

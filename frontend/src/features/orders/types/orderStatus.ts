@@ -1,4 +1,4 @@
-import type { OrderFilter, OrderStatus } from './order.types';
+import type { OrderFilter, OrderStatus, ProgressStatus } from './order.types';
 
 type Tone = 'navy' | 'copper' | 'mist' | 'success' | 'warn' | 'danger';
 
@@ -53,6 +53,21 @@ export function matchesOrderFilter(status: OrderStatus, filter: OrderFilter) {
 
 export function canCancelOrder(status: OrderStatus) {
   return status === 'QUOTATION_ACCEPTED' || status === 'DEPOSIT_PAID';
+}
+
+/** Statuses the contractor may submit from the current order status. Same value = another site note. */
+export function allowedProgressStatuses(status: OrderStatus): ProgressStatus[] {
+  switch (status) {
+    case 'QUOTATION_ACCEPTED':
+    case 'DEPOSIT_PAID':
+      return ['STARTED'];
+    case 'STARTED':
+      return ['STARTED', 'IN_PROGRESS'];
+    case 'IN_PROGRESS':
+      return ['IN_PROGRESS', 'COMPLETED'];
+    default:
+      return [];
+  }
 }
 
 export type TimelineKey =

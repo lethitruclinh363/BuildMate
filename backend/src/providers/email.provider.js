@@ -67,41 +67,50 @@ function emailBrand(language) {
 function buildMateEmailLayout({ language = 'vi', title = 'BuildMate', preheader = '', contentHtml }) {
   const brand = emailBrand(language);
   const hidden = escapeHtml(preheader);
+
   return `<!DOCTYPE html>
-<html lang="${brand.lang}">
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>${escapeHtml(title)}</title>
+    <title>BuildMate ${title}</title>
   </head>
-  <body style="margin:0;padding:0;background:#f4efe6;font-family:Georgia,'Times New Roman',serif;-webkit-text-size-adjust:100%;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${hidden}</div>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4efe6;padding:24px 12px;">
+  <body style="margin:0;padding:0;background:#f4efe6;font-family:Georgia,'Times New Roman',serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4efe6;padding:32px 12px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6dccb;">
+          <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6dccb;">
             <tr>
-              <td style="background:#1b2a4a;padding:28px 24px;">
+              <td style="background:#1b2a4a;padding:28px 32px;">
                 <table role="presentation" cellspacing="0" cellpadding="0">
                   <tr>
-                    <td width="44" height="44" style="width:44px;height:44px;border-radius:12px;background:#c4783a;color:#1b2a4a;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-align:center;vertical-align:middle;line-height:44px;">BM</td>
-                    <td style="padding-left:14px;vertical-align:middle;">
-                      <h1 style="margin:0;color:#ffffff;font-size:26px;line-height:1.2;font-weight:700;">BuildMate</h1>
-                      <p style="margin:4px 0 0;color:#c4783a;letter-spacing:2px;font-size:11px;line-height:1.4;font-family:Arial,Helvetica,sans-serif;">${brand.tagline}</p>
+                    <td style="width:44px;height:44px;border-radius:12px;background:#c4783a;color:#1b2a4a;font-family:Arial,sans-serif;font-size:16px;font-weight:700;text-align:center;vertical-align:middle;">BM</td>
+                    <td style="padding-left:14px;">
+                      <p style="margin:0;color:#c4783a;letter-spacing:3px;font-size:11px;font-family:Arial,sans-serif;">LOCAL BUILDING PLATFORM</p>
+                      <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">BuildMate</h1>
                     </td>
                   </tr>
                 </table>
               </td>
             </tr>
             <tr>
-              <td style="padding:28px 24px;color:#1b2a4a;font-size:16px;line-height:1.6;">
-                ${contentHtml}
+              <td style="padding:32px;">
+                <p style="margin:0 0 12px;color:#1b2a4a;font-size:18px;">Xin chào ${displayName},</p>
+                <p style="margin:0 0 24px;color:#4a4453;font-size:15px;line-height:1.6;">${intro}</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td align="center" style="background:#f7f1e8;border-radius:12px;padding:20px;border:1px dashed #c4783a;">
+                      <p style="margin:0 0 6px;color:#6b6258;font-size:12px;letter-spacing:2px;font-family:Arial,sans-serif;">${label}</p>
+                      <p style="margin:0;font-family:Consolas,Monaco,monospace;font-size:36px;letter-spacing:10px;color:#1b2a4a;font-weight:700;">${otp}</p>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:24px 0 0;color:#6b6258;font-size:13px;line-height:1.5;">${footer}</p>
               </td>
             </tr>
             <tr>
-              <td style="background:#1b2a4a;padding:16px 24px;text-align:center;">
-                <p style="margin:0;color:#c9c1b4;font-size:12px;line-height:1.5;font-family:Arial,Helvetica,sans-serif;">${brand.footer}</p>
+              <td style="background:#1b2a4a;padding:16px 32px;text-align:center;">
+                <p style="margin:0;color:#c9c1b4;font-size:12px;font-family:Arial,sans-serif;">© BuildMate — kết nối chủ nhà, thợ và cửa hàng vật liệu.</p>
               </td>
             </tr>
           </table>
@@ -112,85 +121,15 @@ function buildMateEmailLayout({ language = 'vi', title = 'BuildMate', preheader 
 </html>`;
 }
 
-function emailButton(href, label) {
-  const safeHref = escapeHtml(href);
-  const safeLabel = escapeHtml(label);
-  return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:8px 0 20px;">
-    <tr>
-      <td bgcolor="#1b2a4a" style="border-radius:999px;background:#1b2a4a;">
-        <a href="${safeHref}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;line-height:1.2;text-decoration:none;border-radius:999px;">${safeLabel}</a>
-      </td>
-    </tr>
-  </table>`;
-}
-
-function otpEmailHtml({ name, otp, purpose = 'verify' }) {
-  const displayName = escapeHtml(name || 'bạn');
+function buildOtpEmail({ name, otp, purpose = 'verify' }) {
   const isReset = purpose === 'reset';
-  const title = isReset ? 'Đặt lại mật khẩu' : 'Xác thực email';
-  const intro = isReset
-    ? 'Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới. Mã có hiệu lực <strong>5 phút</strong> và chỉ dùng một lần.'
-    : 'Cảm ơn bạn đã đăng ký tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới để xác thực email. Mã có hiệu lực <strong>5 phút</strong> và chỉ dùng một lần.';
-  const label = isReset ? 'MÃ ĐẶT LẠI MẬT KHẨU' : 'MÃ XÁC THỰC';
-  const note = isReset
-    ? 'Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.'
-    : 'Nếu bạn không đăng ký BuildMate, hãy bỏ qua email này.';
-  const safeOtp = escapeHtml(otp);
+  const safetyNotice = 'Vì an toàn cho tài khoản, tuyệt đối không cung cấp mã này với bất kì ai';
+  const subject = isReset ? 'BuildMate — mã đặt lại mật khẩu' : 'BuildMate — mã xác thực email';
+  const text = isReset
+    ? `BuildMate\n\nXin chào ${name || ''},\nMã đặt lại mật khẩu: ${otp}\nMã hết hạn sau 5 phút và chỉ sử dụng một lần.\n\n${safetyNotice}`
+    : `BuildMate\n\nXin chào ${name || ''},\nMã xác thực của bạn là: ${otp}\nMã hết hạn sau 5 phút và chỉ sử dụng một lần.\n\n${safetyNotice}`;
 
-  return buildMateEmailLayout({
-    language: 'vi',
-    title: `BuildMate ${title}`,
-    preheader: `${label} ${otp}`,
-    contentHtml: `<p style="margin:0 0 12px;color:#1b2a4a;font-size:18px;">Xin chào ${displayName},</p>
-<p style="margin:0 0 24px;color:#4a4453;font-size:15px;line-height:1.6;">${intro}</p>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-  <tr>
-    <td align="center" style="background:#f7f1e8;border-radius:12px;padding:20px 12px;border:1px dashed #c4783a;">
-      <p style="margin:0 0 6px;color:#6b6258;font-size:12px;letter-spacing:2px;font-family:Arial,Helvetica,sans-serif;">${label}</p>
-      <p style="margin:0;font-family:Consolas,Monaco,monospace;font-size:32px;letter-spacing:8px;color:#1b2a4a;font-weight:700;line-height:1.2;">${safeOtp}</p>
-    </td>
-  </tr>
-</table>
-<p style="margin:24px 0 0;color:#6b6258;font-size:13px;line-height:1.5;">${note}</p>`,
-  });
-}
-
-function renderPartnerApprovalEmail({ name, language }) {
-  const english = language === 'en';
-  const displayName = escapeHtml(name || (english ? 'there' : 'bạn'));
-  const loginUrl = `${appOrigin()}/login`;
-  const subject = english
-    ? 'Congratulations! Your BuildMate Partner Account Has Been Approved'
-    : 'Chúc mừng! Hồ sơ đối tác BuildMate của bạn đã được phê duyệt';
-  const text = english
-    ? `Hello ${name || ''},\n\nCongratulations!\n\nYour BuildMate partner application has been approved.\n\nYou are now an official BuildMate partner.\n\nYou can sign in to complete your profile, manage your services, and start connecting with customers.\n\nSign in: ${loginUrl}\n\nThank you for joining BuildMate.\nBuildMate — Local Building Platform`
-    : `Xin chào ${name || ''},\n\nChúc mừng bạn!\n\nHồ sơ đối tác của bạn đã được BuildMate xét duyệt thành công.\n\nTừ bây giờ, bạn đã trở thành đối tác chính thức của BuildMate và có thể sử dụng các chức năng dành cho đối tác trên nền tảng.\n\nBạn có thể đăng nhập để hoàn thiện hồ sơ, quản lý dịch vụ và bắt đầu kết nối với khách hàng.\n\nĐăng nhập: ${loginUrl}\n\nCảm ơn bạn đã đồng hành cùng BuildMate.\nBuildMate — Hệ điều hành xây dựng`;
-  const contentHtml = english
-    ? `<p style="margin:0 0 12px;color:#1b2a4a;font-size:18px;">Hello ${displayName},</p>
-<p style="margin:0 0 8px;color:#1b2a4a;font-size:22px;line-height:1.3;">Congratulations!</p>
-<p style="margin:0 0 12px;color:#4a4453;font-size:15px;line-height:1.6;">Your BuildMate partner application has been approved.</p>
-<p style="margin:0 0 12px;color:#4a4453;font-size:15px;line-height:1.6;">You are now an official BuildMate partner.</p>
-<p style="margin:0 0 20px;color:#4a4453;font-size:15px;line-height:1.6;">You can sign in to complete your profile, manage your services, and start connecting with customers.</p>
-${emailButton(loginUrl, 'Sign in to BuildMate →')}
-<p style="margin:0;color:#6b6258;font-size:13px;line-height:1.5;">Thank you for joining BuildMate.</p>`
-    : `<p style="margin:0 0 12px;color:#1b2a4a;font-size:18px;">Xin chào ${displayName},</p>
-<p style="margin:0 0 8px;color:#1b2a4a;font-size:22px;line-height:1.3;">Chúc mừng bạn!</p>
-<p style="margin:0 0 12px;color:#4a4453;font-size:15px;line-height:1.6;">Hồ sơ đối tác của bạn đã được BuildMate xét duyệt thành công.</p>
-<p style="margin:0 0 12px;color:#4a4453;font-size:15px;line-height:1.6;">Từ bây giờ, bạn đã trở thành đối tác chính thức của BuildMate và có thể sử dụng các chức năng dành cho đối tác trên nền tảng.</p>
-<p style="margin:0 0 20px;color:#4a4453;font-size:15px;line-height:1.6;">Bạn có thể đăng nhập để hoàn thiện hồ sơ, quản lý dịch vụ và bắt đầu kết nối với khách hàng.</p>
-${emailButton(loginUrl, 'Đăng nhập vào BuildMate →')}
-<p style="margin:0;color:#6b6258;font-size:13px;line-height:1.5;">Cảm ơn bạn đã đồng hành cùng BuildMate.</p>`;
-
-  return {
-    subject,
-    text,
-    html: buildMateEmailLayout({
-      language: english ? 'en' : 'vi',
-      title: subject,
-      preheader: english ? 'Your BuildMate partner application has been approved.' : 'Hồ sơ đối tác của bạn đã được phê duyệt.',
-      contentHtml,
-    }),
-  };
+  return { subject, html: otpEmailHtml({ name, otp, purpose }), text };
 }
 
 async function sendEmail({ to, subject, text, html }) {
@@ -233,10 +172,6 @@ const sendPasswordResetEmail = sendResetPasswordEmail;
 
 module.exports = {
   sendEmail,
-  buildMateEmailLayout,
-  renderPartnerApprovalEmail,
-  otpEmailHtml,
-  sendPartnerApprovedEmail,
   sendVerificationEmail,
   sendResetPasswordEmail,
   sendPasswordResetEmail,

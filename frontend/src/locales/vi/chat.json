@@ -9,5 +9,14 @@
   "typingName": "{name} đang nhập...",
   "sendMessage": "Gửi tin nhắn",
   "crewFallback": "Đội thợ",
-  "send_message": "Gửi tin nhắn"
+  "send_message": "Gửi tin nhắn",
+  "sendLocation": "Gửi vị trí",
+  "useCurrent": "Dùng vị trí hiện tại",
+  "pickOnMap": "Chọn trên bản đồ",
+  "selected": "Vị trí đã chọn",
+  "viewMap": "Xem bản đồ",
+  "directions": "Chỉ đường",
+  "locationFallback": "Vị trí",
+  "gpsDenied": "Trình duyệt đã chặn quyền vị trí.",
+  "gpsUnavailable": "Không lấy được vị trí hiện tại trên thiết bị này."
 }

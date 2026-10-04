@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@/types/user';
-import type { NearbyPlace, PublicContractorProfile, PublicHighlights, PublicMaterial, PublicService } from '@/types/marketplace';
+import type { NearbyPlace, PublicContractorProfile, PublicHighlights, PublicMaterial, PublicService, PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
+import type { MaterialCategoryPick } from '@/data/material-categories';
 import type { CatalogService, CatalogMaterial, Storefront } from '@/types/partner';
 
 export const locationApi = {
@@ -11,7 +12,14 @@ export const locationApi = {
       params: { lat, lng, radius, ...extra },
     }),
   store: (id: string) =>
-    api.get<ApiResponse<{ store: Storefront; publicProfile: PublicContractorProfile | null; services: CatalogService[]; materials: CatalogMaterial[] }>>(
+    api.get<ApiResponse<{
+      store: Storefront;
+      publicProfile: PublicStoreProfile | PublicContractorProfile | null;
+      categories?: MaterialCategoryPick[];
+      reviews?: { average: number; count: number; items: PublicStoreReview[] } | null;
+      services: CatalogService[];
+      materials: CatalogMaterial[];
+    }>>(
       `/stores/${id}`
     ),
   contractor: (id: string) =>

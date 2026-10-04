@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { describePlace } = require('../utils/geo');
 
 const REPAIR_CATEGORY = Object.freeze({
   PLUMBING: 'PLUMBING',
@@ -81,6 +82,7 @@ repairRequestSchema.methods.toPublic = function toPublic() {
     videos: this.videos,
     address: this.address,
     location: this.location,
+    place: describePlace({ location: this.location, address: this.address }),
     status: this.status,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,

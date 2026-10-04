@@ -49,6 +49,23 @@ const contractorProfileSchema = new mongoose.Schema(
     description: { type: String, trim: true, default: '', maxlength: 1200 },
     yearsExperience: { type: Number, default: 0, min: 0, max: 80 },
     serviceAreas: { type: [String], default: [] },
+    materialCategories: {
+      type: [
+        new mongoose.Schema(
+          {
+            name: { type: String, required: true, trim: true, maxlength: 80 },
+            type: { type: String, enum: ['SYSTEM', 'CUSTOM'], default: 'SYSTEM' },
+            categoryId: { type: String, default: null },
+            status: {
+              type: String,
+              enum: ['APPROVED', 'PENDING_APPROVAL', 'REJECTED'],
+            },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     services: {
       type: [
         new mongoose.Schema(
@@ -107,6 +124,15 @@ contractorProfileSchema.methods.toPublic = function toPublic() {
     description: this.description,
     yearsExperience: this.yearsExperience,
     serviceAreas: this.serviceAreas,
+    materialCategories: (this.materialCategories || []).map((item) => {
+      const type = item.type === 'CUSTOM' ? 'CUSTOM' : 'SYSTEM';
+      return {
+        name: item.name,
+        type,
+        categoryId: type === 'CUSTOM' ? item.categoryId || null : null,
+        status: item.status || 'APPROVED',
+      };
+    }),
     services: (this.services || []).map((item) => {
       const type = item.type === 'CUSTOM' ? 'CUSTOM' : 'SYSTEM';
       return {

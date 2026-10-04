@@ -1,14 +1,28 @@
 import { Link } from 'react-router-dom';
-import { MapPin, ShoppingBag, Star } from 'lucide-react';
-import { Badge } from '@/components/ui/Badge';
+import { BadgeCheck, MapPin, Star, Store } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { mediaUrl } from '@/lib/partner-api';
+import { MediaFrame } from '@/components/media/ProfileMedia';
+import { categoryDisplayLabel } from '@/data/material-categories';
+import { formatDistance } from '@/features/map/lib/distance';
 import { useI18n } from '@/locales';
 import type { NearbyPlace } from '@/types/marketplace';
 
-/** Card cửa hàng vật liệu: xem cửa hàng, sản phẩm và mua hàng. Không nhận yêu cầu sửa chữa. */
-export function MaterialStoreCard({
+function categoryLine(place: NearbyPlace, t: (path: string, vars?: Record<string, string | number>) => string) {
+  const registered = place.materialCategories || [];
+  const fromProducts = [...new Set((place.products || []).map((item) => item.category).filter(Boolean))].map((name) => ({
+    name,
+    type: 'SYSTEM' as const,
+  }));
+  const source = registered.length ? registered : fromProducts;
+  const labels = [...new Set(source.map((item) => categoryDisplayLabel(item, t)))];
+  if (!labels.length) return '';
+  const head = labels.slice(0, 3).join(' · ');
+  return labels.length > 3 ? `${head} ${t('explore.moreCount', { n: labels.length - 3 })}` : head;
+}
+
+/** Card cửa hàng vật liệu. Ảnh đại diện là logo, không lấy ảnh bìa hay thư viện. */
+export function StoreResultCard({
   place,
   active,
   onHover,
@@ -18,52 +32,70 @@ export function MaterialStoreCard({
   onHover?: () => void;
 }) {
   const { t } = useI18n();
+  const name = place.businessName || place.storeName;
+  const photo = place.logo || place.avatar || '';
+  const materials = categoryLine(place, t);
   const storeHref = `/stores/${place.id}`;
   const productsHref = `/stores/${place.id}#materials`;
 
   return (
-    <Card className={active ? 'ring-2 ring-copper-400' : undefined} onClick={onHover}>
-      <div className="flex gap-3">
-        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-navy-800/10">
-          {place.coverImage ? (
-            <img src={mediaUrl(place.coverImage)} alt="" className="h-full w-full object-cover" />
-          ) : null}
-        </div>
+    <div id={`place-store-${place.id}`} className="scroll-mt-24">
+    <Card hover={false} className={`flex h-full min-h-[220px] flex-col p-4 sm:p-6 ${active ? 'ring-2 ring-copper-400' : ''}`} onClick={onHover}>
+      <div className="flex gap-4">
+        <Link to={storeHref} className="h-14 w-14 shrink-0 sm:h-[72px] sm:w-[72px]" aria-label={name}>
+          <MediaFrame
+            src={photo}
+            alt={name}
+            fit="logo"
+            frameClassName="h-14 w-14 rounded-2xl bg-white sm:h-[72px] sm:w-[72px]"
+            empty={
+              <span className="absolute inset-0 grid place-items-center bg-navy-800 text-paper-50">
+                <Store className="h-6 w-6" aria-hidden />
+              </span>
+            }
+          />
+        </Link>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-display text-lg text-navy-800">{place.businessName}</h3>
-            {place.verified ? <Badge tone="success">{t('common.verified')}</Badge> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to={storeHref} className="font-display text-xl text-navy-800 hover:text-copper-600 sm:text-[22px]">
+              {name}
+            </Link>
+            {place.verified ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                <BadgeCheck className="h-3.5 w-3.5" />
+                {t('common.verified')}
+              </span>
+            ) : null}
           </div>
-          <p className="text-xs text-ink-400">{place.storeName}</p>
-          <p className="mt-1 inline-flex items-center gap-1 text-sm text-copper-600">
-            <MapPin className="h-3.5 w-3.5" /> {place.distance} {t('common.km')}
-          </p>
-          <p className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-navy-800">
-            <Star className="h-3.5 w-3.5 fill-copper-400 text-copper-400" /> {place.rating.toFixed(1)}
-            <span className="font-normal text-ink-400">({place.reviewCount})</span>
-          </p>
+          <p className="mt-1 text-sm text-ink-500">{t('explore.storeKind')}</p>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {(place.products || []).slice(0, 3).map((item) => (
-          <Badge key={item.id} tone="mist">
-            {item.name}
-          </Badge>
-        ))}
+      <div className="mt-4 space-y-1.5 text-sm text-ink-600">
+        <p className="inline-flex flex-wrap items-center gap-x-2">
+          <MapPin className="h-4 w-4 text-copper-500" />
+          <span>{formatDistance(place.distanceMeters ?? place.distance * 1000)}</span>
+          {place.city ? <span>· {place.city}</span> : null}
+        </p>
+        <p className="inline-flex items-center gap-1 font-semibold text-navy-800">
+          <Star className="h-4 w-4 fill-copper-400 text-copper-400" />
+          {place.reviewCount > 0 ? `${place.rating.toFixed(1)} (${place.reviewCount})` : t('explore.noRating')}
+        </p>
+        {materials ? <p className="line-clamp-2 leading-6">{t('explore.materialLine')}: {materials}</p> : null}
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button asChild size="sm" variant="outline">
+      <div className="mt-auto flex flex-wrap gap-2 pt-5">
+        <Button asChild size="sm" variant="copper">
           <Link to={storeHref}>{t('explore.viewStore')}</Link>
         </Button>
         <Button asChild size="sm" variant="outline">
           <Link to={productsHref}>{t('explore.viewProducts')}</Link>
         </Button>
-        <Button asChild size="sm" variant="copper">
-          <Link to={productsHref}>
-            <ShoppingBag className="h-4 w-4" /> {t('explore.buy')}
-          </Link>
+        <Button asChild size="sm" variant="outline">
+          <Link to={productsHref}>{t('explore.buy')}</Link>
         </Button>
       </div>
     </Card>
+    </div>
   );
 }
+
+export const MaterialStoreCard = StoreResultCard;

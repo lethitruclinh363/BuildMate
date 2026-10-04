@@ -18,6 +18,7 @@ export function ContractorPublicPage() {
     publicProfile: PublicContractorProfile | null;
     highlights?: PublicHighlights;
     services: CatalogService[];
+    visibility?: 'LIVE' | 'INACTIVE' | 'PAUSED';
   } | null>(null);
 
   useEffect(() => {
@@ -31,6 +32,23 @@ export function ContractorPublicPage() {
   }, [id]);
 
   if (loading) return <DashboardSkeleton />;
+  if (payload?.visibility && payload.visibility !== 'LIVE') {
+    return (
+      <PageTransition>
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <ErrorState
+            title={t('errors.notFoundContractor')}
+            body={payload.visibility === 'PAUSED' ? t('activation.pausedPublic') : t('activation.notPublic')}
+          />
+          <div className="mt-4 text-center">
+            <Button asChild>
+              <Link to="/explore">{t('common.backToMap')}</Link>
+            </Button>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
   if (!payload?.publicProfile) {
     return (
       <PageTransition>

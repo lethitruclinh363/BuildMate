@@ -4,14 +4,29 @@ const { User } = require('../models/User');
 const { RepairRequest } = require('../models/RepairRequest');
 const { Quotation } = require('../models/Quotation');
 const { ApiError } = require('../utils/ApiError');
+<<<<<<< HEAD:backend/src/services/chatService.js
 const { emitToRoom, isOnline } = require('./socketService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
+=======
+const { emitToRoom, isOnline } = require('./socket.service');
+const { notify, NOTIFICATION_TYPE } = require('./notification.service');
+const { sanitizeChatLocation } = require('../utils/chat-location');
+>>>>>>> origin/Duc:backend/src/services/chat.service.js
 
-function preview(type, content) {
+const PARTNER_ROLES = new Set(['CONTRACTOR', 'MATERIAL_STORE_OWNER', 'STORE']);
+
+function preview(type, content, location) {
   if (type === MESSAGE_TYPE.IMAGE) return 'Sent a photo';
   if (type === MESSAGE_TYPE.VIDEO) return 'Sent a video';
   if (type === MESSAGE_TYPE.QUOTATION) return 'Sent a quotation';
+  if (type === MESSAGE_TYPE.LOCATION) return location?.label || location?.address || 'Shared a location';
   return String(content || '').slice(0, 140);
+}
+
+function chatPathFor(user, roomId) {
+  if (user?.role === 'MATERIAL_STORE_OWNER' || user?.role === 'STORE') return `/store/chat/${roomId}`;
+  if (user?.role === 'CONTRACTOR') return `/contractor/chat/${roomId}`;
+  return `/customer/chat/${roomId}`;
 }
 
 async function assertMember(roomId, userId) {
@@ -39,7 +54,7 @@ async function createRoomForRequest(request) {
 }
 
 async function listRooms(userId, role) {
-  const filter = role === 'CONTRACTOR' ? { contractorId: userId } : { customerId: userId };
+  const filter = PARTNER_ROLES.has(role) ? { contractorId: userId } : { customerId: userId };
   const rooms = await ChatRoom.find(filter).sort({ lastMessageAt: -1 }).limit(50);
   const [users, requests] = await Promise.all([
     User.find({ _id: { $in: rooms.flatMap((r) => [r.customerId, r.contractorId]) } }),
@@ -93,16 +108,21 @@ async function listMessages(roomId, userId, { before, limit = 50 } = {}) {
     }));
 }
 
-async function sendMessage({ roomId, senderId, type = MESSAGE_TYPE.TEXT, content = '', quotationId = null }) {
+async function sendMessage({ roomId, senderId, type = MESSAGE_TYPE.TEXT, content = '', quotationId = null, location = null }) {
   const room = await assertMember(roomId, senderId);
+  const shared = type === MESSAGE_TYPE.LOCATION ? sanitizeChatLocation(location) : null;
+  if (type === MESSAGE_TYPE.LOCATION && !shared) {
+    throw new ApiError(422, 'Coordinates are invalid');
+  }
   const message = await Message.create({
     roomId: room._id,
     senderId,
     type,
-    content,
+    content: shared ? shared.label || shared.address : content,
     quotationId,
+    ...(shared ? { location: shared } : {}),
   });
-  room.lastMessage = preview(type, content);
+  room.lastMessage = preview(type, content, shared);
   room.lastMessageAt = new Date();
   await room.save();
 
@@ -117,17 +137,14 @@ async function sendMessage({ roomId, senderId, type = MESSAGE_TYPE.TEXT, content
 
   const otherId =
     String(room.customerId) === String(senderId) ? room.contractorId : room.customerId;
-  const sender = await User.findById(senderId);
-  const chatLink =
-    String(room.customerId) === String(otherId)
-      ? `/customer/chat/${room._id}`
-      : `/contractor/chat/${room._id}`;
+  const [sender, recipient] = await Promise.all([User.findById(senderId), User.findById(otherId)]);
+  const chatLink = chatPathFor(recipient, room._id);
 
   if (type !== MESSAGE_TYPE.QUOTATION) {
     await notify({
       userId: otherId,
       title: sender?.name || 'New message',
-      message: preview(type, content),
+      message: preview(type, content, shared),
       type: NOTIFICATION_TYPE.MESSAGE,
       link: chatLink,
       meta: { roomId: String(room._id) },

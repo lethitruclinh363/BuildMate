@@ -5,7 +5,14 @@ import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { ContractorPortfolioUpload } from '@/components/partner/ContractorPortfolioUpload';
 import { ContractorServiceSelector } from '@/components/partner/ContractorServiceSelector';
+import { StoreCategorySelector } from '@/components/partner/StoreCategorySelector';
 import { isContractorService, mergeServiceStatus, type ContractorServicePick } from '@/data/contractor-services';
+import {
+  isMaterialCategoryPick,
+  mergeMaterialCategories,
+  picksFromStoredNames,
+  type MaterialCategoryPick,
+} from '@/data/material-categories';
 import { homeForUser, useAuth } from '@/context/AuthContext';
 import {
   maxReachableStep,
@@ -24,7 +31,6 @@ import type { ApiResponse } from '@/types/user';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^(03|05|07|08|09)\d{8}$/;
-const STORE_SERVICES = ['Cement', 'Paint', 'Pipe', 'Tiles', 'Steel', 'Tools', 'Fixtures'] as const;
 const DOC_BYTES = 8 * 1024 * 1024;
 const DOC_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 
@@ -43,6 +49,7 @@ type Draft = {
 
 type StoredDraft = Draft & {
   services: string[];
+  materialCategories?: MaterialCategoryPick[];
   crewServices: ContractorServicePick[];
   agreed: boolean;
   accurate?: boolean;
@@ -95,12 +102,11 @@ export default function PartnerOnboardingPage() {
   const pushToast = useToastStore((s) => s.push);
   const storeOwner = currentUser?.role === 'MATERIAL_STORE_OWNER';
   const partnerApi = storeOwner ? materialStoreApi : contractorApi;
-  const catalog = STORE_SERVICES;
 
   const [step, setStep] = useState(0);
   const [ready, setReady] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [services, setServices] = useState<string[]>([]);
+  const [storeCategories, setStoreCategories] = useState<MaterialCategoryPick[]>([]);
   const [crewServices, setCrewServices] = useState<ContractorServicePick[]>([]);
   const [profile, setProfile] = useState<ContractorProfile | null>(null);
   const [agreed, setAgreed] = useState(false);
@@ -121,7 +127,11 @@ export default function PartnerOnboardingPage() {
   const steps = useMemo(
     () => [
       { id: 'basic', label: t('auth.onboardStepBasic'), lead: t('auth.onboardBasicLead') },
-      { id: 'service', label: t('auth.onboardStepService'), lead: t('auth.onboardServiceLead') },
+      {
+        id: 'service',
+        label: t(storeOwner ? 'auth.onboardStepCategory' : 'auth.onboardStepService'),
+        lead: t(storeOwner ? 'auth.onboardStoreCategoryLead' : 'auth.onboardServiceLead'),
+      },
       { id: 'images', label: t('auth.onboardStepImages'), lead: t('auth.onboardImagesLead') },
       { id: 'location', label: t('auth.onboardStepLocation'), lead: t('auth.onboardLocationLead') },
       { id: 'verify', label: t('auth.onboardStepVerify'), lead: t(storeOwner ? 'auth.onboardVerifyLeadStore' : 'auth.onboardVerifyLead') },
@@ -152,6 +162,7 @@ export default function PartnerOnboardingPage() {
           city: next?.city || '',
           description: next?.description || '',
           services: next?.serviceAreas || [],
+          materialCategories: (next?.materialCategories || []).filter(isMaterialCategoryPick),
           crewServices: (next?.services || []).filter(isContractorService),
           agreed: false,
         };
@@ -164,6 +175,10 @@ export default function PartnerOnboardingPage() {
               contactEmail: 'contactEmail' in local ? local.contactEmail : base.contactEmail,
               workerCount: 'workerCount' in local ? local.workerCount : base.workerCount,
               yearsExperience: local.yearsExperience || base.yearsExperience,
+              materialCategories:
+                'materialCategories' in local && Array.isArray(local.materialCategories)
+                  ? mergeMaterialCategories(local.materialCategories.filter(isMaterialCategoryPick), base.materialCategories || [])
+                  : base.materialCategories,
               crewServices:
                 'crewServices' in local && Array.isArray(local.crewServices)
                   ? mergeServiceStatus(local.crewServices.filter(isContractorService), base.crewServices)
@@ -182,7 +197,10 @@ export default function PartnerOnboardingPage() {
           city: source.city,
           description: source.description,
         });
-        setServices(Array.isArray(source.services) ? source.services : []);
+        const restoredCategories = source.materialCategories?.length
+          ? source.materialCategories
+          : picksFromStoredNames(Array.isArray(source.services) ? source.services : []);
+        setStoreCategories(restoredCategories);
         setCrewServices(source.crewServices);
         const initialCompleted = normalizeCompleted(
           local && Array.isArray(local.completed) ? local.completed : next?.completedSteps
@@ -207,9 +225,18 @@ export default function PartnerOnboardingPage() {
 
   useEffect(() => {
     if (!ready || !currentUser?.id) return;
-    const payload: StoredDraft = { ...draft, services, crewServices, agreed, accurate, completed, step };
+    const payload: StoredDraft = {
+      ...draft,
+      services: storeCategories.map((item) => item.name),
+      materialCategories: storeCategories,
+      crewServices,
+      agreed,
+      accurate,
+      completed,
+      step,
+    };
     localStorage.setItem(storageKey(currentUser.id), JSON.stringify(payload));
-  }, [ready, currentUser?.id, draft, services, crewServices, agreed, accurate, completed, step]);
+  }, [ready, currentUser?.id, draft, storeCategories, crewServices, agreed, accurate, completed, step]);
 
   useEffect(() => {
     if (step !== 5) return;
@@ -274,7 +301,7 @@ export default function PartnerOnboardingPage() {
   const emailOk = emailMessage === '';
   const crewOk = nameOk && repOk && phoneOk && emailOk && descriptionOk && yearsOk && workersOk;
   const rejectedCrewService = !storeOwner && crewServices.some((item) => item.status === 'REJECTED');
-  const serviceOk = storeOwner ? services.length >= 1 && services.length <= 12 : crewServices.length >= 1 && !rejectedCrewService;
+  const serviceOk = storeOwner ? storeCategories.length >= 1 && storeCategories.length <= 12 : crewServices.length >= 1 && !rejectedCrewService;
   const avatarOk = Boolean(profile?.portfolio?.avatar);
   const logoOk = Boolean(profile?.portfolio?.teamLogo);
   const workshopOk = Boolean(profile?.portfolio?.workshop);
@@ -326,7 +353,17 @@ export default function PartnerOnboardingPage() {
       void persistPartialRef.current();
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [ready, storeOwner, draft, services, crewServices]);
+  }, [ready, storeOwner, draft, crewServices]);
+
+  useEffect(() => {
+    if (!ready || !storeOwner) return;
+    if (statusRef.current === 'SUBMITTED' || statusRef.current === 'APPROVED') return;
+    if (draft.businessName.trim().length < 2) return;
+    const timer = window.setTimeout(() => {
+      void persistPartialRef.current();
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [ready, storeOwner, storeCategories, draft.businessName]);
 
   if (currentUser?.profileStatus === 'APPROVED' || profile?.verificationStatus === 'APPROVED') {
     return <Navigate to={homeForUser({ ...currentUser, profileStatus: 'APPROVED' })} replace />;
@@ -462,7 +499,16 @@ export default function PartnerOnboardingPage() {
     if (emailOk) body.contactEmail = emailTrim.toLowerCase();
     if (workersOk) body.workerCount = workersValue;
     if (storeOwner) {
-      if (services.length || full) body.serviceAreas = services.slice(0, 12);
+      if (storeCategories.length || full) {
+        const picks = storeCategories.slice(0, 12).map((item) => ({
+          name: item.name,
+          type: item.type,
+          categoryId: item.categoryId || null,
+          status: item.status,
+        }));
+        body.materialCategories = picks;
+        body.serviceAreas = picks.map((item) => item.name);
+      }
     } else {
       body.services = crewServices;
     }
@@ -607,17 +653,6 @@ export default function PartnerOnboardingPage() {
     }
   }
 
-  function toggleService(name: string) {
-    setTouched((current) => ({ ...current, services: true }));
-    setServices((current) => {
-      if (current.includes(name)) return current.filter((item) => item !== name);
-      if (current.length >= 12) return current;
-      return [...current, name];
-    });
-  }
-
-  const known = new Set<string>(catalog);
-  const extraServices = services.filter((name) => !known.has(name));
   const hint = unmetMessage();
 
   return (
@@ -866,35 +901,14 @@ export default function PartnerOnboardingPage() {
               ) : null}
 
               {step === 1 && storeOwner ? (
-                <div id="onboard-services" className="mt-5">
-                  <div className="flex flex-wrap gap-2">
-                    {catalog.map((name) => {
-                      const selected = services.includes(name);
-                      return (
-                        <button
-                          key={name}
-                          type="button"
-                          onClick={() => toggleService(name)}
-                          className={cn(
-                            'rounded-full border px-4 py-2 text-sm font-semibold transition',
-                            selected ? 'border-navy-800 bg-navy-800 text-paper-50' : 'border-navy-800/15 bg-white text-navy-800'
-                          )}
-                        >
-                          {t(`category.${name}`)}
-                        </button>
-                      );
-                    })}
-                    {extraServices.map((name) => (
-                      <button
-                        key={name}
-                        type="button"
-                        onClick={() => toggleService(name)}
-                        className="rounded-full border border-navy-800 bg-navy-800 px-4 py-2 text-sm font-semibold text-paper-50"
-                      >
-                        {name}
-                      </button>
-                    ))}
-                  </div>
+                <div>
+                  <StoreCategorySelector
+                    selected={storeCategories}
+                    onChange={(next) => {
+                      setTouched((current) => ({ ...current, services: true }));
+                      setStoreCategories(next);
+                    }}
+                  />
                   {touched.services && !serviceOk ? <p className="mt-3 text-xs text-red-600">{t('auth.onboardServiceRequired')}</p> : null}
                 </div>
               ) : null}

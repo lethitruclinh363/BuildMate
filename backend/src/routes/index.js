@@ -1,4 +1,5 @@
 const express = require('express');
+<<<<<<< HEAD
 const authRoutes = require('./authRoute');
 const userRoutes = require('./userRoutes');
 const contractorRoutes = require('./contractorRoutes');
@@ -19,6 +20,30 @@ const complaintRoutes = require('./complaintRoutes');
 const materialStoreRoutes = require('./materialStoreRoutes');
 const policyRoutes = require('./policyRoutes');
 const catalogRoutes = require('./catalogRoutes');
+=======
+const authRoutes = require('./auth.routes');
+const userRoutes = require('./user.routes');
+const contractorRoutes = require('./contractor.routes');
+const adminAuthRoutes = require('./adminAuth.routes');
+const adminRoutes = require('./admin.routes');
+const locationRoutes = require('./location.routes');
+const marketplaceRoutes = require('./marketplace.routes');
+const repairRoutes = require('./repair.routes');
+const chatRoutes = require('./chat.routes');
+const quotationRoutes = require('./quotation.routes');
+const notificationRoutes = require('./notification.routes');
+const uploadRoutes = require('./upload.routes');
+const orderRoutes = require('./order.routes');
+const progressRoutes = require('./progress.routes');
+const paymentRoutes = require('./payment.routes');
+const reviewRoutes = require('./review.routes');
+const complaintRoutes = require('./complaint.routes');
+const materialStoreRoutes = require('./material-store.routes');
+const materialCheckoutRoutes = require('./material-checkout.routes');
+const materialOrderRoutes = require('./material-order.routes');
+const policyRoutes = require('./policy.routes');
+const catalogRoutes = require('./catalog.routes');
+>>>>>>> origin/Duc
 
 const router = express.Router();
 
@@ -36,6 +61,8 @@ router.use('/auth', authRoutes);
 router.use('/user', userRoutes);
 router.use('/contractor', contractorRoutes);
 router.use('/material-store', materialStoreRoutes);
+router.use('/material-checkout', materialCheckoutRoutes);
+router.use('/material-orders', materialOrderRoutes);
 router.use('/admin/auth', adminAuthRoutes);
 router.use('/admin', adminRoutes);
 router.use('/location', locationRoutes);

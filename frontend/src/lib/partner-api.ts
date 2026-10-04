@@ -6,11 +6,13 @@ import type {
   ContractorProfile,
   DocumentType,
   Storefront,
+  ActivationReadiness,
   WorkspacePayload,
 } from '@/types/partner';
 import type { ContractorDashboardStats } from '@/features/analytics/types/dashboard-stats';
-import type { PublicContractorProfile } from '@/types/marketplace';
+import type { PublicContractorProfile, PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 import type { ContractorServiceCategory, ContractorServicePick, ServiceNameCheck } from '@/data/contractor-services';
+import type { MaterialCategoryCatalog, MaterialCategoryPick } from '@/data/material-categories';
 
 const origin = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
 
@@ -28,6 +30,8 @@ export function vnd(value: number) {
 
 export const contractorApi = {
   workspace: () => api.get<ApiResponse<WorkspacePayload>>('/contractor/workspace'),
+  activate: () => api.post<ApiResponse<ActivationReadiness>>('/contractor/activation'),
+  pauseListing: () => api.post<ApiResponse<ActivationReadiness>>('/contractor/activation/pause'),
   getProfile: () => api.get<ApiResponse<ContractorProfile>>('/contractor/profile'),
   getPublicProfile: () =>
     api.get<ApiResponse<{ publicProfile: PublicContractorProfile; services: CatalogService[] }>>('/contractor/public-profile'),
@@ -84,9 +88,11 @@ export const contractorApi = {
 export const materialStoreApi = {
   getProfile: () => api.get<ApiResponse<ContractorProfile>>('/material-store/profile'),
   workspace: () =>
-    api.get<ApiResponse<{ profile: ContractorProfile; store: Storefront | null; approved: boolean }>>(
+    api.get<ApiResponse<{ profile: ContractorProfile; store: Storefront | null; approved: boolean; activation?: ActivationReadiness }>>(
       '/material-store/workspace'
     ),
+  activate: () => api.post<ApiResponse<ActivationReadiness>>('/material-store/activation'),
+  pauseListing: () => api.post<ApiResponse<ActivationReadiness>>('/material-store/activation/pause'),
   saveProfile: (body: Partial<ContractorProfile>) =>
     api.patch<ApiResponse<ContractorProfile>>('/material-store/profile', body),
   uploadDocument: (file: File, type: DocumentType) => {
@@ -105,10 +111,41 @@ export const materialStoreApi = {
     api.post<ApiResponse<Storefront>>('/material-store/store', body),
   updateStore: (body: Partial<Storefront> & { lng?: number; lat?: number }) =>
     api.patch<ApiResponse<Storefront>>('/material-store/store', body),
+  listMaterialCategories: () =>
+    api.get<ApiResponse<MaterialCategoryCatalog>>('/material-store/categories', { silent: true }),
+  createMaterialCategory: (name: string) =>
+    api.post<ApiResponse<MaterialCategoryPick>>('/material-store/categories/custom', { name }),
+  registerMaterialCategory: (name: string) =>
+    api.post<ApiResponse<MaterialCategoryPick[]>>('/material-store/categories/register', { name }),
   listMaterials: () => api.get<ApiResponse<CatalogMaterial[]>>('/material-store/materials'),
   saveMaterial: (body: Partial<CatalogMaterial>, id?: string) =>
     id
       ? api.patch<ApiResponse<CatalogMaterial>>(`/material-store/materials/${id}`, body)
       : api.post<ApiResponse<CatalogMaterial>>('/material-store/materials', body),
   deleteMaterial: (id: string) => api.delete(`/material-store/materials/${id}`),
+  getPublicProfile: () =>
+    api.get<
+      ApiResponse<{
+        publicProfile: PublicStoreProfile;
+        categories: MaterialCategoryPick[];
+        materials: CatalogMaterial[];
+        reviews: { average: number; count: number; items: PublicStoreReview[] };
+        verified: {
+          businessName: string;
+          representativeName: string;
+          contactEmail: string;
+          contactPhone: string;
+          taxCode: string;
+          address: string;
+          city: string;
+          verificationStatus: string;
+          submittedAt: string | null;
+          reviewedAt: string | null;
+        };
+      }>
+    >('/material-store/public-profile'),
+  savePublicProfile: (body: Partial<PublicStoreProfile>) =>
+    api.patch<ApiResponse<PublicStoreProfile>>('/material-store/public-profile', body),
+  requestVerificationChange: (note: string) =>
+    api.post<ApiResponse<{ requested: boolean }>>('/material-store/verification/change-request', { note }),
 };

@@ -16,6 +16,7 @@ const progressUpdateSchema = new mongoose.Schema(
     },
     description: { type: String, trim: true, default: '', maxlength: 2000 },
     images: { type: [String], default: [] },
+    actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     location: {
       type: { type: String, enum: ['Point'] },
       coordinates: { type: [Number] },
@@ -33,6 +34,7 @@ progressUpdateSchema.methods.toPublic = function toPublic() {
     status: this.status,
     description: this.description,
     images: this.images,
+    actorId: this.actorId || null,
     location: this.location?.coordinates ? this.location : null,
     createdAt: this.createdAt,
   };

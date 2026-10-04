@@ -39,6 +39,8 @@ router.get('/earnings', authenticate, authorize(ROLES.CONTRACTOR), paymentContro
 router.get('/dashboard-stats', ...contractorOnly, contractorController.getDashboardStats);
 router.get('/reputation', ...contractorOnly, contractorController.getReputation);
 router.get('/workspace', ...contractorOnly, contractorController.getWorkspace);
+router.post('/activation', ...contractorOnly, contractorController.activatePartner);
+router.post('/activation/pause', ...contractorOnly, contractorController.pausePartner);
 router.get('/public-profile', ...storeWrite, contractorController.getPublicProfile);
 router.patch('/public-profile', ...storeWrite, validate(publicProfileSchema), contractorController.updatePublicProfile);
 

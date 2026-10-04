@@ -96,9 +96,31 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
     const actor = { id: party.contractor._id, role: 'CONTRACTOR' };
     await progressService.addProgress(accepted.order.id, actor, {
+      status: 'STARTED',
+      description: 'Started on site',
+    });
+    await progressService.addProgress(accepted.order.id, actor, {
+      status: 'IN_PROGRESS',
+      description: 'Working',
+    });
+    const finished = await progressService.addProgress(accepted.order.id, actor, {
       status: 'COMPLETED',
       description: 'Done',
     });
+    assert.equal(finished.order.status, 'COMPLETED');
+    assert.equal(finished.progress.status, 'COMPLETED');
+
+    let afterFinish = null;
+    try {
+      await progressService.addProgress(accepted.order.id, actor, {
+        status: 'IN_PROGRESS',
+        description: 'Too late',
+      });
+    } catch (err) {
+      afterFinish = err;
+    }
+    assert.equal(afterFinish?.statusCode, 409);
+
     await orderService.completeOrder(accepted.order.id, party.customer._id);
 
     let closed = null;
