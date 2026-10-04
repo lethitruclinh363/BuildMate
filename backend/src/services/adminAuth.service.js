@@ -38,7 +38,8 @@ async function me(userId) {
   return user.toPublic();
 }
 
-function logout() {
+async function logout(userId) {
+  await userRepository.incrementTokenVersion(userId);
   return { loggedOut: true };
 }
 

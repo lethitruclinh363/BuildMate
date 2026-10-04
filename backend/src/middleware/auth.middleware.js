@@ -27,14 +27,23 @@ const authenticate = asyncHandler(async (req, _res, next) => {
     throw new ApiError(401, 'Invalid token payload');
   }
 
+  const tokenVersion = payload.tokenVersion === undefined ? 0 : payload.tokenVersion;
+  if (!Number.isSafeInteger(tokenVersion) || tokenVersion < 0) {
+    throw new ApiError(401, 'Invalid token payload');
+  }
+
   const userId = getUserId(payload);
   if (!userId) {
     throw new ApiError(401, 'Invalid token payload');
   }
 
-  const user = await userRepository.findById(userId);
+  const user = await userRepository.findByIdForAuth(userId);
   if (!user) {
     throw new ApiError(401, 'User no longer exists');
+  }
+
+  if (tokenVersion !== (user.tokenVersion || 0)) {
+    throw new ApiError(401, 'Session expired. Please log in again');
   }
 
   if (user.status === USER_STATUS.BANNED || user.status === USER_STATUS.BLOCKED) {

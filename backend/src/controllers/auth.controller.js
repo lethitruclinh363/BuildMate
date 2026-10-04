@@ -22,8 +22,8 @@ const login = asyncHandler(async (req, res) => {
   return success(res, result, 'Login successful');
 });
 
-const logout = asyncHandler(async (_req, res) => {
-  const result = authService.logout();
+const logout = asyncHandler(async (req, res) => {
+  const result = await authService.logout(req.user.id);
   return success(res, result, 'Logged out successfully');
 });
 
