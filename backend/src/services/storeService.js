@@ -3,11 +3,17 @@ const { ContractorProfile, VERIFICATION_STATUS } = require('../models/Contractor
 const { Material } = require('../models/Material');
 const { Service } = require('../models/Service');
 const { ApiError } = require('../utils/ApiError');
+const { assertDeliveryPolicy } = require('../utils/delivery-policy');
+const { toGeoPoint } = require('../utils/geo');
 
 function applyGeo(payload) {
   const data = { ...payload };
+  delete data.locationConfirmed;
   if (payload.lng !== undefined && payload.lat !== undefined) {
-    data.location = { type: 'Point', coordinates: [payload.lng, payload.lat] };
+    const point = toGeoPoint(payload.lat, payload.lng);
+    if (!point) throw new ApiError(422, 'Coordinates are invalid');
+    data.location = point;
+    data.locationConfirmed = true;
   }
   delete data.lng;
   delete data.lat;
@@ -24,12 +30,18 @@ async function isApprovedOwner(ownerId) {
   return profile?.verificationStatus === VERIFICATION_STATUS.APPROVED;
 }
 
+function keptActivation(store, approved) {
+  if (!approved) return STORE_STATUS.DRAFT;
+  if (store?.status === STORE_STATUS.LIVE || store?.status === STORE_STATUS.PAUSED) return store.status;
+  return STORE_STATUS.INACTIVE;
+}
+
 async function enforceStoreType(ownerId, lockedType) {
   const store = await Store.findOne({ contractorId: ownerId });
   if (!store) return null;
   const approved = await isApprovedOwner(ownerId);
   store.storeType = lockedType;
-  store.status = approved ? STORE_STATUS.LIVE : STORE_STATUS.DRAFT;
+  store.status = keptActivation(store, approved);
   store.verified = approved;
   await store.save();
   await separateCatalog(store);
@@ -38,16 +50,16 @@ async function enforceStoreType(ownerId, lockedType) {
 
 async function syncOwnerStore(ownerId, lockedType, fields) {
   const approved = await isApprovedOwner(ownerId);
+  let store = await Store.findOne({ contractorId: ownerId });
   const patch = {
     name: fields.name,
     address: fields.address,
     city: fields.city || 'Can Tho',
     description: fields.description || '',
     storeType: lockedType,
-    status: approved ? STORE_STATUS.LIVE : STORE_STATUS.DRAFT,
+    status: keptActivation(store, approved),
     verified: approved,
   };
-  let store = await Store.findOne({ contractorId: ownerId });
   if (!store) {
     store = await Store.create({ contractorId: ownerId, ...patch });
   } else {
@@ -68,6 +80,7 @@ async function syncOwnerStore(ownerId, lockedType, fields) {
 
 async function lockStoreType(ownerId, payload, lockedType) {
   const data = applyGeo(payload);
+  delete data.status;
   if (!lockedType) return data;
   if (data.storeType && data.storeType !== lockedType) {
     throw new ApiError(
@@ -78,9 +91,7 @@ async function lockStoreType(ownerId, payload, lockedType) {
     );
   }
   data.storeType = lockedType;
-  const approved = await isApprovedOwner(ownerId);
-  data.status = approved ? STORE_STATUS.LIVE : STORE_STATUS.DRAFT;
-  data.verified = approved;
+  data.verified = await isApprovedOwner(ownerId);
   return data;
 }
 
@@ -98,20 +109,27 @@ async function createStore(contractorId, payload, lockedType) {
   if (existing) {
     throw new ApiError(409, 'This partner already has a storefront');
   }
-  const store = await Store.create({ contractorId, ...(await lockStoreType(contractorId, payload, lockedType)) });
+  const approved = await isApprovedOwner(contractorId);
+  const data = await lockStoreType(contractorId, payload, lockedType);
+  assertDeliveryPolicy({ serviceRadiusKm: 5, freeDeliveryRadiusKm: 0 }, data);
+  const store = await Store.create({
+    contractorId,
+    ...data,
+    status: approved ? STORE_STATUS.INACTIVE : STORE_STATUS.DRAFT,
+  });
   await separateCatalog(store);
   return store.toPublic();
 }
 
 async function updateStore(contractorId, payload, lockedType) {
-  const data = await lockStoreType(contractorId, payload, lockedType);
-  const store = await Store.findOneAndUpdate({ contractorId }, data, {
-    new: true,
-    runValidators: true,
-  });
+  const store = await Store.findOne({ contractorId });
   if (!store) {
     throw new ApiError(404, 'Storefront not found');
   }
+  const data = await lockStoreType(contractorId, payload, lockedType);
+  assertDeliveryPolicy(store, data);
+  store.set(data);
+  await store.save();
   await separateCatalog(store);
   return store.toPublic();
 }

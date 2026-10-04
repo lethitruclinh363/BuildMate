@@ -36,7 +36,18 @@ const profileSchema = z.object({
   city: z.string().trim().max(80).optional(),
   description: z.string().trim().max(1200).optional().or(z.literal('')),
   yearsExperience: z.coerce.number().min(0).max(80).optional(),
-  serviceAreas: z.array(z.string().trim().min(1)).max(12).optional(),
+  serviceAreas: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
+  materialCategories: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1, 'Please enter a category name.').max(80),
+        type: z.enum(['SYSTEM', 'CUSTOM']).optional(),
+        categoryId: z.union([z.string().trim().max(40), z.null()]).optional(),
+        status: z.enum(['APPROVED', 'PENDING_APPROVAL', 'REJECTED']).optional(),
+      })
+    )
+    .max(12)
+    .optional(),
   completedSteps: z.array(z.boolean()).length(6).optional(),
   services: z
     .array(
@@ -126,6 +137,26 @@ const publicProfileSchema = z.object({
   workerCount: z.coerce.number().int().min(0).max(500).optional(),
 }).strict();
 
+const storePublicProfileSchema = z.object({
+  displayName: z.string().trim().min(2).max(100),
+  slogan: z.string().trim().max(140).optional().or(z.literal('')),
+  description: z.string().trim().max(2000).optional().or(z.literal('')),
+  phone: z.string().trim().max(20).optional().or(z.literal('')),
+  contactName: z.string().trim().max(80).optional().or(z.literal('')),
+  contactEmail: z.string().trim().max(120).optional().or(z.literal('')),
+  address: z.string().trim().max(200).optional().or(z.literal('')),
+  city: z.string().trim().max(80).optional().or(z.literal('')),
+  avatar: z.string().trim().max(500).optional().or(z.literal('')),
+  logo: z.string().trim().max(500).optional().or(z.literal('')),
+  coverImage: z.string().trim().max(500).optional().or(z.literal('')),
+  gallery: z.array(z.string().max(500)).max(12).optional(),
+  serviceAreas: z.array(z.string().trim().min(1).max(80)).max(8).optional(),
+  openingHours: z.string().trim().max(80).optional().or(z.literal('')),
+  showroomNote: z.string().trim().max(500).optional().or(z.literal('')),
+  deliveryNote: z.string().trim().max(500).optional().or(z.literal('')),
+  serviceRadiusKm: z.coerce.number().min(1).max(50).optional(),
+}).strict();
+
 const verificationChangeSchema = z.object({
   note: z.string().trim().min(8).max(500),
 }).strict();
@@ -142,8 +173,14 @@ const storeSchema = z.object({
   gallery: z.array(z.string()).max(8).optional(),
   openingHours: z.string().trim().max(80).optional(),
   serviceRadiusKm: z.coerce.number().min(1).max(50).optional(),
+  deliveryEnabled: z.boolean().optional(),
+  baseDeliveryFee: z.coerce.number().min(0).optional(),
+  freeDeliveryRadiusKm: z.coerce.number().min(0).max(50).optional(),
+  deliveryFeePerKm: z.coerce.number().min(0).optional(),
+  minimumOrderAmount: z.coerce.number().min(0).optional(),
+  deliveryNote: z.string().trim().max(500).optional().or(z.literal('')),
   category: z.string().trim().max(80).optional(),
-  status: z.enum(['DRAFT', 'LIVE', 'PAUSED']).optional(),
+  status: z.enum(['DRAFT', 'INACTIVE', 'LIVE', 'PAUSED']).optional(),
   lng: z.coerce.number().optional(),
   lat: z.coerce.number().optional(),
 });
@@ -182,6 +219,10 @@ const offeringUpdateSchema = z.object({
   image: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
+const materialCategoryNameSchema = z.object({
+  name: z.string().trim().min(1, 'Please enter a category name.').max(80),
+});
+
 const materialSchema = z.object({
   name: z.string().trim().min(2).max(120),
   category: z.string().trim().min(2),
@@ -215,6 +256,7 @@ module.exports = {
   portfolioSlotSchema,
   portfolioRemoveSchema,
   publicProfileSchema,
+  storePublicProfileSchema,
   verificationChangeSchema,
   storeSchema,
   registerServiceSchema,
@@ -224,6 +266,7 @@ module.exports = {
   catalogWriteSchema,
   catalogStatusSchema,
   catalogReviewSchema,
+  materialCategoryNameSchema,
   materialSchema,
   rejectSchema,
   submitSchema,

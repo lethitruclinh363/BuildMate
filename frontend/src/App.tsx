@@ -27,13 +27,22 @@ const ContractorPublicProfilePage = lazy(() =>
 const ContractorServicesPage = lazy(() =>
   import('@/pages/contractor/ContractorServicesPage').then((m) => ({ default: m.ContractorServicesPage }))
 );
+const StorePublicProfilePage = lazy(() =>
+  import('@/pages/store/StorePublicProfilePage').then((m) => ({ default: m.StorePublicProfilePage }))
+);
 const StoreVerificationPage = lazy(() =>
   import('@/pages/store/StoreVerificationPage').then((m) => ({ default: m.StoreVerificationPage }))
 );
 const StoreMaterialsPage = lazy(() =>
   import('@/pages/store/StoreMaterialsPage').then((m) => ({ default: m.StoreMaterialsPage }))
 );
+const StoreDeliveryPage = lazy(() =>
+  import('@/pages/store/StoreDeliveryPage').then((m) => ({ default: m.StoreDeliveryPage }))
+);
 const StoreOrdersPage = lazy(() => import('@/pages/store/StoreSections').then((m) => ({ default: m.StoreOrdersPage })));
+const StoreOrderDetailPage = lazy(() =>
+  import('@/pages/store/StoreOrderDetailPage').then((m) => ({ default: m.StoreOrderDetailPage }))
+);
 const StoreEarningsPage = lazy(() => import('@/pages/store/StoreSections').then((m) => ({ default: m.StoreEarningsPage })));
 const StoreReviewsPage = lazy(() => import('@/pages/store/StoreReviewsPage').then((m) => ({ default: m.StoreReviewsPage })));
 const PaymentPage = lazy(() => import('@/features/payments/pages/PaymentPage').then((m) => ({ default: m.PaymentPage })));
@@ -60,6 +69,14 @@ const ContractorPublicPage = lazy(() =>
   import('@/pages/public/ContractorPublicPage').then((m) => ({ default: m.ContractorPublicPage }))
 );
 const StorePublicPage = lazy(() => import('@/pages/public/StorePublicPage').then((m) => ({ default: m.StorePublicPage })));
+const MaterialCartPage = lazy(() => import('@/pages/customer/MaterialCartPage').then((m) => ({ default: m.MaterialCartPage })));
+const MaterialCheckoutPage = lazy(() => import('@/pages/customer/MaterialCheckoutPage').then((m) => ({ default: m.MaterialCheckoutPage })));
+const MaterialOrderDetailPage = lazy(() =>
+  import('@/pages/customer/MaterialOrderDetailPage').then((m) => ({ default: m.MaterialOrderDetailPage }))
+);
+const CustomerMaterialOrdersPage = lazy(() =>
+  import('@/pages/customer/CustomerMaterialOrdersPage').then((m) => ({ default: m.CustomerMaterialOrdersPage }))
+);
 const ChatPage = lazy(() => import('@/pages/chat/ChatPage').then((m) => ({ default: m.ChatPage })));
 const CreateRepairRequestPage = lazy(() =>
   import('@/pages/customer/CreateRepairRequestPage').then((m) => ({ default: m.CreateRepairRequestPage }))
@@ -102,6 +119,7 @@ export function App() {
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/contractors/:id" element={<ContractorPublicPage />} />
             <Route path="/stores/:id" element={<StorePublicPage />} />
+            <Route path="/cart" element={<MaterialCartPage />} />
           </Route>
 
           <Route element={<GuestOnly />}>
@@ -133,6 +151,9 @@ export function App() {
                   <Route path="/customer/complaints" element={<CustomerComplaintsPage />} />
                   <Route path="/customer/notifications" element={<NotificationsPage />} />
                   <Route path="/customer/profile" element={<ProfilePage />} />
+                  <Route path="/material-checkout" element={<MaterialCheckoutPage />} />
+                  <Route path="/customer/material-orders" element={<CustomerMaterialOrdersPage />} />
+                  <Route path="/customer/material-orders/:id" element={<MaterialOrderDetailPage />} />
                 </Route>
               </Route>
               <Route element={<ProtectedRoute roles={['CONTRACTOR']} />}>
@@ -159,13 +180,18 @@ export function App() {
               <Route element={<ProtectedRoute roles={['STORE', 'MATERIAL_STORE_OWNER']} />}>
                 <Route element={<StoreLayout />}>
                   <Route path="/store/dashboard" element={<StoreDashboard />} />
+                  <Route path="/store/profile/edit" element={<StorePublicProfilePage />} />
                   <Route path="/store/verification" element={<StoreVerificationPage />} />
                   <Route path="/store/materials" element={<StoreMaterialsPage />} />
                   <Route path="/store/products" element={<StoreMaterialsPage />} />
                   <Route path="/store/prices" element={<StoreMaterialsPage />} />
+                  <Route path="/store/delivery" element={<StoreDeliveryPage />} />
                   <Route path="/store/orders" element={<StoreOrdersPage />} />
+                  <Route path="/store/orders/:id" element={<StoreOrderDetailPage />} />
                   <Route path="/store/earnings" element={<StoreEarningsPage />} />
                   <Route path="/store/reviews" element={<StoreReviewsPage />} />
+                  <Route path="/store/reputation" element={<StoreReviewsPage />} />
+                  <Route path="/store/chat/:roomId" element={<ChatPage />} />
                   <Route path="/store/notifications" element={<NotificationsPage />} />
                   <Route path="/store/profile" element={<ProfilePage />} />
                 </Route>

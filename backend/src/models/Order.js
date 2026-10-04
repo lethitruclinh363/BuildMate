@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { describePlace } = require('../utils/geo');
 const { ORDER_STATUS, REPAIR_JOB_STATUS, generateOrderCode } = require('../utils/order.rules');
 
 const PAYMENT_STATUS = Object.freeze({
@@ -93,6 +94,7 @@ orderSchema.methods.toPublic = function toPublic() {
     title: this.title,
     description: this.description,
     location: this.location,
+    place: describePlace({ location: this.location }),
     amount: this.amount,
     status: this.status,
     paymentStatus: this.paymentStatus,

@@ -4,6 +4,8 @@ import { Card } from '@/components/ui/Card';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import type { Quotation, RepairRequest } from '@/types/sprint4';
+import { SiteLocationCard } from '@/features/map/components/SiteLocationCard';
+import { placeFromRecord } from '@/features/map/lib/location';
 import { ProgressGallery } from '@/features/progress/components/ProgressGallery';
 import type { OrderDetail, ProgressUpdate } from '../types/order.types';
 import { OrderStatusBadge } from './OrderStatusBadge';
@@ -23,6 +25,7 @@ export function OrderDetailView({ order, progress, request, quotation, actions, 
   const { t } = useI18n();
   const party = request?.contractor?.name || request?.customer?.name;
   const place = request?.address || request?.store?.address || t('orders.siteFallback');
+  const site = placeFromRecord(request);
 
   return (
     <div className="space-y-6">
@@ -59,6 +62,11 @@ export function OrderDetailView({ order, progress, request, quotation, actions, 
             </div>
           </dl>
           {order.description ? <p className="mt-4 text-sm leading-6 text-ink-600">{order.description}</p> : null}
+          {site ? (
+            <div className="mt-5">
+              <SiteLocationCard title={t('orders.detail.siteTitle')} place={site} />
+            </div>
+          ) : null}
         </Card>
         <Card hover={false}>
           <p className="mb-4 text-xs uppercase tracking-[0.18em] text-copper-500">{t('orders.detail.timeline')}</p>

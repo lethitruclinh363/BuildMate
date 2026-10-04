@@ -2,7 +2,7 @@ const express = require('express');
 const { authenticate } = require('../middleware/authMiddleware');
 const { allowRole } = require('../middleware/roleMiddleware');
 const { validate } = require('../utils/validator');
-const { rejectSchema, catalogReviewSchema, catalogWriteSchema, catalogStatusSchema } = require('../validators/partner.validator');
+const { rejectSchema, catalogReviewSchema, catalogWriteSchema, catalogStatusSchema, materialCategoryNameSchema } = require('../validators/partner.validator');
 const { refundSchema, complaintPatchSchema, commissionRuleSchema } = require('../validators/finance.validator');
 const adminController = require('../controllers/adminController');
 const paymentController = require('../controllers/paymentController');
@@ -24,6 +24,9 @@ router.post('/service-catalog', ...adminOnly, validate(catalogWriteSchema), admi
 router.patch('/service-catalog/:id/status', ...adminOnly, validate(catalogStatusSchema), adminController.setCatalogStatus);
 router.patch('/service-catalog/:id', ...adminOnly, validate(catalogWriteSchema), adminController.updateCatalog);
 router.post('/service-catalog/:id/review', ...adminOnly, validate(catalogReviewSchema), adminController.reviewCatalogService);
+router.get('/material-categories', ...adminOnly, adminController.listMaterialCategories);
+router.post('/material-categories', ...adminOnly, validate(materialCategoryNameSchema), adminController.createMaterialCategory);
+router.patch('/material-categories/:id', ...adminOnly, validate(materialCategoryNameSchema), adminController.updateMaterialCategory);
 router.get('/analytics', ...adminOnly, adminController.analytics);
 router.get('/settings/commission', ...adminOnly, adminController.getCommissionRule);
 router.patch('/settings/commission', ...adminOnly, validate(commissionRuleSchema), adminController.setCommissionRule);

@@ -4,6 +4,7 @@ const { publicFileUrl } = require('../middleware/uploadMiddleware');
 const { ApiError } = require('../utils/ApiError');
 const chatService = require('../services/chatService');
 const { MESSAGE_TYPE } = require('../models/Message');
+const { sanitizeChatLocation } = require('../utils/chat-location');
 
 const rooms = asyncHandler(async (req, res) => {
   const data = await chatService.listRooms(req.user.id, req.user.role);
@@ -26,11 +27,16 @@ const send = asyncHandler(async (req, res) => {
   if (type === MESSAGE_TYPE.TEXT && !content) {
     throw new ApiError(422, 'Message cannot be empty');
   }
+  const location = type === MESSAGE_TYPE.LOCATION ? sanitizeChatLocation(req.body.location) : null;
+  if (type === MESSAGE_TYPE.LOCATION && !location) {
+    throw new ApiError(422, 'Coordinates are invalid');
+  }
   const data = await chatService.sendMessage({
     roomId: req.params.roomId,
     senderId: req.user.id,
     type,
     content,
+    location,
   });
   return created(res, data, 'Message sent');
 });

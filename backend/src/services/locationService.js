@@ -1,9 +1,40 @@
 const { Store, STORE_STATUS } = require('../models/Store');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+<<<<<<< HEAD:backend/src/services/locationService.js
 const { seedPublicProfile } = require('./publicProfileService');
+=======
+const { categoriesFromLegacyAreas } = require('../constants/material-categories');
+const { seedPublicProfile } = require('./public-profile.service');
+const { cardIsPublic } = require('./activation.service');
+>>>>>>> origin/Duc:backend/src/services/location.service.js
 
-function km(meters) {
-  return Math.round((meters / 1000) * 10) / 10;
+function listedMaterialCategories(profile) {
+  const stored = Array.isArray(profile?.materialCategories) ? profile.materialCategories : [];
+  const source = stored.length ? stored : categoriesFromLegacyAreas(profile?.serviceAreas);
+  return source
+    .filter((item) => item && item.name)
+    .map((item) => ({
+      name: item.name,
+      type: item.type === 'CUSTOM' ? 'CUSTOM' : 'SYSTEM',
+    }));
+}
+
+function presentDistance(meters) {
+  const distanceMeters = Math.max(0, Math.round(Number(meters) || 0));
+  return {
+    distanceMeters,
+    distance: Math.round((distanceMeters / 1000) * 100) / 100,
+  };
+}
+
+function geoNearStage(lat, lng, radiusKm) {
+  return {
+    near: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+    distanceField: 'distanceMeters',
+    maxDistance: Number(radiusKm) * 1000,
+    spherical: true,
+    key: 'location',
+  };
 }
 
 function toCard(doc, catalog) {
@@ -46,12 +77,19 @@ function toCard(doc, catalog) {
     logo: doc.logo || '',
     coverImage: doc.coverImage || '',
     openingHours: doc.openingHours,
+    hasGallery: Array.isArray(doc.gallery) && doc.gallery.length > 0,
+    accountStatus: doc.owner?.status || '',
     verified: profile.verificationStatus === VERIFICATION_STATUS.APPROVED,
     rating: review && review.count ? Math.round(Number(review.avg) * 10) / 10 : 0,
     reviewCount: review && review.count ? review.count : 0,
     completedProjects: completed?.count || 0,
-    distance: km(doc.distanceMeters),
+    materialCategories: catalog === 'materials' ? listedMaterialCategories(profile) : [],
+    ...presentDistance(doc.distanceMeters),
+    serviceRadiusKm: doc.serviceRadiusKm || 0,
+    deliveryEnabled: Boolean(doc.deliveryEnabled),
+    baseDeliveryFee: doc.baseDeliveryFee || 0,
     location: doc.location,
+    locationConfirmed: doc.locationConfirmed === true,
     services,
     products,
   };
@@ -80,12 +118,8 @@ async function geoNearby({ lat, lng, radiusKm, storeTypes, catalog }) {
   const rows = await Store.aggregate([
     {
       $geoNear: {
-        near: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
-        distanceField: 'distanceMeters',
-        maxDistance: Number(radiusKm) * 1000,
-        spherical: true,
+        ...geoNearStage(lat, lng, radiusKm),
         query,
-        key: 'location',
       },
     },
     {
@@ -128,6 +162,16 @@ async function geoNearby({ lat, lng, radiusKm, storeTypes, catalog }) {
     },
     {
       $lookup: {
+        from: 'users',
+        localField: 'contractorId',
+        foreignField: '_id',
+        as: 'owner',
+      },
+    },
+    { $unwind: { path: '$owner', preserveNullAndEmptyArrays: true } },
+    { $match: { 'owner.status': { $nin: ['BLOCKED', 'BANNED'] } } },
+    {
+      $lookup: {
         from: 'reviews',
         let: { uid: '$contractorId' },
         pipeline: [
@@ -136,7 +180,7 @@ async function geoNearby({ lat, lng, radiusKm, storeTypes, catalog }) {
               $expr: {
                 $and: [
                   { $eq: ['$targetUserId', '$$uid'] },
-                  { $eq: ['$targetType', 'CONTRACTOR'] },
+                  { $eq: ['$targetType', catalog === 'materials' ? 'MATERIAL_STORE' : 'CONTRACTOR'] },
                 ],
               },
             },
@@ -189,7 +233,7 @@ async function geoNearby({ lat, lng, radiusKm, storeTypes, catalog }) {
     }
     cards.push(toCard(doc, catalog));
   }
-  return cards;
+  return cards.filter((card) => cardIsPublic(card, catalog));
 }
 
 function applyMarketplaceFilters(rows, { category, minRating, storeType } = {}) {
@@ -238,4 +282,4 @@ async function nearbyContractors(params) {
   return applyMarketplaceFilters(rows, params);
 }
 
-module.exports = { nearbyStores, nearbyContractors, applyMarketplaceFilters };
+module.exports = { nearbyStores, nearbyContractors, applyMarketplaceFilters, presentDistance, geoNearStage };

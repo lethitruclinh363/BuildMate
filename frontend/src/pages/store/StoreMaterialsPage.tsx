@@ -18,9 +18,10 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { TextArea } from '@/components/ui/TextArea';
 import { materialStoreApi, vnd } from '@/lib/partner-api';
-import { labeled, useI18n } from '@/locales';
+import { useI18n } from '@/locales';
 import type { ApiResponse } from '@/types/user';
-import { MATERIAL_CATEGORIES, type CatalogMaterial, type Storefront } from '@/types/partner';
+import { categoryDisplayLabel, type MaterialCategoryPick } from '@/data/material-categories';
+import { type CatalogMaterial, type Storefront } from '@/types/partner';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -45,6 +46,7 @@ export function StoreMaterialsPage() {
   const [approved, setApproved] = useState(false);
   const [store, setStore] = useState<Storefront | null>(null);
   const [items, setItems] = useState<CatalogMaterial[]>([]);
+  const [categories, setCategories] = useState<MaterialCategoryPick[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CatalogMaterial | null>(null);
@@ -66,8 +68,12 @@ export function StoreMaterialsPage() {
       setItems([]);
       return;
     }
-    const res = await materialStoreApi.listMaterials();
+    const [res, categoryRes] = await Promise.all([
+      materialStoreApi.listMaterials(),
+      materialStoreApi.listMaterialCategories(),
+    ]);
     setItems(res.data.data);
+    setCategories([...(categoryRes.data.data?.system || []), ...(categoryRes.data.data?.custom || [])]);
   };
 
   useEffect(() => {
@@ -88,7 +94,8 @@ export function StoreMaterialsPage() {
 
   const openNew = () => {
     setEditing(null);
-    form.reset({ name: '', category: 'Cement', sku: '', unit: 'bag', price: 0, stock: 0, minOrderQty: 1 });
+    const first = categories.find((item) => item.type === 'SYSTEM')?.name || categories[0]?.name || '';
+    form.reset({ name: '', category: first, sku: '', unit: 'bag', price: 0, stock: 0, minOrderQty: 1 });
     setOpen(true);
   };
 
@@ -151,7 +158,14 @@ export function StoreMaterialsPage() {
           <Input id="m-name" label={t('materialPage.name')} {...form.register('name')} error={form.formState.errors.name?.message} />
           <div className="grid gap-4 sm:grid-cols-2">
             <Select id="m-cat" label={t('servicePage.category')} {...form.register('category')}>
-              {MATERIAL_CATEGORIES.map((c) => <option key={c} value={c}>{labeled(t, 'category', c)}</option>)}
+              {(editing && !categories.some((item) => item.name === editing.category)
+                ? [{ name: editing.category, type: 'CUSTOM' as const }, ...categories]
+                : categories
+              ).map((item) => (
+                <option key={`${item.type}:${item.categoryId || item.name}`} value={item.name}>
+                  {categoryDisplayLabel(item, t)}
+                </option>
+              ))}
             </Select>
             <Input id="m-sku" label={t('materialPage.sku')} {...form.register('sku')} />
           </div>

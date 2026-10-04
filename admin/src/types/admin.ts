@@ -43,12 +43,19 @@ export interface PartnerApplication {
   description: string;
   yearsExperience: number;
   serviceAreas: string[];
+  materialCategories?: {
+    name: string;
+    type?: 'SYSTEM' | 'CUSTOM';
+    categoryId?: string | null;
+    status?: 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED' | 'ACTIVE';
+    createdAt?: string | null;
+  }[];
   services?: {
     category: string;
     name: string;
     type?: 'SYSTEM' | 'CUSTOM';
     serviceId?: string | null;
-    status?: 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED';
+    status?: 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED' | 'ACTIVE';
     completionStatus?: 'INCOMPLETE' | 'COMPLETED' | null;
   }[];
   portfolio?: {
@@ -66,6 +73,25 @@ export interface PartnerApplication {
   createdAt: string;
   updatedAt: string;
   user: PartnerUser | null;
+  activation?: {
+    activationStatus: 'INACTIVE' | 'LIVE' | 'PAUSED';
+    percent: number;
+    verificationStatus: string;
+    visible: boolean;
+  } | null;
+  publicProfile?: {
+    displayName?: string;
+    description?: string;
+    phone?: string;
+    city?: string;
+    address?: string;
+    openingHours?: string;
+    serviceAreas?: string[];
+    showroomNote?: string;
+    deliveryNote?: string;
+    profileType?: 'STORE' | 'CONTRACTOR';
+    verified?: boolean;
+  } | null;
 }
 
 export interface AdminStats {

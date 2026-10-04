@@ -9,5 +9,14 @@
   "typingName": "{name} is typing...",
   "sendMessage": "Send message",
   "crewFallback": "Crew",
-  "send_message": "Send message"
+  "send_message": "Send message",
+  "sendLocation": "Send location",
+  "useCurrent": "Use current location",
+  "pickOnMap": "Choose on the map",
+  "selected": "Selected location",
+  "viewMap": "View map",
+  "directions": "Directions",
+  "locationFallback": "Location",
+  "gpsDenied": "Location permission was denied.",
+  "gpsUnavailable": "Current location is unavailable on this device."
 }

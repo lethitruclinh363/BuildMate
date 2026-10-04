@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { repairApi, quotationApi } from '@/features/chat/services/sprint4.api';
 import { getApiErrorMessage } from '@/lib/api';
 import { te } from '@/locales';
 import type { Quotation, RepairRequest } from '@/types/sprint4';
 import { orderApi } from '../services/order.api';
 import { useOrderLiveStore } from '../store/order-live.store';
-import type { OrderDetail, ProgressUpdate } from '../types/order.types';
+import type { Order, OrderDetail, ProgressUpdate } from '../types/order.types';
 
 export function useOrderDetail(id: string | undefined) {
   const version = useOrderLiveStore((s) => s.version);
@@ -15,14 +15,19 @@ export function useOrderDetail(id: string | undefined) {
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedFor = useRef<string | null>(null);
 
   const load = useCallback(() => {
     if (!id) {
       setLoading(false);
+      loadedFor.current = null;
       return;
     }
-    setLoading(true);
-    setError(null);
+    const silent = loadedFor.current === id;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     Promise.all([
       orderApi.get(id),
       orderApi.progress(id),
@@ -31,6 +36,8 @@ export function useOrderDetail(id: string | undefined) {
         const detail = orderRes.data.data;
         setOrder(detail);
         setProgress(progressRes.data.data || []);
+        setError(null);
+        loadedFor.current = id;
         await Promise.all([
           detail.requestId
             ? repairApi
@@ -46,13 +53,20 @@ export function useOrderDetail(id: string | undefined) {
             : Promise.resolve(setQuotation(null)),
         ]);
       })
-      .catch((err) => setError(te(getApiErrorMessage(err))))
+      .catch((err) => {
+        if (!silent) setError(te(getApiErrorMessage(err)));
+      })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const noteProgress = useCallback((update: { order: Order; progress: ProgressUpdate }) => {
+    setOrder((prev) => (prev ? { ...prev, status: update.order.status, updatedAt: update.order.updatedAt } : prev));
+    setProgress((rows) => (rows.some((row) => row.id === update.progress.id) ? rows : [...rows, update.progress]));
+  }, []);
 
   useEffect(() => {
     load();
   }, [load, version]);
 
-  return { order, progress, request, quotation, loading, error, reload: load };
+  return { order, progress, request, quotation, loading, error, reload: load, noteProgress };
 }

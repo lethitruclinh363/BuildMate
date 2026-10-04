@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Circle, MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MAP_TILES } from '@/features/map/lib/tiles';
 import { t } from '@/locales';
 
 class MapGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -34,10 +35,14 @@ export function ServiceAreaMap({ lat, lng, radiusKm }: { lat: number; lng: numbe
         dragging={false}
         zoomControl={false}
       >
+<<<<<<< HEAD
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+=======
+        <TileLayer attribution={MAP_TILES.attribution} url={MAP_TILES.url} />
+>>>>>>> origin/Duc
         <Circle
           center={[lat, lng]}
           radius={Math.max(radiusKm, 1) * 1000}

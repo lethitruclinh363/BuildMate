@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/Button';
+import { TextArea } from '@/components/ui/TextArea';
+import { getApiErrorMessage } from '@/lib/api';
+import { useToastStore } from '@/store/toast.store';
 import { Check, Clock3, FileText, Pencil } from 'lucide-react';
 import { VerificationBadge } from '@/components/contractor/VerificationBadge';
 import { PageHeader } from '@/components/dashboard/PageHeader';
@@ -7,6 +11,7 @@ import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Card } from '@/components/ui/Card';
+import { categoryDisplayLabel } from '@/data/material-categories';
 import { materialStoreApi, mediaUrl } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import type { ContractorProfile, DocumentType, Storefront, VerificationDocument } from '@/types/partner';
@@ -40,6 +45,10 @@ function fact(label: string, value: string | number | null | undefined, empty: s
 
 export function StoreVerificationPage() {
   const { t, locale } = useI18n();
+  const pushToast = useToastStore((state) => state.push);
+  const [asking, setAsking] = useState(false);
+  const [requestNote, setRequestNote] = useState('');
+  const [requestBusy, setRequestBusy] = useState(false);
   const [profile, setProfile] = useState<ContractorProfile | null>(null);
   const [store, setStore] = useState<Storefront | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +76,21 @@ export function StoreVerificationPage() {
   if (error || !profile) return <ErrorState body={error} onRetry={() => void refresh()} />;
 
   const status = profile.verificationStatus;
-  const empty = t('verify.emptyValue');
+  const empty = t('verify.notProvided');
+
+  async function sendRequest() {
+    setRequestBusy(true);
+    try {
+      await materialStoreApi.requestVerificationChange(requestNote);
+      setAsking(false);
+      setRequestNote('');
+      pushToast({ kind: 'success', title: t('publicProfile.requestSent') });
+    } catch (err) {
+      pushToast({ kind: 'error', title: getApiErrorMessage(err) });
+    } finally {
+      setRequestBusy(false);
+    }
+  }
   const photos = [
     { key: 'avatar', src: profile.portfolio?.avatar || '', label: t('verify.avatar') },
     { key: 'logo', src: profile.portfolio?.teamLogo || '', label: t('verify.teamLogo') },
@@ -82,7 +105,16 @@ export function StoreVerificationPage() {
         eyebrow={t('verify.recordEyebrow')}
         title={t('verify.storeTitle')}
         description={t('verify.storeRecordDescription')}
-        actions={<VerificationBadge status={status} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <VerificationBadge status={status} />
+            {status === 'APPROVED' ? (
+              <Link to="/store/profile/edit" className="text-sm font-semibold text-navy-800 underline">
+                {t('storePublic.edit')}
+              </Link>
+            ) : null}
+          </div>
+        }
       />
 
       <Card hover={false} className={bannerClass(status)}>
@@ -124,7 +156,16 @@ export function StoreVerificationPage() {
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             {fact(t('verify.address'), store?.address || profile.address, empty)}
             {fact(t('verify.city'), store?.city || profile.city, empty)}
-            {fact(t('verify.deliveryArea'), profile.serviceAreas.join(', '), empty)}
+            {fact(
+              t('verify.categories'),
+              (profile.materialCategories?.length
+                ? profile.materialCategories
+                : (profile.serviceAreas || []).map((name) => ({ name, type: 'SYSTEM' as const }))
+              )
+                .map((item) => categoryDisplayLabel(item, t))
+                .join(', '),
+              empty
+            )}
           </div>
         </Card>
 
@@ -148,6 +189,28 @@ export function StoreVerificationPage() {
           <h2 className="font-display text-xl text-navy-800">{t('verify.docsSection')}</h2>
           <DocumentGroups documents={profile.documents} />
         </Card>
+
+        {status === 'APPROVED' ? (
+          <Card hover={false}>
+            <h2 className="font-display text-xl text-navy-800">{t('publicProfile.requestUpdate')}</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-500">{t('storePublic.lockedBody')}</p>
+            {asking ? (
+              <div className="mt-4 space-y-3">
+                <TextArea label={t('publicProfile.requestHint')} value={requestNote} onChange={(event) => setRequestNote(event.target.value)} />
+                <div className="flex gap-2">
+                  <Button type="button" disabled={requestBusy || requestNote.trim().length < 8} onClick={() => void sendRequest()}>
+                    {t('publicProfile.requestSend')}
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => setAsking(false)}>{t('publicProfile.cancel')}</Button>
+                </div>
+              </div>
+            ) : (
+              <Button type="button" className="mt-4" variant="outline" onClick={() => setAsking(true)}>
+                {t('publicProfile.requestUpdate')}
+              </Button>
+            )}
+          </Card>
+        ) : null}
 
         <Card hover={false}>
           <h2 className="font-display text-xl text-navy-800">{t('verify.historySection')}</h2>

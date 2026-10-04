@@ -1,15 +1,5 @@
 const mongoose = require('mongoose');
-
-const MATERIAL_CATEGORIES = Object.freeze([
-  'Cement',
-  'Paint',
-  'Pipe',
-  'Tiles',
-  'Steel',
-  'Waterproof coat',
-  'Tools',
-  'Fixtures',
-]);
+const { MATERIAL_CATEGORIES } = require('../constants/material-categories');
 
 const materialSchema = new mongoose.Schema(
   {

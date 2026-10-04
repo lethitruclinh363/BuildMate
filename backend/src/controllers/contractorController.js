@@ -7,6 +7,7 @@ const reviewService = require('../services/reviewService');
 const catalogService = require('../services/catalogService');
 const serviceService = require('../services/serviceService');
 const dashboardService = require('../services/contractorDashboard.service');
+const activationService = require('../services/activation.service');
 const { ApiError } = require('../utils/ApiError');
 
 const getWorkspace = asyncHandler(async (req, res) => {
@@ -112,6 +113,16 @@ const getReputation = asyncHandler(async (req, res) => {
   return success(res, { reviews, highlights }, 'Reputation loaded');
 });
 
+const activatePartner = asyncHandler(async (req, res) => {
+  const data = await activationService.activate(req.user.id);
+  return success(res, data, 'Partner activated');
+});
+
+const pausePartner = asyncHandler(async (req, res) => {
+  const data = await activationService.pause(req.user.id);
+  return success(res, data, 'Partner paused');
+});
+
 const getDashboardStats = asyncHandler(async (req, res) => {
   const data = await dashboardService.getDashboardStats(req.user.id);
   return success(res, data, 'Dashboard stats loaded');
@@ -135,4 +146,6 @@ module.exports = {
   createCustomService,
   getDashboardStats,
   getReputation,
+  activatePartner,
+  pausePartner,
 };

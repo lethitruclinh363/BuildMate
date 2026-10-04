@@ -19,8 +19,22 @@ import { useToastStore } from '@/stores/toast.store';
 
 function serviceTitle(translate: (key: string) => string, name: string) {
   const hit = translate(`serviceCatalog.${name}`);
-  if (!hit || hit === `serviceCatalog.${name}`) return name;
+  if (!hit || hit === '—' || hit === `serviceCatalog.${name}`) return name;
   return hit;
+}
+
+function categoryTitle(translate: (key: string) => string, item: { name: string; type?: string }) {
+  if (item.type === 'CUSTOM') return item.name;
+  const key = `category.${item.name}`;
+  const hit = translate(key);
+  if (!hit || hit === '—' || hit === key) return item.name;
+  return hit;
+}
+
+function knownSystemCategory(translate: (key: string) => string, name: string) {
+  const key = `category.${name}`;
+  const hit = translate(key);
+  return Boolean(name && hit && hit !== '—' && hit !== key);
 }
 
 type Actor = 'CONTRACTOR' | 'MATERIAL_STORE_OWNER';
@@ -138,6 +152,13 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
                     <p className="text-xs text-white/45">
                       {item.user?.email} · {item.city}
                     </p>
+                    {item.activation ? (
+                      <p className="mt-1 text-xs text-white/55">
+                        {t('verify.activationLabel')}: {t(item.activation.activationStatus === 'LIVE' ? 'verify.activationLive' : item.activation.activationStatus === 'PAUSED' ? 'verify.activationPaused' : 'verify.activationInactive')}
+                        {' · '}
+                        {t('verify.profilePercent', { n: item.activation.percent })}
+                      </p>
+                    ) : null}
                   </div>
                   <Badge tone={item.verificationStatus === 'APPROVED' ? 'success' : 'copper'}>{item.verificationStatus}</Badge>
                 </div>
@@ -161,7 +182,16 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
                   </p>
                 )}
               </div>
-              <Badge>{selected.verificationStatus}</Badge>
+              <div className="text-right">
+                <Badge>{selected.verificationStatus}</Badge>
+                {selected.activation ? (
+                  <p className="mt-2 text-xs text-white/60">
+                    {t('verify.activationLabel')}: {t(selected.activation.activationStatus === 'LIVE' ? 'verify.activationLive' : selected.activation.activationStatus === 'PAUSED' ? 'verify.activationPaused' : 'verify.activationInactive')}
+                    <br />
+                    {t('verify.profilePercent', { n: selected.activation.percent })}
+                  </p>
+                ) : null}
+              </div>
             </div>
             <p className="mt-4 text-sm leading-6 text-white/70">{selected.description || t('verify.noNarrative')}</p>
             <p className="mt-2 text-sm text-white/45">
@@ -263,20 +293,18 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
                 {t('verify.areas')}: {selected.serviceAreas.join(', ')}
               </p>
             ) : null}
-            {actor === 'MATERIAL_STORE_OWNER' ? (
-              <div className="mt-4">
-                <h3 className="font-display text-lg">{t('verify.services')}</h3>
-                {selected.serviceAreas?.length ? (
-                  <ul className="mt-2 flex flex-wrap gap-2">
-                    {selected.serviceAreas.map((name) => (
-                      <li key={name} className="rounded-full bg-white/10 px-3 py-1.5 text-sm text-white">
-                        {t(`category.${name}`)}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-sm text-white/45">{t('verify.noServices')}</p>
-                )}
+            {actor === 'MATERIAL_STORE_OWNER' ? <StoreCategoryReview application={selected} /> : null}
+            {selected.publicProfile ? (
+              <div className="mt-4 rounded-2xl bg-white/5 px-4 py-3">
+                <h3 className="font-display text-lg">{t('verify.publicProfile')}</h3>
+                <p className="mt-1 text-xs text-white/45">{t('verify.publicProfileHint')}</p>
+                <p className="mt-3 text-sm font-semibold text-white">{selected.publicProfile.displayName}</p>
+                {selected.publicProfile.description ? <p className="mt-2 text-sm leading-6 text-white/70">{selected.publicProfile.description}</p> : null}
+                <p className="mt-2 text-sm text-white/55">
+                  {[selected.publicProfile.city, selected.publicProfile.openingHours, ...(selected.publicProfile.serviceAreas || [])].filter(Boolean).join(' · ')}
+                </p>
+                {selected.publicProfile.showroomNote ? <p className="mt-2 text-sm text-white/70">{selected.publicProfile.showroomNote}</p> : null}
+                {selected.publicProfile.deliveryNote ? <p className="mt-2 text-sm text-white/70">{selected.publicProfile.deliveryNote}</p> : null}
               </div>
             ) : null}
             <h3 className="mt-6 font-display text-lg">{t('verify.images')}</h3>
@@ -349,6 +377,101 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
           <GlassCard className="grid place-items-center text-sm text-white/40">{t('verify.select')}</GlassCard>
         )}
       </div>
+    </div>
+  );
+}
+
+function StoreCategoryReview({ application }: { application: PartnerApplication }) {
+  const { t, i18n } = useTranslation();
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const categories: NonNullable<PartnerApplication['materialCategories']> = application.materialCategories?.length
+    ? application.materialCategories
+    : (application.serviceAreas || [])
+        .filter((name) => knownSystemCategory(t, name))
+        .map((name) => ({ name, type: 'SYSTEM' as const, status: 'APPROVED' as const, createdAt: null }));
+  const system = categories.filter((item) => item.type !== 'CUSTOM');
+  const custom = categories.filter((item) => item.type === 'CUSTOM');
+  const open = categories.find((item) => `${item.type || 'SYSTEM'}:${item.name}` === openKey) || null;
+
+  function statusLabel(status?: string) {
+    if (status === 'REJECTED') return t('verify.customStatusRejected');
+    if (status === 'PENDING_APPROVAL') return t('verify.customStatusPending');
+    if (status === 'ACTIVE' || status === 'APPROVED' || !status) return t('verify.customStatusApproved');
+    return status;
+  }
+
+  function renderChips(items: typeof categories) {
+    return (
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {items.map((item) => {
+          const key = `${item.type || 'SYSTEM'}:${item.name}`;
+          const active = openKey === key;
+          return (
+            <li key={key}>
+              <button
+                type="button"
+                onClick={() => setOpenKey(active ? null : key)}
+                className={`rounded-full px-3 py-1.5 text-sm text-white ${active ? 'bg-copper-500/25' : 'bg-white/10'}`}
+              >
+                {categoryTitle(t, item)}
+                <span className="ml-2 text-xs font-semibold tracking-wide text-copper-300">
+                  {item.type === 'CUSTOM' ? t('verify.customBadge') : t('verify.systemBadge')}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  return (
+    <div className="mt-4">
+      <h3 className="font-display text-lg">{t('verify.registeredCategories')}</h3>
+      {categories.length === 0 ? (
+        <p className="mt-2 text-sm text-white/45">{t('verify.noRegisteredCategories')}</p>
+      ) : (
+        <div className="mt-3 space-y-4">
+          {system.length ? (
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-white/70">{t('verify.systemCategories')}</h4>
+              {renderChips(system)}
+            </div>
+          ) : null}
+          {custom.length ? (
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-white/70">{t('verify.customCategories')}</h4>
+              {renderChips(custom)}
+            </div>
+          ) : null}
+          {open ? (
+            <div className="rounded-2xl bg-white/5 px-4 py-3 text-sm text-white/80">
+              <p>
+                <span className="text-white/45">{t('verify.categoryName')}: </span>
+                {categoryTitle(t, open)}
+              </p>
+              <p className="mt-1">
+                <span className="text-white/45">{t('verify.categoryType')}: </span>
+                {open.type === 'CUSTOM' ? t('verify.customBadge') : t('verify.systemBadge')}
+              </p>
+              <p className="mt-1">
+                <span className="text-white/45">{t('verify.categoryStatus')}: </span>
+                {statusLabel(open.status)}
+              </p>
+              <p className="mt-1">
+                <span className="text-white/45">{t('verify.categoryStore')}: </span>
+                {application.businessName || application.user?.name}
+              </p>
+              {open.createdAt ? (
+                <p className="mt-1">
+                  <span className="text-white/45">{t('verify.categoryCreated')}: </span>
+                  {new Date(open.createdAt).toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'vi-VN')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
