@@ -7,7 +7,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@buildmate/shared/place': fileURLToPath(new URL('../shared/place.mjs', import.meta.url)),
       '@buildmate/shared': fileURLToPath(new URL('../shared', import.meta.url)),
     },
   },

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Bookmark } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { LocationPicker } from '@/features/map/components/LocationPicker';
-import { useCurrentLocation, type MapOrigin } from '@/features/map/hooks/useCurrentLocation';
+import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
 import { loadSavedPlace, placeFromRecord, saveSavedPlace } from '@/features/map/lib/location';
 import { locationApi } from '@/features/map/services/location.api';
 import { AxiosError } from 'axios';
@@ -17,6 +17,7 @@ import { repairApi } from '@/features/chat/services/sprint4.api';
 import { catalogCategoryLabel } from '@/data/contractor-services';
 import { api } from '@/lib/api';
 import { useI18n } from '@/locales';
+import { CAN_THO } from '@/types/marketplace';
 import type { ApiResponse } from '@/types/user';
 
 type CatalogChoice = { name: string; category: string; catalogKey?: string; serviceId?: string };
@@ -33,7 +34,6 @@ export function CreateRepairRequestPage() {
   const navigate = useNavigate();
   const contractorId = params.get('contractorId') || '';
   const storeId = params.get('storeId') || '';
-  const { origin, setOrigin, locate, status } = useCurrentLocation();
   const [crewName, setCrewName] = useState(t('chat.crewFallback'));
   const [images, setImages] = useState<File[]>([]);
   const [videos, setVideos] = useState<File[]>([]);
@@ -42,7 +42,7 @@ export function CreateRepairRequestPage() {
   const [catalog, setCatalog] = useState<CatalogChoice[]>([]);
   const [group, setGroup] = useState('');
   const saved = useMemo(() => loadSavedPlace(), []);
-  // const [origin, setOrigin] = useState<MapOrigin>(CAN_THO);
+  const [origin, setOrigin] = useState<MapOrigin>(CAN_THO);
   const [chosen, setChosen] = useState(false);
   const [address, setAddress] = useState('');
 
