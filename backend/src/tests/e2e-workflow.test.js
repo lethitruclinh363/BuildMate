@@ -23,9 +23,9 @@ describe('Sprint 5.3 E2E journeys A/B/C', { timeout: 90000 }, () => {
       return;
     }
 
-    const { customerAction } = require('../services/quotation.service');
-    const progressService = require('../services/progress.service');
-    const orderService = require('../services/order.service');
+    const { customerAction } = require('../services/quotationService');
+    const progressService = require('../services/progressService');
+    const orderService = require('../services/orderService');
     const { Quotation, QUOTATION_STATUS } = require('../models/Quotation');
     const { Order } = require('../models/Order');
     const { Payment } = require('../models/Payment');

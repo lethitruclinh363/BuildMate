@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { sanitizeValue } = require('../middleware/sanitize.middleware');
+const { sanitizeValue } = require('../middleware/sanitizeMiddleware');
 
 describe('mongo sanitize', () => {
   it('strips $ and dotted keys', () => {

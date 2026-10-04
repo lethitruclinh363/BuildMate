@@ -9,10 +9,10 @@ const { Payment } = require('../models/Payment');
 const { Commission } = require('../models/Commission');
 const { Review } = require('../models/Review');
 const { Complaint } = require('../models/Complaint');
-const { signToken } = require('../services/auth.service');
-const { customerAction } = require('../services/quotation.service');
-const commissionService = require('../services/commission.service');
-const { invalidateAnalyticsCache } = require('../services/analytics.service');
+const { signToken } = require('../services/authService');
+const { customerAction } = require('../services/quotationService');
+const commissionService = require('../services/commissionService');
+const { invalidateAnalyticsCache } = require('../services/analyticsService');
 
 describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }, () => {
   let dbReady = false;

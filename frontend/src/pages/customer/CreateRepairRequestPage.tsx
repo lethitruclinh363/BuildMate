@@ -7,13 +7,14 @@ import { PageHeader } from '@/components/dashboard/PageHeader';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { LocationPicker } from '@/features/map/components/LocationPicker';
+import { useCurrentLocation } from '@/features/map/hooks/useCurrentLocation';
 import { locationApi } from '@/features/map/services/location.api';
 import { AxiosError } from 'axios';
 import { repairApi } from '@/features/chat/services/sprint4.api';
 import { catalogCategoryLabel } from '@/data/contractor-services';
 import { api } from '@/lib/api';
 import { useI18n } from '@/locales';
-import { CAN_THO } from '@/types/marketplace';
 import type { ApiResponse } from '@/types/user';
 
 type CatalogChoice = { name: string; category: string; catalogKey?: string; serviceId?: string };
@@ -31,6 +32,7 @@ export function CreateRepairRequestPage() {
   const navigate = useNavigate();
   const contractorId = params.get('contractorId') || '';
   const storeId = params.get('storeId') || '';
+  const { origin, setOrigin, locate, status } = useCurrentLocation();
   const [crewName, setCrewName] = useState(t('chat.crewFallback'));
   const [images, setImages] = useState<File[]>([]);
   const [videos, setVideos] = useState<File[]>([]);
@@ -102,8 +104,8 @@ export function CreateRepairRequestPage() {
     form.append('title', values.title);
     form.append('description', values.description);
     form.append('address', values.address || '');
-    form.append('lat', String(CAN_THO.lat));
-    form.append('lng', String(CAN_THO.lng));
+    form.append('lat', String(origin.lat));
+    form.append('lng', String(origin.lng));
     images.forEach((f) => form.append('images', f));
     videos.forEach((f) => form.append('videos', f));
     try {
@@ -173,6 +175,10 @@ export function CreateRepairRequestPage() {
           />
           {errors.description ? <span className="text-xs text-red-600">{errors.description.message}</span> : null}
         </label>
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-ink-800">{t('request.fieldAddress')}</p>
+          <LocationPicker origin={origin} gpsStatus={status} onGps={locate} onPick={setOrigin} />
+        </div>
         <Input id="address" label={t('request.fieldAddress')} placeholder={t('request.addressPh')} {...register('address')} />
         <div>
           <p className="text-sm font-semibold text-ink-800">{t('request.media')}</p>
