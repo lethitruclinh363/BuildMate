@@ -73,8 +73,8 @@ describe('Sprint 5.1 order execution flow', { timeout: 60000 }, () => {
     const { Payment } = require('../models/Payment');
     const { ProgressUpdate } = require('../models/ProgressUpdate');
     const { Notification, NOTIFICATION_TYPE } = require('../models/Notification');
-    const { customerAction } = require('../services/quotation.service');
-    const progressService = require('../services/progress.service');
+    const { customerAction } = require('../services/quotationService');
+    const progressService = require('../services/progressService');
 
     const stamp = Date.now();
     const customer = await User.create({

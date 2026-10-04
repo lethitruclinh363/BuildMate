@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { otpEmailHtml, renderPartnerApprovalEmail } = require('../providers/email.provider');
+const { otpEmailHtml, renderPartnerApprovalEmail } = require('../providers/emailProvider');
 
 describe('BuildMate email layout', () => {
   it('keeps the OTP message inside the shared navy header', () => {

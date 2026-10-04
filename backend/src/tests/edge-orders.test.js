@@ -9,7 +9,7 @@ const { Quotation, QUOTE_ITEM_TYPE, QUOTATION_STATUS } = require('../models/Quot
 const { Order } = require('../models/Order');
 const { Payment } = require('../models/Payment');
 const { Notification, NOTIFICATION_TYPE } = require('../models/Notification');
-const { signToken } = require('../services/auth.service');
+const { signToken } = require('../services/authService');
 
 describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
   let dbReady = false;
@@ -34,7 +34,7 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
       t.skip(mongoSkip());
       return;
     }
-    const { customerAction } = require('../services/quotation.service');
+    const { customerAction } = require('../services/quotationService');
     const party = await createParty(`dup-${Date.now()}`);
     trash.push(party);
     await customerAction(party.quotation._id, party.customer._id, 'accept');
@@ -57,8 +57,8 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
       t.skip(mongoSkip());
       return;
     }
-    const { customerAction } = require('../services/quotation.service');
-    const progressService = require('../services/progress.service');
+    const { customerAction } = require('../services/quotationService');
+    const progressService = require('../services/progressService');
     const party = await createParty(`busy-${Date.now()}`);
     trash.push(party);
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
@@ -88,9 +88,9 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
       t.skip(mongoSkip());
       return;
     }
-    const { customerAction } = require('../services/quotation.service');
-    const progressService = require('../services/progress.service');
-    const orderService = require('../services/order.service');
+    const { customerAction } = require('../services/quotationService');
+    const progressService = require('../services/progressService');
+    const orderService = require('../services/orderService');
     const party = await createParty(`closed-${Date.now()}`);
     trash.push(party);
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
@@ -118,8 +118,8 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
       t.skip(mongoSkip());
       return;
     }
-    const { customerAction } = require('../services/quotation.service');
-    const orderService = require('../services/order.service');
+    const { customerAction } = require('../services/quotationService');
+    const orderService = require('../services/orderService');
     const party = await createParty(`early-${Date.now()}`);
     trash.push(party);
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
@@ -137,7 +137,7 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
       t.skip(mongoSkip());
       return;
     }
-    const { customerAction } = require('../services/quotation.service');
+    const { customerAction } = require('../services/quotationService');
     const party = await createParty(`unauth-${Date.now()}`);
     trash.push(party);
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');

@@ -1,8 +1,8 @@
 const { Policy, POLICY_STATUS, POLICY_TYPES } = require('../models/Policy');
 const { PolicyRevision } = require('../models/PolicyRevision');
-const { defaultPolicies } = require('./policy.defaults');
+const { defaultPolicies } = require('./policyDefaults');
 const { ApiError } = require('../utils/ApiError');
-const { fromRequest } = require('./audit.service');
+const { fromRequest } = require('./auditService');
 
 const REGISTER_TYPES = [POLICY_TYPES.TERMS_OF_SERVICE, POLICY_TYPES.PRIVACY_POLICY];
 

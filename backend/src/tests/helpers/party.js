@@ -1,7 +1,7 @@
 const { User, ROLES, USER_STATUS } = require('../../models/User');
 const { RepairRequest, REPAIR_CATEGORY, REQUEST_STATUS } = require('../../models/RepairRequest');
 const { Quotation, QUOTE_ITEM_TYPE, QUOTATION_STATUS } = require('../../models/Quotation');
-const { signToken } = require('../../services/auth.service');
+const { signToken } = require('../../services/authService');
 
 async function createParty(stamp = Date.now()) {
   const customer = await User.create({

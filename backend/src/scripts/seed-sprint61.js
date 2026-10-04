@@ -7,9 +7,9 @@ const { Commission } = require('../models/Commission');
 const { Review } = require('../models/Review');
 const { Complaint, COMPLAINT_STATUS } = require('../models/Complaint');
 const { Store } = require('../models/Store');
-const orderService = require('../services/order.service');
-const commissionService = require('../services/commission.service');
-const reviewService = require('../services/review.service');
+const orderService = require('../services/orderService');
+const commissionService = require('../services/commissionService');
+const reviewService = require('../services/reviewService');
 
 async function backfillPayments() {
   const rows = await Payment.find({ $or: [{ customerId: { $exists: false } }, { customerId: null }] });
@@ -84,7 +84,7 @@ async function seedSprint61() {
     payment.transactionCode = payment.transactionCode || 'BM-PAY-SEED61';
     payment.amount = 5000000;
     await payment.save();
-    await require('../services/payment.service').markPaid(payment, customer._id, 'CUSTOMER');
+    await require('../services/paymentService').markPaid(payment, customer._id, 'CUSTOMER');
   }
 
   const commission = await Commission.findOne({ orderId: order._id });

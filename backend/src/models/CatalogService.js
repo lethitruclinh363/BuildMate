@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { CONTRACTOR_SERVICE_CATEGORIES } = require('../constants/contractor-services');
+const { CONTRACTOR_SERVICE_CATEGORIES } = require('../constants/contractorServices');
 
 const CATALOG_STATUS = Object.freeze({
   PENDING_APPROVAL: 'PENDING_APPROVAL',

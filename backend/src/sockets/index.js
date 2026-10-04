@@ -1,7 +1,7 @@
 const { Server } = require('socket.io');
 const { env } = require('../config/env');
-const { setIO } = require('../services/socket.service');
-const { authenticateSocket, attachChatHandlers } = require('./chat.socket');
+const { setIO } = require('../services/socketService');
+const { authenticateSocket, attachChatHandlers } = require('./chatSocket');
 
 function initSocket(httpServer) {
   const io = new Server(httpServer, {

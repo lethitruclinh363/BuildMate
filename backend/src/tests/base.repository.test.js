@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { BaseRepository } = require('../repositories/base.repository');
+const { BaseRepository } = require('../repositories/baseRepository');
 
 describe('BaseRepository', () => {
   it('forward findById / create / updateById to the Mongoose model', async () => {
