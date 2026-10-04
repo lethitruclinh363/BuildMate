@@ -1,7 +1,6 @@
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const locationService = require('../services/locationService');
-const locationService = require('../services/location.service');
 const geocodingService = require('../services/geocoding.service');
 
 const nearbyStores = asyncHandler(async (req, res) => {

@@ -6,22 +6,14 @@ const { env } = require('../config/env');
 const { User, ROLES, USER_STATUS } = require('../models/user.model');
 
 const resetCodes = [];
-<<<<<<< HEAD
 const emailProvider = require('../providers/emailProvider');
-=======
-const emailProvider = require('../providers/email.provider');
->>>>>>> origin/Duc
 emailProvider.sendResetPasswordEmail = async ({ otp }) => {
   resetCodes.push(otp);
   return { sent: true, skipped: false };
 };
 
 const { signToken } = require('../utils/jwt');
-<<<<<<< HEAD
 const authService = require('../services/authService');
-=======
-const authService = require('../services/auth.service');
->>>>>>> origin/Duc
 const { startTestServer, api } = require('./helpers/http');
 
 let dbReady = false;

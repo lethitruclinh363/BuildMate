@@ -1,12 +1,11 @@
 const express = require('express');
 const { validate } = require('../utils/validator');
-<<<<<<< HEAD:backend/src/routes/locationRoutes.js
-const { nearbyQuerySchema } = require('../validators/location.validator');
+const {
+  nearbyQuerySchema,
+  geocodeQuerySchema,
+  reverseQuerySchema,
+} = require('../validators/location.validator');
 const locationController = require('../controllers/locationController');
-=======
-const { nearbyQuerySchema, geocodeQuerySchema, reverseQuerySchema } = require('../validators/location.validator');
-const locationController = require('../controllers/location.controller');
->>>>>>> origin/Duc:backend/src/routes/location.routes.js
 
 const router = express.Router();
 

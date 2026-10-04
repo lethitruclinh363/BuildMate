@@ -1,9 +1,8 @@
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success, created } = require('../utils/response');
 const materialService = require('../services/materialService');
-const materialService = require('../services/material.service');
 const materialCategoryService = require('../services/material-category.service');
-const publicProfileService = require('../services/public-profile.service');
+const publicProfileService = require('../services/publicProfileService');
 
 const list = asyncHandler(async (req, res) => {
   const data = await materialService.listMaterials(req.store._id);

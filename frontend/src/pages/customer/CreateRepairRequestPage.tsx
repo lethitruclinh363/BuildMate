@@ -9,12 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { Bookmark } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { LocationPicker } from '@/features/map/components/LocationPicker';
-<<<<<<< HEAD
-import { useCurrentLocation } from '@/features/map/hooks/useCurrentLocation';
-=======
-import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
+import { useCurrentLocation, type MapOrigin } from '@/features/map/hooks/useCurrentLocation';
 import { loadSavedPlace, placeFromRecord, saveSavedPlace } from '@/features/map/lib/location';
->>>>>>> origin/Duc
 import { locationApi } from '@/features/map/services/location.api';
 import { AxiosError } from 'axios';
 import { repairApi } from '@/features/chat/services/sprint4.api';
@@ -46,7 +42,7 @@ export function CreateRepairRequestPage() {
   const [catalog, setCatalog] = useState<CatalogChoice[]>([]);
   const [group, setGroup] = useState('');
   const saved = useMemo(() => loadSavedPlace(), []);
-  const [origin, setOrigin] = useState<MapOrigin>(CAN_THO);
+  // const [origin, setOrigin] = useState<MapOrigin>(CAN_THO);
   const [chosen, setChosen] = useState(false);
   const [address, setAddress] = useState('');
 
@@ -129,16 +125,10 @@ export function CreateRepairRequestPage() {
     form.append('serviceName', picked?.name || '');
     form.append('title', values.title);
     form.append('description', values.description);
-<<<<<<< HEAD
-    form.append('address', values.address || '');
-    form.append('lat', String(origin.lat));
-    form.append('lng', String(origin.lng));
-=======
     form.append('address', site.address);
     form.append('lat', String(site.lat));
     form.append('lng', String(site.lng));
     saveSavedPlace(site);
->>>>>>> origin/Duc
     images.forEach((f) => form.append('images', f));
     videos.forEach((f) => form.append('videos', f));
     try {
@@ -208,13 +198,6 @@ export function CreateRepairRequestPage() {
           />
           {errors.description ? <span className="text-xs text-red-600">{errors.description.message}</span> : null}
         </label>
-<<<<<<< HEAD
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-ink-800">{t('request.fieldAddress')}</p>
-          <LocationPicker origin={origin} gpsStatus={status} onGps={locate} onPick={setOrigin} />
-        </div>
-        <Input id="address" label={t('request.fieldAddress')} placeholder={t('request.addressPh')} {...register('address')} />
-=======
         <div className="space-y-3">
           <p className="text-sm font-semibold text-ink-800">{t('request.fieldAddress')}</p>
           {saved ? (
@@ -231,7 +214,6 @@ export function CreateRepairRequestPage() {
             onChange={(event) => setAddress(event.target.value)}
           />
         </div>
->>>>>>> origin/Duc
         <div>
           <p className="text-sm font-semibold text-ink-800">{t('request.media')}</p>
           <input

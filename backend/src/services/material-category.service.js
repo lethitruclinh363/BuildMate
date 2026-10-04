@@ -2,7 +2,7 @@ const { MaterialCategory, CATEGORY_RECORD_STATUS } = require('../models/Material
 const { Store } = require('../models/Store');
 const { ContractorProfile } = require('../models/ContractorProfile');
 const { ApiError } = require('../utils/ApiError');
-const { insertUnique, foldServiceName } = require('../constants/contractor-services');
+const { insertUnique, foldServiceName } = require('../constants/contractorServices');
 const {
   MATERIAL_CATEGORIES,
   MATERIAL_CATEGORY_LABELS,

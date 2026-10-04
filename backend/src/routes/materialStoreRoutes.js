@@ -4,27 +4,25 @@ const { Store, STORE_TYPE } = require('../models/Store');
 const { authenticate } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 const { validate } = require('../utils/validator');
-<<<<<<< HEAD:backend/src/routes/materialStoreRoutes.js
-const { storeSchema, materialSchema, profileSchema, documentTypeSchema, submitSchema } = require('../validators/partner.validator');
+const {
+  storeSchema,
+  materialSchema,
+  profileSchema,
+  documentTypeSchema,
+  submitSchema,
+  verificationChangeSchema,
+  storePublicProfileSchema,
+  materialCategoryNameSchema,
+} = require('../validators/partner.validator');
+const { updateMaterialOrderStatusSchema } = require('../validators/material-order.validator');
 const { verificationUpload } = require('../middleware/uploadMiddleware');
 const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
 const { ApiError } = require('../utils/ApiError');
 const { asyncHandler } = require('../utils/asyncHandler');
 const storeController = require('../controllers/storeController');
 const materialController = require('../controllers/materialController');
-const contractorController = require('../controllers/contractorController');
-=======
-const { storeSchema, materialSchema, materialCategoryNameSchema, profileSchema, documentTypeSchema, submitSchema, storePublicProfileSchema, verificationChangeSchema } = require('../validators/partner.validator');
-const { verificationUpload } = require('../middleware/upload.middleware');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { ApiError } = require('../utils/ApiError');
-const { asyncHandler } = require('../utils/asyncHandler');
-const storeController = require('../controllers/store.controller');
 const materialOrderController = require('../controllers/material-order.controller');
-const { updateMaterialOrderStatusSchema } = require('../validators/material-order.validator');
-const materialController = require('../controllers/material.controller');
-const contractorController = require('../controllers/contractor.controller');
->>>>>>> origin/Duc:backend/src/routes/material-store.routes.js
+const contractorController = require('../controllers/contractorController');
 
 const router = express.Router();
 

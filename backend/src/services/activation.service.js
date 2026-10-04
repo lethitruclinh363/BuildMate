@@ -4,7 +4,8 @@ const { User, USER_STATUS, ROLES } = require('../models/User');
 const { Service } = require('../models/Service');
 const { Material } = require('../models/Material');
 const { ApiError } = require('../utils/ApiError');
-const { publicPricedServiceMatch } = require('../constants/contractor-services');
+// const { publicPricedServiceMatch } = require('../constants/contractor-services');
+const { publicPricedServiceMatch } = require('../constants/contractorServices');
 const materialCategoryService = require('./material-category.service');
 const { fromGeoPoint, isUnsetLocation } = require('../utils/geo');
 

@@ -3,15 +3,9 @@ const { Service } = require('../models/Service');
 const { Material } = require('../models/Material');
 const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
 const { ApiError } = require('../utils/ApiError');
-<<<<<<< HEAD:backend/src/services/marketplaceService.js
 const { publicPricedServiceMatch, foldServiceName } = require('../constants/contractorServices');
 const { presentPublicProfile, seedPublicProfile, loadPublicHighlights } = require('./publicProfileService');
 const reviewService = require('./reviewService');
-=======
-const { publicPricedServiceMatch, foldServiceName } = require('../constants/contractor-services');
-const { presentPublicProfile, seedPublicProfile, seedMaterialPublicProfile, loadPublicHighlights } = require('./public-profile.service');
-const reviewService = require('./review.service');
->>>>>>> origin/Duc:backend/src/services/marketplace.service.js
 const { CatalogService, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
 const activationService = require('./activation.service');
 const { USER_STATUS } = require('../models/User');
