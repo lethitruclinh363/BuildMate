@@ -52,4 +52,17 @@ function authLimiter() {
   });
 }
 
-module.exports = { apiLimiter, authLimiter };
+function otpRequestLimiter() {
+  if (!env.rateLimitEnabled) {
+    return (_req, _res, next) => next();
+  }
+  return rateLimit({
+    windowMs: env.rateLimitWindowMs,
+    max: env.rateLimitOtpMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: RATE_MESSAGE,
+  });
+}
+
+module.exports = { apiLimiter, authLimiter, otpRequestLimiter };

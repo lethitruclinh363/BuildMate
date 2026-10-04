@@ -12,8 +12,8 @@ const me = asyncHandler(async (req, res) => {
   return success(res, data, 'Admin profile retrieved');
 });
 
-const logout = asyncHandler(async (_req, res) => {
-  const data = adminAuthService.logout();
+const logout = asyncHandler(async (req, res) => {
+  const data = await adminAuthService.logout(req.user.id);
   return success(res, data, 'Logged out successfully');
 });
 
