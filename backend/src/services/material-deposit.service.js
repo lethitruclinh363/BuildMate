@@ -1,5 +1,5 @@
 const { ApiError } = require('../utils/ApiError');
-const { emitToUser } = require('./socket.service');
+const { emitToUser } = require('./socketService');
 const { MockPaymentProvider } = require('../providers/MockPaymentProvider');
 const { evaluateDepositCheckout, evaluateDepositCapture } = require('../utils/material-deposit.rules');
 const {
@@ -234,7 +234,7 @@ function mongooseDeps() {
   const { MaterialOrder } = require('../models/MaterialOrder');
   const { MaterialOrderPayment } = require('../models/MaterialOrderPayment');
   const { MaterialCommission } = require('../models/MaterialCommission');
-  const { notify, NOTIFICATION_TYPE } = require('./notification.service');
+  const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 
   return {
     findOrderById: (id) => MaterialOrder.findById(id),

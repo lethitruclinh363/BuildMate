@@ -2,8 +2,6 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const adminService = require('../services/adminService');
 const catalogService = require('../services/catalogService');
-const adminService = require('../services/admin.service');
-const catalogService = require('../services/catalog.service');
 const materialCategoryService = require('../services/material-category.service');
 const { CATALOG_STATUS } = require('../models/CatalogService');
 

@@ -77,7 +77,7 @@ function gpsErrorKind(code) {
   return Number(code) === 1 ? 'denied' : 'unavailable';
 }
 
-export {
+module.exports = {
   cleanPlaceText,
   toGeoPoint,
   fromGeoPoint,

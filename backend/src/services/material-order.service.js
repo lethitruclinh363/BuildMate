@@ -4,8 +4,8 @@ const { Store } = require('../models/Store');
 const { ApiError } = require('../utils/ApiError');
 const { requirePlace } = require('../utils/geo');
 const checkoutService = require('./material-checkout.service');
-const { notify, NOTIFICATION_TYPE } = require('./notification.service');
-const { emitToUser } = require('./socket.service');
+const { notify, NOTIFICATION_TYPE } = require('./notificationService');
+const { emitToUser } = require('./socketService');
 const {
   MATERIAL_ORDER_STATUS,
   MATERIAL_PAYMENT_STATUS,

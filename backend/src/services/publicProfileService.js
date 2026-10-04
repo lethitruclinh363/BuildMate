@@ -5,13 +5,9 @@ const { Order, ORDER_STATUS } = require('../models/Order');
 const { RepairRequest } = require('../models/RepairRequest');
 const { Quotation, QUOTATION_STATUS } = require('../models/Quotation');
 const { ApiError } = require('../utils/ApiError');
-<<<<<<< HEAD:backend/src/services/publicProfileService.js
 const { publicPricedServiceMatch } = require('../constants/contractorServices');
-=======
-const { publicPricedServiceMatch } = require('../constants/contractor-services');
 const { assertDeliveryPolicy } = require('../utils/delivery-policy');
 const { hasValidLocation } = require('./activation.service');
->>>>>>> origin/Duc:backend/src/services/public-profile.service.js
 
 function presentPublicProfile(store) {
   return {

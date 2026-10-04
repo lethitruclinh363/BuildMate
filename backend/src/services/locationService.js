@@ -1,12 +1,8 @@
 const { Store, STORE_STATUS } = require('../models/Store');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
-<<<<<<< HEAD:backend/src/services/locationService.js
-const { seedPublicProfile } = require('./publicProfileService');
-=======
 const { categoriesFromLegacyAreas } = require('../constants/material-categories');
-const { seedPublicProfile } = require('./public-profile.service');
+const { seedPublicProfile } = require('./publicProfileService');
 const { cardIsPublic } = require('./activation.service');
->>>>>>> origin/Duc:backend/src/services/location.service.js
 
 function listedMaterialCategories(profile) {
   const stored = Array.isArray(profile?.materialCategories) ? profile.materialCategories : [];

@@ -1,7 +1,7 @@
 const express = require('express');
 const { ROLES } = require('../models/User');
-const { authenticate } = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/role.middleware');
+const { authenticate } = require('../middleware/authMiddleware');
+const { authorize } = require('../middleware/roleMiddleware');
 const { validate } = require('../utils/validator');
 const { createMaterialOrderSchema, depositCheckoutSchema, settleRemainingSchema } = require('../validators/material-order.validator');
 const controller = require('../controllers/material-order.controller');

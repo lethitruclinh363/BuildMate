@@ -4,14 +4,8 @@ const { User } = require('../models/User');
 const { RepairRequest } = require('../models/RepairRequest');
 const { Quotation } = require('../models/Quotation');
 const { ApiError } = require('../utils/ApiError');
-<<<<<<< HEAD:backend/src/services/chatService.js
 const { emitToRoom, isOnline } = require('./socketService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
-=======
-const { emitToRoom, isOnline } = require('./socket.service');
-const { notify, NOTIFICATION_TYPE } = require('./notification.service');
-const { sanitizeChatLocation } = require('../utils/chat-location');
->>>>>>> origin/Duc:backend/src/services/chat.service.js
 
 const PARTNER_ROLES = new Set(['CONTRACTOR', 'MATERIAL_STORE_OWNER', 'STORE']);
 

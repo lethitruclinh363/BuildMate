@@ -6,7 +6,6 @@ const { Review } = require('../models/Review');
 const { Complaint } = require('../models/Complaint');
 const { RepairRequest } = require('../models/RepairRequest');
 const { ApiError } = require('../utils/ApiError');
-<<<<<<< HEAD:backend/src/services/adminService.js
 const { writeAudit, listAudit, AUDIT_ACTION } = require('./auditService');
 const analyticsService = require('./analyticsService');
 const { sendPartnerApprovedEmail } = require('../providers/emailProvider');
@@ -14,18 +13,6 @@ const catalogService = require('./catalogService');
 const serviceService = require('./serviceService');
 const { seedPublicProfile } = require('./publicProfileService');
 const commissionService = require('./commissionService');
-=======
-const { writeAudit, listAudit, AUDIT_ACTION } = require('./audit.service');
-const analyticsService = require('./analytics.service');
-const { sendPartnerApprovedEmail } = require('../providers/email.provider');
-const catalogService = require('./catalog.service');
-const serviceService = require('./service.service');
-const { seedPublicProfile } = require('./public-profile.service');
-const commissionService = require('./commission.service');
-const materialCategoryService = require('./material-category.service');
-const { publicSnapshots } = require('./public-profile.service');
-const activationService = require('./activation.service');
->>>>>>> origin/Duc:backend/src/services/admin.service.js
 
 function customerPublic(user, city = '') {
   return {

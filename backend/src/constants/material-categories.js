@@ -1,4 +1,4 @@
-const { collapseServiceName, normalizeServiceName, foldServiceName } = require('./contractor-services');
+const { collapseServiceName, normalizeServiceName, foldServiceName } = require('./contractorServices');
 
 const MATERIAL_CATEGORIES = Object.freeze([
   'Cement',

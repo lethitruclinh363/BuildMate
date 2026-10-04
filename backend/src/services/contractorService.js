@@ -9,22 +9,12 @@ const storeService = require('./storeService');
 const { Service } = require('../models/Service');
 const { ApiError } = require('../utils/ApiError');
 const { MIME_BY_EXT, extensionOf } = require('../utils/upload');
-<<<<<<< HEAD:backend/src/services/contractorService.js
 const { ensureContractorProfile } = require('../middleware/contractorMiddleware');
 const { setProfileStatus, PROFILE_STATUS } = require('./profileStatusService');
 const { servicesBlockReason } = require('../constants/contractorServices');
 const catalogService = require('./catalogService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
-=======
-const { ensureContractorProfile } = require('../middleware/contractor.middleware');
-const { setProfileStatus, PROFILE_STATUS } = require('./profileStatus.service');
-const { servicesBlockReason } = require('../constants/contractor-services');
-const catalogService = require('./catalog.service');
-const materialCategoryService = require('./material-category.service');
-const { writeAudit, AUDIT_ACTION } = require('./audit.service');
-const { notify, NOTIFICATION_TYPE } = require('./notification.service');
->>>>>>> origin/Duc:backend/src/services/contractor.service.js
 
 const MAX_DOCUMENTS = 8;
 const VERIFY_SINGLETONS = new Set(['CCCD_FRONT', 'CCCD_BACK', 'BUSINESS_LICENSE', 'CERTIFICATE']);

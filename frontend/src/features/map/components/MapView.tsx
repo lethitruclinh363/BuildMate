@@ -157,26 +157,9 @@ export function MapView({
   const empty = !loading && contractors.length === 0 && stores.length === 0;
 
   return (
-<<<<<<< HEAD
-    <MapErrorBoundary>
-      <MapContainer
-        center={[origin.lat, origin.lng]}
-        zoom={zoom}
-        className="h-[420px] w-full rounded-[22px] md:h-[520px]"
-        scrollWheelZoom
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <Recenter origin={origin} zoom={zoom} />
-        <ClickToPin onPick={onPick} />
-        <Circle
-=======
     <div className="relative">
       <MapErrorBoundary>
         <MapContainer
->>>>>>> origin/Duc
           center={[origin.lat, origin.lng]}
           zoom={zoomFor(radiusKm)}
           className="h-[320px] w-full sm:h-[460px]"
