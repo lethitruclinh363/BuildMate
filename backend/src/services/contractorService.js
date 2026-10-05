@@ -13,6 +13,7 @@ const { ensureContractorProfile } = require('../middleware/contractorMiddleware'
 const { setProfileStatus, PROFILE_STATUS } = require('./profileStatusService');
 const { servicesBlockReason } = require('../constants/contractorServices');
 const catalogService = require('./catalogService');
+const materialCategoryService = require('./material-category.service');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 

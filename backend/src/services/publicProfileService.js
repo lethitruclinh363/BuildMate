@@ -8,6 +8,7 @@ const { ApiError } = require('../utils/ApiError');
 const { publicPricedServiceMatch } = require('../constants/contractorServices');
 const { assertDeliveryPolicy } = require('../utils/delivery-policy');
 const { hasValidLocation } = require('./activation.service');
+const reviewService = require('./reviewService');
 
 function presentPublicProfile(store) {
   return {
@@ -243,7 +244,6 @@ async function registeredCategories(profile) {
 async function getMaterialPublicProfile(userId) {
   const { profile, store } = await loadApprovedMaterialStore(userId);
   const { Material } = require('../models/Material');
-  const reviewService = require('./review.service');
   const [materials, reviews] = await Promise.all([
     Material.find({ storeId: store._id, isActive: true }).sort({ name: 1 }),
     reviewService.listForUser(userId, 'MATERIAL_STORE'),

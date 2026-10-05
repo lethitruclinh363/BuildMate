@@ -1,9 +1,9 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 import { formatCoordinates } from '@/features/map/lib/location';
 import { MAP_TILES } from '@/features/map/lib/tiles';
 import { t, useI18n } from '@/locales';
+import { MapResize } from './MapResize';
 import { SELECTED_PIN } from './Marker';
 
 class MapGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -53,6 +53,7 @@ export function LocationViewer({
             attributionControl={!compact}
           >
             <TileLayer attribution={MAP_TILES.attribution} url={MAP_TILES.url} />
+            <MapResize />
             <Marker position={[lat, lng]} icon={SELECTED_PIN} />
           </MapContainer>
         </MapGuard>

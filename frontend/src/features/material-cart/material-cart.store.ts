@@ -104,6 +104,7 @@ export const useMaterialCartStore = create<MaterialCartState>()(
   )
 );
 
-export function materialCartCount(items: MaterialCartItem[]) {
-  return items.reduce((sum, item) => sum + item.quantity, 0);
+export function materialCartCount(items: MaterialCartItem[] | null | undefined) {
+  if (!Array.isArray(items)) return 0;
+  return items.reduce((sum, item) => sum + (Number(item?.quantity) || 0), 0);
 }

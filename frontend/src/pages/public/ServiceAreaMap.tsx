@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Circle, MapContainer, TileLayer } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import { MapResize } from '@/features/map/components/MapResize';
 import { MAP_TILES } from '@/features/map/lib/tiles';
 import { t } from '@/locales';
 
@@ -36,6 +36,7 @@ export function ServiceAreaMap({ lat, lng, radiusKm }: { lat: number; lng: numbe
         zoomControl={false}
       >
         <TileLayer attribution={MAP_TILES.attribution} url={MAP_TILES.url} />
+        <MapResize />
         <Circle
           center={[lat, lng]}
           radius={Math.max(radiusKm, 1) * 1000}

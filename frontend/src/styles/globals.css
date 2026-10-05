@@ -58,7 +58,26 @@ h3,
 
 .leaflet-container {
   z-index: 0;
+  width: 100%;
   font-family: inherit;
+  background: #d4d8de;
+}
+
+/*
+  Tailwind preflight sets img { max-width: 100%; height: auto }.
+  Leaflet 1.9.4 also sets width: auto and mix-blend-mode: plus-lighter on tiles.
+  Together they shrink or punch holes in OpenStreetMap tiles (gray gaps, worse on zoom).
+  Do not override transform, top, left, or position — Leaflet places tiles with those.
+*/
+.leaflet-container img,
+.leaflet-container .leaflet-tile,
+.leaflet-container .leaflet-tile-pane img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-container img.leaflet-tile {
+  mix-blend-mode: normal !important;
 }
 
 .bm-pin-wrap {

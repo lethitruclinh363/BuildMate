@@ -119,7 +119,12 @@ export function App() {
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/contractors/:id" element={<ContractorPublicPage />} />
             <Route path="/stores/:id" element={<StorePublicPage />} />
-            <Route path="/cart" element={<MaterialCartPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute roles={['CUSTOMER']} />}>
+            <Route element={<MainLayout />}>
+              <Route path="/cart" element={<MaterialCartPage />} />
+            </Route>
           </Route>
 
           <Route element={<GuestOnly />}>
