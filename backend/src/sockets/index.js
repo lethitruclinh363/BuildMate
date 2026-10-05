@@ -3,10 +3,17 @@ const { env } = require('../config/env');
 const { setIO } = require('../services/socketService');
 const { authenticateSocket, attachChatHandlers } = require('./chatSocket');
 
+function socketOrigins() {
+  return String(env.clientUrl || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: env.clientUrl,
+      origin: socketOrigins(),
       credentials: true,
     },
     path: '/socket.io',

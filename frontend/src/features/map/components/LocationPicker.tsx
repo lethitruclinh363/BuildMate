@@ -2,7 +2,6 @@ import { LocateFixed, MapPin, Navigation } from 'lucide-react';
 import { Component, useCallback, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import L from 'leaflet';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
@@ -10,6 +9,7 @@ import { formatCoordinates, rememberGpsOrigin, requestCurrentPosition, type GeoE
 import { MAP_TILES } from '@/features/map/lib/tiles';
 import { geocodeAddress, reverseGeocode, type GeocodeHit } from '@/features/map/services/geocoding';
 import { t, useI18n } from '@/locales';
+import { MapResize } from './MapResize';
 import { SELECTED_PIN } from './Marker';
 
 class MapGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -266,6 +266,7 @@ export function LocationPicker({
             scrollWheelZoom
           >
             <TileLayer attribution={MAP_TILES.attribution} url={MAP_TILES.url} />
+            <MapResize />
             <FollowPin origin={origin} />
             <ClickToPin onPick={(lat, lng) => void pinAt(lat, lng)} />
             <Marker

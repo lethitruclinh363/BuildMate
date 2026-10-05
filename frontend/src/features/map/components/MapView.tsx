@@ -1,12 +1,12 @@
 import { Component, useEffect, useMemo, type ErrorInfo, type ReactNode } from 'react';
 import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { LocateFixed, Navigation } from 'lucide-react';
 import { MAP_TILES } from '@/features/map/lib/tiles';
 import type { NearbyPlace } from '@/types/marketplace';
 import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
 import { t, useI18n } from '@/locales';
+import { MapResize } from './MapResize';
 import { CONTRACTOR_PIN, JOB_SITE_PIN, PlaceMarker, STORE_PIN, makePin } from './Marker';
 
 const PERSON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
@@ -166,6 +166,7 @@ export function MapView({
           scrollWheelZoom
         >
           <TileLayer attribution={MAP_TILES.attribution} url={MAP_TILES.url} />
+          <MapResize />
           <FlyTo origin={origin} radiusKm={radiusKm} focus={focus} focusToken={focusToken} />
           <ClickToPin onPick={onPick} />
           <Circle

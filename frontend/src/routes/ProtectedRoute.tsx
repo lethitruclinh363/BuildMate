@@ -59,10 +59,17 @@ export default function ProtectedRoute({ roles }: ProtectedRouteProps) {
 
 export function GuestOnly() {
   const { currentUser, ready, dashboardPath } = useAuth();
+  const location = useLocation();
   if (ready && currentUser) {
-    const dest = dashboardPath();
-    if (dest.startsWith('/customer') || dest.startsWith('/contractor') || dest.startsWith('/store') || dest.startsWith('/partner')) {
-      return <Navigate to={dest} replace />;
+    const next = new URLSearchParams(location.search).get('next');
+    const safeNext = Boolean(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\'));
+    const home = dashboardPath();
+    if (home === '/partner/onboarding' || home === '/partner/onboarding/status') {
+      return <Navigate to={home} replace />;
+    }
+    if (safeNext && next) return <Navigate to={next} replace />;
+    if (home.startsWith('/customer') || home.startsWith('/contractor') || home.startsWith('/store') || home.startsWith('/partner')) {
+      return <Navigate to={home} replace />;
     }
   }
   return <Outlet />;

@@ -5,10 +5,11 @@ export const easeOutSoft: Transition = {
   ease: [0.22, 1, 0.36, 1],
 };
 
+/** Opacity only. A resting translateY breaks Leaflet tile placement. */
 export const pageVariants: Variants = {
-  initial: { opacity: 0, y: 18 },
-  animate: { opacity: 1, y: 0, transition: easeOutSoft },
-  exit: { opacity: 0, y: -10, transition: { duration: 0.25 } },
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: easeOutSoft },
+  exit: { opacity: 0, transition: { duration: 0.25 } },
 };
 
 export const fadeUp: Variants = {

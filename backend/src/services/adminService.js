@@ -11,8 +11,10 @@ const analyticsService = require('./analyticsService');
 const { sendPartnerApprovedEmail } = require('../providers/emailProvider');
 const catalogService = require('./catalogService');
 const serviceService = require('./serviceService');
-const { seedPublicProfile } = require('./publicProfileService');
+const { seedPublicProfile, publicSnapshots } = require('./publicProfileService');
 const commissionService = require('./commissionService');
+const materialCategoryService = require('./material-category.service');
+const activationService = require('./activation.service');
 
 function customerPublic(user, city = '') {
   return {
