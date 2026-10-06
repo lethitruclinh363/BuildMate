@@ -7,6 +7,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { itemListClass, ListRow } from '@/components/ui/surfaces';
 import { TextArea } from '@/components/ui/TextArea';
 import { getApiErrorMessage } from '@/lib/api';
 import { mediaUrl } from '@/lib/partner-api';
@@ -147,9 +148,9 @@ export function ContractorReviewsPage() {
           <EmptyState icon={<Star className="h-5 w-5" />} title={t('review.empty')} body={t('review.emptyBody')} />
         </div>
       ) : (
-        <div className="mt-4 space-y-3">
+        <div className={`mt-4 ${itemListClass}`}>
           {items.map((row) => (
-            <Card key={row.id} hover={false}>
+            <ListRow key={row.id}>
               <div className="flex items-start gap-3">
                 <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-navy-800 text-sm text-paper-50">
                   {row.customerAvatar ? <img src={mediaUrl(row.customerAvatar)} alt="" className="h-full w-full object-cover" /> : (row.customerName || 'K').slice(0, 1)}
@@ -191,7 +192,7 @@ export function ContractorReviewsPage() {
                   </div>
                 </div>
               </div>
-            </Card>
+            </ListRow>
           ))}
         </div>
       )}
@@ -203,7 +204,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <Card hover={false} className="p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">{label}</p>
-      <p className="mt-2 font-display text-3xl text-navy-800">{value}</p>
+      <p className="mt-1 text-2xl font-semibold text-navy-800">{value}</p>
     </Card>
   );
 }

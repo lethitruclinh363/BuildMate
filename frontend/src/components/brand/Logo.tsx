@@ -13,12 +13,16 @@ export function Logo({ inverted, compact, className }: LogoProps) {
   const { t } = useI18n();
   return (
     <Link to="/" className={cn('inline-flex items-center gap-2.5', className)}>
-      <motion.img
+      <motion.span
         whileHover={{ rotate: -6, scale: 1.04 }}
-        src="/favicon.svg"
-        alt=""
-        className="h-9 w-9 shrink-0 rounded-xl"
-      />
+        className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl"
+      >
+        <img
+          src="/brand-logo.png"
+          alt=""
+          className="absolute left-1/2 top-1/2 h-full w-full max-w-none -translate-x-1/2 -translate-y-1/2 scale-[2.15] object-cover"
+        />
+      </motion.span>
       {!compact ? (
         <span className="leading-tight">
           <span
@@ -29,7 +33,7 @@ export function Logo({ inverted, compact, className }: LogoProps) {
           >
             BuildMate
           </span>
-          <span className={cn('block text-[10px] uppercase tracking-[0.18em]', inverted ? 'text-white/60' : 'text-ink-400')}>
+          <span className={cn('block text-[11px] font-medium', inverted ? 'text-white/70' : 'text-ink-400')}>
             {t('brand.tagline')}
           </span>
         </span>

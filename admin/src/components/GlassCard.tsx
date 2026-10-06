@@ -10,5 +10,5 @@ export function GlassCard({
   className?: string;
   padding?: boolean;
 }) {
-  return <section className={cn('glass-card', padding && 'p-5', className)}>{children}</section>;
+  return <section className={cn('glass-card', padding && 'p-4', className)}>{children}</section>;
 }

@@ -17,6 +17,16 @@ import type {
 } from '@/types/admin';
 import type { ApiResponse, User } from '@/types/api';
 
+export interface ServiceSuggestion {
+  id: string;
+  requesterName: string;
+  teamName: string;
+  description: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED' | string;
+  adminNote: string;
+  createdAt: string;
+}
+
 export interface AdminCatalogService {
   id: string;
   name: string;
@@ -103,6 +113,16 @@ export const adminApi = {
       unwrap((await api.post<ApiResponse<PartnerApplication>>(`/admin/verifications/${id}/reject`, { reason })).data)
     ),
 
+  retakeEkyc: async (id: string, reason: string) =>
+    bustCache(
+      unwrap((await api.post<ApiResponse<PartnerApplication['ekyc']>>(`/admin/verifications/${id}/ekyc/retake`, { reason })).data)
+    ),
+
+  ekycFile: async (id: string, kind: string) => {
+    const response = await api.get<Blob>(`/admin/verifications/${id}/ekyc/files/${kind}`, { responseType: 'blob' });
+    return URL.createObjectURL(response.data);
+  },
+
   reviewCatalogService: async (id: string, decision: 'approve' | 'reject') =>
     bustCache(unwrap((await api.post<ApiResponse<{ id: string; status: string }>>(`/admin/service-catalog/${id}/review`, { decision })).data)),
 
@@ -117,6 +137,15 @@ export const adminApi = {
 
   setCatalogStatus: async (id: string, status: 'ACTIVE' | 'INACTIVE') =>
     bustCache(unwrap((await api.patch<ApiResponse<AdminCatalogService>>(`/admin/service-catalog/${id}/status`, { status })).data)),
+
+  listServiceSuggestions: async () =>
+    unwrap((await api.get<ApiResponse<ServiceSuggestion[]>>('/service-suggestions')).data),
+
+  rejectServiceSuggestion: async (id: string, adminNote: string) =>
+    unwrap((await api.post<ApiResponse<ServiceSuggestion>>(`/service-suggestions/${id}/reject`, { adminNote })).data),
+
+  convertServiceSuggestion: async (id: string, body: AdminCatalogWrite) =>
+    bustCache(unwrap((await api.post<ApiResponse<{ suggestion: ServiceSuggestion; service: AdminCatalogService }>>(`/service-suggestions/${id}/convert`, body)).data)),
 
   listMaterialCategories: async () => unwrap((await api.get<ApiResponse<AdminMaterialCatalog>>('/admin/material-categories')).data),
 

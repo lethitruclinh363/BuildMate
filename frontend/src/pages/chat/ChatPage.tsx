@@ -2,6 +2,7 @@ import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from '
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ImagePlus, MapPin, Send } from 'lucide-react';
+import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -176,7 +177,17 @@ export function ChatPage() {
 
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between border-b border-navy-800/8 bg-white px-5 py-3">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <BackButton
+                fallback={
+                  user?.role === 'CONTRACTOR'
+                    ? '/contractor/requests'
+                    : user?.role === 'MATERIAL_STORE_OWNER'
+                      ? '/store/dashboard'
+                      : '/customer/request/history'
+                }
+                className="mb-0 md:hidden"
+              />
               <Avatar name={other.name} src={other.avatar} />
               <div>
                 <p className="font-display text-lg text-navy-800">{other.name}</p>

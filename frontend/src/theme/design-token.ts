@@ -43,18 +43,18 @@ export const tokens = {
     },
   },
   fonts: {
-    display: ['"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-    sans: ['Manrope', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+    display: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+    sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
   },
   radii: {
     sm: '8px',
-    md: '14px',
-    lg: '22px',
+    md: '12px',
+    lg: '14px',
     pill: '999px',
   },
   shadows: {
-    card: '0 12px 40px -18px rgba(11, 46, 74, 0.28)',
-    lift: '0 22px 50px -20px rgba(11, 46, 74, 0.35)',
+    card: '0 1px 2px rgba(15, 23, 42, 0.04)',
+    lift: '0 8px 24px rgba(15, 23, 42, 0.08)',
   },
 } as const;
 

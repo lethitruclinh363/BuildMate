@@ -26,6 +26,7 @@ export interface PublicContractorProfile {
   serviceRadiusKm?: number;
   areaCenter?: { lat: number; lng: number } | null;
   locationReady?: boolean;
+  locationSource?: 'VIETMAP_PLACE' | 'GPS' | 'MANUAL_PIN' | '';
   verified: boolean;
   rating: number;
   reviewCount: number;
@@ -58,6 +59,7 @@ export interface PublicStoreProfile {
   yearsExperience?: number;
   areaCenter?: { lat: number; lng: number } | null;
   locationReady?: boolean;
+  locationSource?: 'VIETMAP_PLACE' | 'GPS' | 'MANUAL_PIN' | '';
   showroomNote?: string;
   deliveryNote?: string;
   verified: boolean;

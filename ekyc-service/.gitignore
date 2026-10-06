@@ -1,0 +1,49 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+myenv/
+
+# Environment file (chứa secret)
+.env
+
+# DeepFace model cache
+~/.deepface/
+
+# Downloaded model and library caches
+.cache/
+
+# Temp files
+ekyc_*.jpg
+ekyc_*.png
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ultralytics runtime settings
+Ultralytics/
+
+# Test and coverage cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Local model weights
+*.pt
+*.pth

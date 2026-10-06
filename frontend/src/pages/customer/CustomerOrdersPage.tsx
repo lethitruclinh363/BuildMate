@@ -8,6 +8,7 @@ import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
 import { repairApi } from '@/features/chat/services/sprint4.api';
+import { useReturnState } from '@/lib/navigation';
 import { useI18n } from '@/locales';
 import { OrderCard } from '@/features/orders/components/OrderCard';
 import { useOrders } from '@/features/orders/hooks/useOrders';
@@ -19,6 +20,7 @@ const FILTERS: OrderFilter[] = ['all', 'processing', 'in_progress', 'waiting', '
 
 export function CustomerOrdersPage() {
   const { t } = useI18n();
+  const back = useReturnState();
   const { items, loading, error, reload } = useOrders('customer');
   const [filter, setFilter] = useState<OrderFilter>('all');
   const [requests, setRequests] = useState<RepairRequest[]>([]);
@@ -50,7 +52,7 @@ export function CustomerOrdersPage() {
       {rows.length === 0 ? (
         <EmptyState icon={<ClipboardList className="h-5 w-5" />} title={t('orders.emptyTitle')} body={t('orders.emptyBody')} />
       ) : (
-        <div className="space-y-4">
+        <div className="divide-y divide-navy-800/10 overflow-hidden rounded-xl border border-navy-800/10 bg-white">
           {rows.map((order) => {
             const request = requests.find((row) => String(row.id) === String(order.requestId));
             return (
@@ -58,6 +60,7 @@ export function CustomerOrdersPage() {
                 key={order.id}
                 order={order}
                 to={`/customer/orders/${order.id}`}
+                state={back}
                 partyLabel={request?.contractor?.name}
                 customerView
               />

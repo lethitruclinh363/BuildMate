@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
+import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/Input';
 import { TextArea } from '@/components/ui/TextArea';
 import { catalogServiceLabel } from '@/data/contractor-services';
 import { PartnerLocationSection } from '@/features/map/components/PartnerLocationSection';
+import { storeLocationPatch } from '@/features/map/lib/location';
 import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
 import { locationApi } from '@/features/map/services/location.api';
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
@@ -120,11 +122,17 @@ export function ContractorPublicProfilePage() {
   }, [profile.contractorId]);
 
   async function saveLocation(origin: MapOrigin) {
-    if (busy) return;
+    if (busy || origin.locationConfirmed !== true) return;
     setBusy(true);
     try {
-      await contractorApi.updateStore({ lat: origin.lat, lng: origin.lng });
-      const next = { ...profile, areaCenter: { lat: origin.lat, lng: origin.lng }, locationReady: true };
+      await contractorApi.updateStore(storeLocationPatch(origin));
+      const next = {
+        ...profile,
+        areaCenter: { lat: origin.lat, lng: origin.lng },
+        locationReady: true,
+        ...(origin.address || origin.label ? { address: origin.address || origin.label || profile.address } : {}),
+        ...(origin.city ? { city: origin.city } : {}),
+      };
       setProfile(next);
       setSaved(next);
       pushToast({ kind: 'success', title: t('publicProfile.locationSaved') });
@@ -263,6 +271,7 @@ export function ContractorPublicProfilePage() {
 
   return (
     <PageTransition>
+      <BackButton fallback="/contractor/dashboard" />
       <form onSubmit={(event) => void onSave(event)} className="space-y-6">
         <PageHeader
           eyebrow={t('publicProfile.eyebrow')}
@@ -413,8 +422,9 @@ export function ContractorPublicProfilePage() {
             hint={t('publicProfile.locationHint')}
             lat={profile.areaCenter?.lat}
             lng={profile.areaCenter?.lng}
-            label={profile.city}
+            label={profile.address || profile.city}
             ready={profile.locationReady}
+            locationSource={profile.locationSource || undefined}
             saving={busy}
             onSave={(origin) => void saveLocation(origin)}
           />
@@ -496,7 +506,7 @@ export function ContractorPublicProfilePage() {
           </div>
         </Card>
 
-        <div className="sticky bottom-3 z-20 flex justify-end gap-2 rounded-full border border-navy-800/8 bg-white/95 p-2 shadow-card">
+        <div className="sticky bottom-0 z-20 -mx-4 flex justify-end gap-2 border-t border-navy-800/10 bg-white/95 px-4 py-3 backdrop-blur">
           <Button asChild type="button" variant="ghost">
             <Link to="/contractor/dashboard">{t('activation.backDashboard')}</Link>
           </Button>

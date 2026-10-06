@@ -68,6 +68,11 @@ function uploaderFor(scope) {
   return userUpload;
 }
 
+const ekycMemoryUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: env.maxFileSizeMb * 1024 * 1024, files: 5 },
+});
+
 module.exports = {
   upload,
   userUpload,
@@ -81,4 +86,5 @@ module.exports = {
   uploadRoot,
   publicFileUrl,
   UPLOAD_SCOPES,
+  ekycMemoryUpload,
 };

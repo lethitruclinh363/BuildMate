@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { getApiErrorMessage } from '@/services/api';
 import { adminApi, type AdminCatalogPayload, type AdminCatalogService } from '@/services/admin.api';
 import { MaterialCatalogPanel } from '@/pages/catalog/MaterialCatalogPanel';
+import { ServiceSuggestionsPanel } from '@/pages/catalog/ServiceSuggestionsPanel';
 import { useToastStore } from '@/stores/toast.store';
 
 const GROUPS = ['Electrical', 'Plumbing', 'Painting', 'Tiling', 'Interior', 'Repair', 'Construction'] as const;
@@ -26,7 +27,7 @@ export function ServiceCatalogPage() {
   const [similar, setSimilar] = useState<string[]>([]);
   const [acknowledgeSimilar, setAcknowledgeSimilar] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<'services' | 'materials'>('services');
+  const [tab, setTab] = useState<'services' | 'materials' | 'suggestions'>('services');
 
   const load = async (next?: { q?: string; category?: string; status?: string }) => {
     const payload = await adminApi.listCatalog({
@@ -127,7 +128,11 @@ export function ServiceCatalogPage() {
         <FilterChip active={tab === 'materials'} onClick={() => setTab('materials')}>
           {t('catalog.materials.tabMaterials')}
         </FilterChip>
+        <FilterChip active={tab === 'suggestions'} onClick={() => setTab('suggestions')}>
+          {t('catalog.suggestions.tab')}
+        </FilterChip>
       </div>
+      {tab === 'suggestions' ? <ServiceSuggestionsPanel /> : null}
       {tab === 'materials' ? <MaterialCatalogPanel /> : null}
       {tab === 'services' ? (
       <>

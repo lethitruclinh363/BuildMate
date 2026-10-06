@@ -43,6 +43,7 @@ function presentPublicProfile(store) {
     serviceRadiusKm: store.serviceRadiusKm || 0,
     areaCenter: hasValidLocation(store) ? areaCenter(store) : null,
     locationReady: hasValidLocation(store),
+    locationSource: store.locationSource || '',
     verified: Boolean(store.verified),
     rating: store.rating || 0,
     reviewCount: store.reviewCount || 0,
@@ -115,7 +116,8 @@ async function seedPublicProfile(storeOrId, profile) {
   fillIfEmpty(store, 'avatar', portfolio.avatar);
   fillIfEmpty(store, 'logo', portfolio.teamLogo);
   fillIfEmpty(store, 'coverImage', portfolio.workshop || portfolio.avatar);
-  fillIfEmpty(store, 'gallery', portfolio.construction || []);
+  const projectImages = (portfolio.projects || []).flatMap((project) => project.images || []).filter(Boolean);
+  fillIfEmpty(store, 'gallery', projectImages.length ? projectImages : portfolio.construction || []);
   fillIfEmpty(store, 'crewPhotos', [portfolio.avatar, portfolio.teamLogo].filter(Boolean));
   fillIfEmpty(store, 'publicCertificates', portfolio.certificates || []);
   fillIfEmpty(store, 'description', profile.description);

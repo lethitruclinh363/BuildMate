@@ -64,6 +64,13 @@ export interface PartnerApplication {
     workshop: string;
     construction: string[];
     certificates: string[];
+    projects?: {
+      id: string;
+      serviceId: string;
+      serviceNameSnapshot: string;
+      description: string;
+      images: string[];
+    }[];
   };
   verificationStatus: VerificationStatus;
   documents: VerificationDocument[];
@@ -73,6 +80,26 @@ export interface PartnerApplication {
   createdAt: string;
   updatedAt: string;
   user: PartnerUser | null;
+  ekyc?: {
+    referenceCode?: string;
+    status?: string;
+    retakeReason?: string;
+    ocr?: {
+      idNumber?: string;
+      fullName?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      hometown?: string;
+      passed?: boolean;
+    };
+    liveness?: { passed?: boolean };
+    faceMatch?: {
+      decision?: string;
+      matched?: boolean;
+      distance?: number | null;
+      threshold?: number | null;
+    } | null;
+  } | null;
   activation?: {
     activationStatus: 'INACTIVE' | 'LIVE' | 'PAUSED';
     percent: number;

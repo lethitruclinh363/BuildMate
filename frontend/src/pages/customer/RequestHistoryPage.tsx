@@ -8,10 +8,11 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { itemListClass, ListRow } from '@/components/ui/surfaces';
 import { repairApi } from '@/features/chat/services/sprint4.api';
 import { getApiErrorMessage } from '@/lib/api';
 import { mediaUrl } from '@/lib/partner-api';
+import { useReturnState } from '@/lib/navigation';
 import { labeled, useI18n } from '@/locales';
 import type { RepairRequest } from '@/types/sprint4';
 
@@ -24,6 +25,7 @@ const tones: Record<RepairRequest['status'], 'warn' | 'success' | 'danger' | 'mi
 
 export function RequestHistoryPage() {
   const { t, te } = useI18n();
+  const back = useReturnState();
   const [rows, setRows] = useState<RepairRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +66,9 @@ export function RequestHistoryPage() {
           body={t('request.emptyBody')}
         />
       ) : (
-        <div className="space-y-4">
+        <div className={itemListClass}>
           {rows.map((item) => (
-            <Card key={item.id} hover={false}>
+            <ListRow key={item.id}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <Badge tone={tones[item.status]}>{labeled(t, 'status', item.status)}</Badge>
@@ -82,10 +84,10 @@ export function RequestHistoryPage() {
               </div>
               {item.roomId ? (
                 <Button asChild size="sm" className="mt-4">
-                  <Link to={`/customer/chat/${item.roomId}`}>{t('request.openChat')}</Link>
+                  <Link to={`/customer/chat/${item.roomId}`} state={back}>{t('request.openChat')}</Link>
                 </Button>
               ) : null}
-            </Card>
+            </ListRow>
           ))}
         </div>
       )}

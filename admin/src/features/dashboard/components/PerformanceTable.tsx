@@ -15,7 +15,7 @@ export const PerformanceTable = memo(function PerformanceTable({ rows }: { rows:
       <h3 className="mb-4 font-display text-lg text-white">{t('dash.topTitle')}</h3>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-left text-sm">
-          <thead className="text-[11px] uppercase tracking-[0.14em] text-white/35">
+          <thead className="text-sm text-white/55">
             <tr>
               <th className="pb-3">{t('dash.rank')}</th>
               <th className="pb-3">{t('dash.business')}</th>

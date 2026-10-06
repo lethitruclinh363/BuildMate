@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { presentDistance, geoNearStage } = require('../services/location.service');
+const { presentDistance, geoNearStage } = require('../services/locationService');
 
 describe('explore map distance', () => {
   it('keeps GeoJSON order and queries 3, 5, and 10 km with $geoNear', () => {

@@ -4,13 +4,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PageHeader } from '@/components/dashboard/PageHeader';
+import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
 import { Bookmark } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { LocationPicker } from '@/features/map/components/LocationPicker';
 import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
-import { loadSavedPlace, placeFromRecord, saveSavedPlace } from '@/features/map/lib/location';
+import { loadSavedPlace, persistedLocationSource, placeFromRecord, saveSavedPlace } from '@/features/map/lib/location';
 import { locationApi } from '@/features/map/services/location.api';
 import { AxiosError } from 'axios';
 import { repairApi } from '@/features/chat/services/sprint4.api';
@@ -100,7 +101,14 @@ export function CreateRepairRequestPage() {
 
   function useSaved() {
     if (!saved) return;
-    setOrigin({ lat: saved.lat, lng: saved.lng, label: saved.label || saved.address });
+    setOrigin({
+      lat: saved.lat,
+      lng: saved.lng,
+      label: saved.label || saved.address,
+      address: saved.address,
+      locationConfirmed: true,
+      source: 'MANUAL_PIN',
+    });
     setAddress(saved.address || saved.label);
     setChosen(true);
   }
@@ -111,8 +119,8 @@ export function CreateRepairRequestPage() {
       return;
     }
     const site = placeFromRecord({ lat: origin.lat, lng: origin.lng, address, label: address });
-    if (!chosen || !site || site.address.length < 4) {
-      setServerError(t('map.pickRequired'));
+    if (!chosen || !site || site.address.length < 4 || origin.locationConfirmed !== true) {
+      setServerError(t('map.confirmRequired'));
       return;
     }
     setServerError('');
@@ -128,6 +136,9 @@ export function CreateRepairRequestPage() {
     form.append('address', site.address);
     form.append('lat', String(site.lat));
     form.append('lng', String(site.lng));
+    form.append('locationConfirmed', 'true');
+    form.append('locationSource', persistedLocationSource(origin.source));
+    if (origin.refId) form.append('providerRefId', origin.refId);
     saveSavedPlace(site);
     images.forEach((f) => form.append('images', f));
     videos.forEach((f) => form.append('videos', f));
@@ -142,6 +153,7 @@ export function CreateRepairRequestPage() {
 
   return (
     <PageTransition>
+      <BackButton fallback="/customer/request/history" />
       <PageHeader
         eyebrow={t('request.eyebrow')}
         title={t('request.title')}
@@ -205,7 +217,7 @@ export function CreateRepairRequestPage() {
               <Bookmark className="h-4 w-4" /> {t('map.useSaved')}
             </Button>
           ) : null}
-          <LocationPicker variant="panel" origin={origin} onPick={pickSite} />
+          <LocationPicker variant="panel" origin={origin} onPick={pickSite} note={t('map.repairHint')} />
           <Input
             id="address"
             label={t('request.fieldAddress')}

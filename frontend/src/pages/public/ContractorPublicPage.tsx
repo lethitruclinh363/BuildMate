@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -67,6 +68,9 @@ export function ContractorPublicPage() {
   return (
     <PageTransition>
       <div className="px-4 py-6 md:px-8 md:py-10">
+        <div className="mx-auto max-w-5xl">
+          <BackButton fallback="/explore" />
+        </div>
         <ContractorProfileShowcase
           profile={payload.publicProfile}
           services={payload.services || []}

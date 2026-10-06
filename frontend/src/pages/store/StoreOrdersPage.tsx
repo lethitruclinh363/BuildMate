@@ -7,12 +7,12 @@ import { EmptyState } from '@/components/dashboard/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { useMaterialOrderLiveStore } from '@/features/material-orders/material-order-live';
 import { getApiErrorMessage } from '@/lib/api';
 import { materialStoreOrderApi } from '@/lib/material-order-api';
 import type { MaterialOrder } from '@/lib/material-order-api';
 import { vnd } from '@/lib/partner-api';
+import { useReturnState } from '@/lib/navigation';
 import { useI18n } from '@/locales';
 
 const FILTERS = ['all', 'DEPOSIT_PAID', 'CONFIRMED', 'PREPARING', 'DELIVERING', 'DELIVERED', 'COMPLETED', 'CANCELLED'] as const;
@@ -27,6 +27,7 @@ function when(value?: string) {
 
 export function StoreOrdersPage() {
   const { t } = useI18n();
+  const back = useReturnState();
   const tick = useMaterialOrderLiveStore((state) => state.tick);
   const [rows, setRows] = useState<MaterialOrder[]>([]);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('all');
@@ -79,12 +80,11 @@ export function StoreOrdersPage() {
           body={t('materialOrder.storeListBody')}
         />
       ) : (
-        <div className="grid gap-3">
+        <div className="divide-y divide-navy-800/10 overflow-hidden rounded-xl border border-navy-800/10 bg-white">
           {visible.map((order) => (
-            <Link key={order.id} to={`/store/orders/${order.id}`}>
-              <Card className="grid gap-3 md:grid-cols-[1.2fr_1fr_auto] md:items-center">
+            <Link key={order.id} to={`/store/orders/${order.id}`} state={back} className="grid gap-3 px-4 py-4 hover:bg-paper-100 md:grid-cols-[1.2fr_1fr_auto] md:items-center">
                 <div>
-                  <p className="font-display text-xl text-navy-800">{order.orderCode}</p>
+                  <p className="text-base font-semibold text-navy-800">{order.orderCode}</p>
                   <p className="mt-1 text-sm text-ink-500">{order.customer?.name || t('materialOrder.customer')}</p>
                   <p className="text-xs text-ink-400">{when(order.createdAt)}</p>
                 </div>
@@ -103,7 +103,6 @@ export function StoreOrdersPage() {
                   </div>
                 </dl>
                 <p className="text-sm font-semibold text-navy-800">{t(`materialOrder.status.${order.status}`)}</p>
-              </Card>
             </Link>
           ))}
         </div>

@@ -5,7 +5,7 @@ import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
-import { Card } from '@/components/ui/Card';
+import { itemListClass, ListRow } from '@/components/ui/surfaces';
 import { labeled, useI18n } from '@/locales';
 import { ComplaintStatusBadge } from '../components/ComplaintStatusBadge';
 import { ComplaintTimeline } from '../components/ComplaintTimeline';
@@ -25,9 +25,9 @@ export function CustomerComplaintsPage() {
       {items.length === 0 ? (
         <EmptyState icon={<Inbox className="h-5 w-5" />} title={t('complaint.empty')} body={t('complaint.emptyBody')} />
       ) : (
-        <div className="space-y-4">
+        <div className={itemListClass}>
           {items.map((row) => (
-            <Card key={row.id} hover={false}>
+            <ListRow key={row.id}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs text-ink-400">{new Date(row.createdAt).toLocaleString(tag)}</p>
@@ -43,7 +43,7 @@ export function CustomerComplaintsPage() {
               <Link to={`/customer/orders/${row.orderId}`} className="mt-3 inline-block text-sm font-semibold text-navy-800">
                 {t('common.viewDetail')}
               </Link>
-            </Card>
+            </ListRow>
           ))}
         </div>
       )}

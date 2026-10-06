@@ -23,15 +23,16 @@ import { useContractorDashboardStats } from '@/features/analytics/hooks/useContr
 import { ActivationPanel } from '@/components/partner/ActivationPanel';
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
 import { vnd } from '@/lib/partner-api';
+import { useReturnState } from '@/lib/navigation';
 import { labeled, useI18n } from '@/locales';
 
 function OpsKpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <Card hover={false} className="min-h-[96px]">
-      <p className="text-sm text-ink-400">{label}</p>
-      <p className="mt-2 font-display text-3xl text-navy-800">{value}</p>
+    <div className="rounded-xl border border-navy-800/10 bg-white px-4 py-3">
+      <p className="text-sm text-ink-500">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-navy-800">{value}</p>
       {hint ? <p className="mt-1 text-xs text-ink-400">{hint}</p> : null}
-    </Card>
+    </div>
   );
 }
 
@@ -39,6 +40,7 @@ export function ContractorDashboardPage() {
   const { data: workspace, loading: workspaceLoading, refresh } = useContractorWorkspace();
   const { data: stats, loading: statsLoading, error: statsError, reload: reloadStats } = useContractorDashboardStats();
   const { t } = useI18n();
+  const back = useReturnState();
 
   if (workspaceLoading || !workspace) return <DashboardSkeleton />;
 
@@ -117,10 +119,10 @@ export function ContractorDashboardPage() {
             <ContractorOrderTrendChart data={stats.ordersByMonth} />
           </div>
 
-          <div className="mt-6 grid gap-5 lg:grid-cols-2">
-            <Card hover={false}>
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl text-navy-800">{t('contractorHome.recentRequests')}</h2>
+          <div className="mt-8 grid gap-8 lg:grid-cols-2">
+            <section>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-navy-800">{t('contractorHome.recentRequests')}</h2>
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/contractor/requests">{t('contractorHome.viewAll')}</Link>
                 </Button>
@@ -134,9 +136,9 @@ export function ContractorDashboardPage() {
                   />
                 </div>
               ) : (
-                <ul className="mt-4 space-y-3">
+                <ul className="divide-y divide-navy-800/10">
                   {stats.recentRequests.map((row) => (
-                    <li key={row.id} className="rounded-2xl border border-ink-100 px-3 py-3">
+                    <li key={row.id} className="py-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-medium text-navy-800">{row.title}</p>
                         <Badge tone="mist">{labeled(t, 'status', row.status)}</Badge>
@@ -146,11 +148,11 @@ export function ContractorDashboardPage() {
                   ))}
                 </ul>
               )}
-            </Card>
+            </section>
 
-            <Card hover={false}>
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl text-navy-800">{t('contractorHome.needsAssign')}</h2>
+            <section>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-navy-800">{t('contractorHome.needsAssign')}</h2>
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/contractor/orders">{t('contractorHome.viewAll')}</Link>
                 </Button>
@@ -164,12 +166,13 @@ export function ContractorDashboardPage() {
                   />
                 </div>
               ) : (
-                <ul className="mt-4 space-y-3">
+                <ul className="divide-y divide-navy-800/10">
                   {stats.needsAssign.map((row) => (
                     <li key={row.id}>
                       <Link
                         to={`/contractor/orders/${row.id}`}
-                        className="block rounded-2xl border border-ink-100 px-3 py-3 transition hover:border-copper-300"
+                        state={back}
+                        className="block py-3"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -184,24 +187,24 @@ export function ContractorDashboardPage() {
                   ))}
                 </ul>
               )}
-            </Card>
+            </section>
           </div>
         </>
       )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {catalogKpis.map((s) => (
-          <Card key={s.label}>
-            <p className="text-sm text-ink-400">{s.label}</p>
-            <p className="mt-3 font-display text-3xl text-navy-800">{s.value}</p>
-          </Card>
+          <div key={s.label} className="rounded-xl border border-navy-800/10 bg-white px-4 py-3">
+            <p className="text-sm text-ink-500">{s.label}</p>
+            <p className="mt-1 text-2xl font-semibold text-navy-800">{s.value}</p>
+          </div>
         ))}
       </div>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-2" hover={false}>
+      <div className="mt-8 grid gap-8 border-t border-navy-800/10 pt-6 lg:grid-cols-3">
+        <section className="lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-xl text-navy-800">{t('contractorHome.storefront')}</h2>
+            <h2 className="text-lg font-semibold text-navy-800">{t('contractorHome.storefront')}</h2>
             {store ? (
               <Badge tone="success">{labeled(t, 'status', store.status)}</Badge>
             ) : (
@@ -219,9 +222,9 @@ export function ContractorDashboardPage() {
           ) : (
             <p className="mt-4 text-sm text-ink-400">{t('contractorHome.publishHint')}</p>
           )}
-        </Card>
-        <Card hover={false}>
-          <h2 className="font-display text-xl text-navy-800">{t('contractorHome.nextTitle')}</h2>
+        </section>
+        <section>
+          <h2 className="text-lg font-semibold text-navy-800">{t('contractorHome.nextTitle')}</h2>
           <ul className="mt-3 space-y-2 text-sm text-ink-600">
             <li>
               <Link to="/contractor/requests" className="font-semibold text-copper-600">
@@ -239,7 +242,7 @@ export function ContractorDashboardPage() {
               </Link>
             </li>
           </ul>
-        </Card>
+        </section>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

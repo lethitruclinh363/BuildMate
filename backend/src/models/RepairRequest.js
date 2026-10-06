@@ -53,6 +53,12 @@ const repairRequestSchema = new mongoose.Schema(
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], default: [105.746, 10.045] },
     },
+    locationConfirmed: { type: Boolean, default: false },
+    locationSource: {
+      type: String,
+      enum: ['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN'],
+    },
+    locationConfirmedAt: { type: Date, default: null },
     status: {
       type: String,
       enum: Object.values(REQUEST_STATUS),
@@ -82,6 +88,9 @@ repairRequestSchema.methods.toPublic = function toPublic() {
     videos: this.videos,
     address: this.address,
     location: this.location,
+    locationConfirmed: Boolean(this.locationConfirmed),
+    locationSource: this.locationSource || '',
+    locationConfirmedAt: this.locationConfirmedAt || null,
     place: describePlace({ location: this.location, address: this.address }),
     status: this.status,
     createdAt: this.createdAt,

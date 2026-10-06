@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useReturnState } from '@/lib/navigation';
 import { Clock, MapPin, Star } from 'lucide-react';
+import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -32,6 +34,7 @@ function openingStatus(hours: string | undefined, t: (path: string, vars?: Recor
 
 export function StorePublicPage() {
   const { t } = useI18n();
+  const back = useReturnState();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<{
@@ -90,6 +93,9 @@ export function StorePublicPage() {
   if (store.storeType === 'MATERIALS' && payload.publicProfile) {
     return (
       <PageTransition>
+        <div className="mx-auto max-w-6xl px-4 pt-6 md:px-8">
+          <BackButton fallback="/explore" />
+        </div>
         <StoreProfileShowcase
           profile={{ ...payload.publicProfile, verified: true, displayName: payload.publicProfile.displayName || store.name }}
           categories={payload.categories || []}
@@ -105,6 +111,7 @@ export function StorePublicPage() {
   return (
     <PageTransition>
       <div className="mx-auto max-w-6xl px-4 py-10 md:px-8">
+        <BackButton fallback="/explore" />
         <div className="overflow-hidden rounded-[22px] border border-navy-800/8 bg-white shadow-card">
           <div className="relative h-56 bg-navy-800 md:h-72">
             {store.coverImage ? (
@@ -139,7 +146,7 @@ export function StorePublicPage() {
               ) : (
                 <>
                   <Button asChild variant="outline">
-                    <Link to={`/contractors/${store.contractorId}`}>{t('public.crewProfile')}</Link>
+                    <Link to={`/contractors/${store.contractorId}`} state={back}>{t('public.crewProfile')}</Link>
                   </Button>
                   <RequestRepairButton contractorId={store.contractorId} storeId={store.id} size="md" />
                 </>

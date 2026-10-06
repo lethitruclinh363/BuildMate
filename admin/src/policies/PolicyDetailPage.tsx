@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { AdminBackButton } from '@/components/AdminBackButton';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { GlassCard } from '@/components/GlassCard';
@@ -42,15 +43,15 @@ export function PolicyDetailPage() {
 
   return (
     <div>
+      <AdminBackButton fallback="/policies" label={t('policy.back')} />
       <PageHeader
         eyebrow={t('policy.eyebrow')}
         title={policy.title}
         description={`${t(`policy.types.${policy.type}`)} · ${policy.language.toUpperCase()} · ${t('policy.version')} ${policy.version}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link to="/policies" className="self-center text-sm text-copper-300">{t('policy.back')}</Link>
-            <Button variant="outline" onClick={() => navigate(`/policies/${policy.id}/edit`)}>{t('policy.edit')}</Button>
-            <Button variant="ghost" onClick={() => navigate(`/policies/${policy.id}/history`)}>{t('policy.history')}</Button>
+            <Button variant="outline" onClick={() => navigate(`/policies/${policy.id}/edit`, { state: { from: `/policies/${policy.id}` } })}>{t('policy.edit')}</Button>
+            <Button variant="ghost" onClick={() => navigate(`/policies/${policy.id}/history`, { state: { from: `/policies/${policy.id}` } })}>{t('policy.history')}</Button>
           </div>
         }
       />

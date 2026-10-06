@@ -8,6 +8,7 @@ import { PageTransition } from '@/components/motion/PageTransition';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/cn';
 import { repairApi } from '@/features/chat/services/sprint4.api';
+import { useReturnState } from '@/lib/navigation';
 import { useI18n } from '@/locales';
 import { OrderCard } from '@/features/orders/components/OrderCard';
 import { useOrders } from '@/features/orders/hooks/useOrders';
@@ -19,6 +20,7 @@ type BoardFilter = OrderFilter | 'new';
 
 export function ContractorOrdersPage() {
   const { t } = useI18n();
+  const back = useReturnState();
   const { items, loading, error, reload } = useOrders('contractor');
   const [filter, setFilter] = useState<BoardFilter>('all');
   const [requests, setRequests] = useState<RepairRequest[]>([]);
@@ -53,9 +55,9 @@ export function ContractorOrdersPage() {
       <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {kpis.map((card) => (
           <button key={card.key} type="button" onClick={() => setFilter(card.key === 'new' ? 'new' : card.key)}>
-            <Card className={cn('h-full text-left', filter === card.key && 'ring-2 ring-copper-400')}>
-              <p className="text-sm text-ink-400">{card.label}</p>
-              <p className="mt-2 font-display text-3xl text-navy-800">{card.value}</p>
+            <Card className={cn('h-full p-4 text-left', filter === card.key && 'ring-2 ring-copper-400')}>
+              <p className="text-sm text-ink-500">{card.label}</p>
+              <p className="mt-1 text-2xl font-semibold text-navy-800">{card.value}</p>
             </Card>
           </button>
         ))}
@@ -66,7 +68,7 @@ export function ContractorOrdersPage() {
       {rows.length === 0 ? (
         <EmptyState icon={<ClipboardList className="h-5 w-5" />} title={t('orders.contractorEmpty')} body={t('orders.contractorEmptyBody')} />
       ) : (
-        <div className="space-y-4">
+        <div className="divide-y divide-navy-800/10 overflow-hidden rounded-xl border border-navy-800/10 bg-white">
           {rows.map((order) => {
             const request = requests.find((row) => String(row.id) === String(order.requestId));
             return (
@@ -74,6 +76,7 @@ export function ContractorOrdersPage() {
                 key={order.id}
                 order={order}
                 to={`/contractor/orders/${order.id}`}
+                state={back}
                 partyLabel={request?.customer?.name}
               />
             );

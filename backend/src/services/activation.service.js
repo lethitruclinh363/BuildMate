@@ -7,7 +7,7 @@ const { ApiError } = require('../utils/ApiError');
 // const { publicPricedServiceMatch } = require('../constants/contractor-services');
 const { publicPricedServiceMatch } = require('../constants/contractorServices');
 const materialCategoryService = require('./material-category.service');
-const { fromGeoPoint, isUnsetLocation } = require('../utils/geo');
+const { fromGeoPoint } = require('../utils/geo');
 
 const BLOCKED_ACCOUNTS = new Set([USER_STATUS.BLOCKED, USER_STATUS.BANNED]);
 
@@ -29,9 +29,7 @@ function isPartnerPubliclyVisible(partner) {
 function hasValidLocation(store) {
   const point = fromGeoPoint(store?.location);
   if (!point || (point.lat === 0 && point.lng === 0)) return false;
-  if (store.locationConfirmed === true) return true;
-  if (isUnsetLocation(point.lat, point.lng)) return false;
-  return true;
+  return store?.locationConfirmed === true;
 }
 
 function partnerKind(user, store) {

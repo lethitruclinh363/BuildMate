@@ -31,11 +31,8 @@ export function AuthLayout() {
       </aside>
       <main className="flex min-h-screen flex-col overflow-y-auto bg-paper-100 px-4 py-10">
         <div className="m-auto w-full max-w-md">
-          <div className="mb-8 flex items-center justify-between">
-            <div className="lg:hidden">
-              <Logo />
-            </div>
-            <LanguageSwitcher variant="light" placement="auth-form" className="ml-auto" />
+          <div className="mb-8 lg:hidden">
+            <Logo />
           </div>
           <Outlet />
         </div>

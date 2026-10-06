@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { goBackOrFallback } from '@/lib/navigation';
 import { Check } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
+import { FormLabel } from '@/components/ui/FormLabel';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { ContractorPortfolioUpload } from '@/components/partner/ContractorPortfolioUpload';
 import { ContractorServiceSelector } from '@/components/partner/ContractorServiceSelector';
 import { StoreCategorySelector } from '@/components/partner/StoreCategorySelector';
-import { isContractorService, mergeServiceStatus, type ContractorServicePick } from '@/data/contractor-services';
+import { isContractorService, mergeServiceStatus, registeredServiceId, type ContractorServicePick } from '@/data/contractor-services';
 import {
   isMaterialCategoryPick,
   mergeMaterialCategories,
@@ -24,6 +26,8 @@ import {
 import { api, getApiErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { contractorApi, materialStoreApi, mediaUrl } from '@/lib/partner-api';
+import { ContractorEkycWizard } from '@/features/ekyc/ContractorEkycWizard';
+import { ekycApi, type EkycRecord } from '@/features/ekyc/ekyc.api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { ContractorProfile, DocumentType, VerificationDocument } from '@/types/partner';
@@ -97,6 +101,7 @@ function inputClass(ok: boolean, touched: boolean) {
 
 export default function PartnerOnboardingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser, logout, refreshUser } = useAuth();
   const { t, locale } = useI18n();
   const pushToast = useToastStore((s) => s.push);
@@ -121,6 +126,9 @@ export default function PartnerOnboardingPage() {
   const [policyNonce, setPolicyNonce] = useState(0);
   const [phoneRejected, setPhoneRejected] = useState(false);
   const [autoState, setAutoState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [ekyc, setEkyc] = useState<EkycRecord | null>(null);
+  const [ekycNonce, setEkycNonce] = useState(0);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const statusRef = useRef(profile?.verificationStatus);
   statusRef.current = profile?.verificationStatus;
 
@@ -153,7 +161,11 @@ export default function PartnerOnboardingPage() {
         const base: StoredDraft = {
           businessName: next?.businessName || '',
           representativeName: next?.representativeName || '',
-          contactPhone: next?.contactPhone || currentUser.phoneNumber || currentUser.phone || '',
+          contactPhone:
+            next?.contactPhone ||
+            (typeof currentUser.phoneNumber === 'string' ? currentUser.phoneNumber : '') ||
+            currentUser.phone ||
+            '',
           contactEmail: next?.contactEmail || currentUser.email || '',
           workerCount: next?.workerCount ? String(next.workerCount) : '',
           taxCode: next?.taxCode || '',
@@ -305,10 +317,18 @@ export default function PartnerOnboardingPage() {
   const avatarOk = Boolean(profile?.portfolio?.avatar);
   const logoOk = Boolean(profile?.portfolio?.teamLogo);
   const workshopOk = Boolean(profile?.portfolio?.workshop);
-  const imagesOk = storeOwner ? portfolioDocs.length >= 1 : avatarOk && logoOk && workshopOk;
+  const registeredServices = profile?.services?.length ? profile.services : crewServices;
+  const projectProblem = (profile?.portfolio?.projects || []).find((project) => {
+    const known = registeredServices.some((item) => registeredServiceId(item) === project.serviceId);
+    return !known || !project.description.trim() || project.images.length < 1 || project.images.length > 4;
+  });
+  const projectsOk = !projectProblem;
+  const imagesOk = storeOwner ? portfolioDocs.length >= 1 : avatarOk && logoOk && workshopOk && projectsOk;
   const addressOk = draft.address.trim().length >= 4;
   const cityOk = draft.city.trim().length >= 2;
-  const verifyOk = requiredDocs.every((type) => documents.some((doc) => doc.type === type));
+  const verifyOk = storeOwner
+    ? requiredDocs.every((type) => documents.some((doc) => doc.type === type))
+    : requiredDocs.every((type) => documents.some((doc) => doc.type === type)) && ekyc?.status === 'SUBMITTED';
   const dataValid = useMemo(
     () => [
       storeOwner ? nameOk && aboutOk : crewOk,
@@ -325,6 +345,21 @@ export default function PartnerOnboardingPage() {
   useEffect(() => {
     if (!sameCompleted(completed, settled)) setCompleted(settled);
   }, [completed, settled]);
+
+  useEffect(() => {
+    if (storeOwner || !currentUser?.id) return undefined;
+    let cancelled = false;
+    ekycApi.current()
+      .then((row) => {
+        if (!cancelled) setEkyc(row);
+      })
+      .catch(() => {
+        if (!cancelled) setEkyc(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [storeOwner, currentUser?.id, ekycNonce]);
 
   useEffect(() => {
     if (!ready || !profile) return;
@@ -344,6 +379,7 @@ export default function PartnerOnboardingPage() {
   }, [ready, settled, step]);
 
   const persistPartialRef = useRef<() => Promise<boolean>>(async () => false);
+  const projectSync = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     if (!ready || storeOwner) return;
@@ -400,6 +436,13 @@ export default function PartnerOnboardingPage() {
     if (step === 2 && !storeOwner && !avatarOk) return t('auth.onboardAvatarRequired');
     if (step === 2 && !storeOwner && !logoOk) return t('auth.onboardLogoRequired');
     if (step === 2 && !storeOwner && !workshopOk) return t('auth.onboardWorkshopRequired');
+    if (step === 2 && !storeOwner && projectProblem) {
+      const known = registeredServices.some((item) => registeredServiceId(item) === projectProblem.serviceId);
+      if (!known) return t('auth.projectTypeRequired');
+      if (!projectProblem.description.trim()) return t('auth.projectDescriptionRequired');
+      if (projectProblem.images.length > 4) return t('auth.projectImageMax');
+      return t('auth.projectImageRequired');
+    }
     if (step === 3 && !addressOk) return t('auth.onboardAddressRequired');
     if (step === 3 && !cityOk) return t('auth.onboardCityRequired');
     if (step === 4 && !cccdFrontOk) return t('auth.onboardCccdFrontRequired');
@@ -465,7 +508,11 @@ export default function PartnerOnboardingPage() {
                   ? 'onboard-avatar'
                   : !logoOk
                     ? 'onboard-teamLogo'
-                    : 'onboard-workshop'
+                    : !workshopOk
+                      ? 'onboard-workshop'
+                      : projectProblem
+                        ? `onboard-project-${projectProblem.id}`
+                        : 'onboard-projects'
               : index === 3
                 ? !addressOk
                   ? 'onboard-address'
@@ -616,6 +663,11 @@ export default function PartnerOnboardingPage() {
       focusInvalid(step);
       return;
     }
+    try {
+      await projectSync.current?.();
+    } catch {
+      return;
+    }
     const next = settled.slice();
     next[step] = true;
     const savedSteps = pruneCompleted(next, dataValid);
@@ -739,11 +791,12 @@ export default function PartnerOnboardingPage() {
                       ? t('auth.onboardCrewPortfolioLead')
                       : steps[step].lead}
               </p>
+              <p className="mt-2 text-xs text-ink-400">{t('auth.onboardRequiredNote')}</p>
 
               {step === 0 && !storeOwner ? (
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.onboardTeam')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.onboardTeam')}</FormLabel>
                     <input
                       id="onboard-businessName"
                       className={inputClass(nameOk, Boolean(touched.businessName))}
@@ -753,8 +806,8 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.businessName && !nameOk ? <span className="mt-1 block text-xs font-normal text-red-600">{t('auth.onboardTeamRequired')}</span> : null}
                   </label>
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.onboardRepresentative')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.onboardRepresentative')}</FormLabel>
                     <input
                       id="onboard-representativeName"
                       className={inputClass(repOk, Boolean(touched.representativeName))}
@@ -764,8 +817,8 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.representativeName && !repOk ? <span className="mt-1 block text-xs font-normal text-red-600">{t('auth.onboardRepresentativeRequired')}</span> : null}
                   </label>
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.phone')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.phone')}</FormLabel>
                     <input
                       id="onboard-contactPhone"
                       className={inputClass(phoneOk, Boolean(touched.contactPhone))}
@@ -784,8 +837,8 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.contactPhone && !phoneOk ? <span className="mt-1 block text-xs font-normal text-red-600">{phoneMessage}</span> : null}
                   </label>
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.email')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.email')}</FormLabel>
                     <input
                       id="onboard-contactEmail"
                       className={inputClass(emailOk, Boolean(touched.contactEmail))}
@@ -797,8 +850,8 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.contactEmail && !emailOk ? <span className="mt-1 block text-xs font-normal text-red-600">{emailMessage}</span> : null}
                   </label>
-                  <label className="block text-sm font-medium text-navy-800 sm:col-span-2">
-                    {t('auth.onboardDescription')}
+                  <label className="block sm:col-span-2">
+                    <FormLabel required>{t('auth.onboardDescription')}</FormLabel>
                     <textarea
                       id="onboard-description"
                       className={inputClass(descriptionOk, Boolean(touched.description))}
@@ -809,8 +862,8 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.description && !descriptionOk ? <span className="mt-1 block text-xs font-normal text-red-600">{t('auth.onboardDescriptionRequired')}</span> : null}
                   </label>
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.onboardYears')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.onboardYears')}</FormLabel>
                     <input
                       id="onboard-years"
                       className={inputClass(yearsOk, Boolean(touched.yearsExperience))}
@@ -826,8 +879,8 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.yearsExperience && !yearsOk ? <span className="mt-1 block text-xs font-normal text-red-600">{t('auth.onboardYearsRequired')}</span> : null}
                   </label>
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.onboardWorkers')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.onboardWorkers')}</FormLabel>
                     <input
                       id="onboard-workers"
                       className={inputClass(workersOk, Boolean(touched.workerCount))}
@@ -853,8 +906,8 @@ export default function PartnerOnboardingPage() {
 
               {step === 0 && storeOwner ? (
                 <div className="mt-5 space-y-4">
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.onboardBusiness')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.onboardBusiness')}</FormLabel>
                     <input
                       id="onboard-businessName"
                       className={inputClass(nameOk, Boolean(touched.businessName))}
@@ -864,12 +917,12 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.businessName && !nameOk ? <span className="mt-1 block text-xs text-red-600">{t('auth.onboardNameRequired')}</span> : null}
                   </label>
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.onboardTax')}
+                  <label className="block">
+                    <FormLabel optional={t('auth.onboardOptionalMark')}>{t('auth.onboardTax')}</FormLabel>
                     <input className={inputClass(true, false)} maxLength={30} value={draft.taxCode} onChange={(event) => patch('taxCode', event.target.value)} />
                   </label>
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.onboardAbout')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.onboardAbout')}</FormLabel>
                     <textarea
                       id="onboard-description"
                       className={inputClass(aboutOk, Boolean(touched.description))}
@@ -884,7 +937,10 @@ export default function PartnerOnboardingPage() {
               ) : null}
 
               {step === 1 && !storeOwner ? (
-                <div id="onboard-services">
+                <div id="onboard-services" className={cn('mt-5', touched.services && !serviceOk && 'rounded-xl ring-1 ring-red-400')}>
+                <p className="mb-3">
+                  <FormLabel required>{steps[1].label}</FormLabel>
+                </p>
                 <ContractorServiceSelector
                   selected={crewServices}
                   onChange={(next) => {
@@ -901,7 +957,10 @@ export default function PartnerOnboardingPage() {
               ) : null}
 
               {step === 1 && storeOwner ? (
-                <div>
+                <div className={cn('mt-5', touched.services && !serviceOk && 'rounded-xl ring-1 ring-red-400')}>
+                  <p className="mb-3">
+                    <FormLabel required>{steps[1].label}</FormLabel>
+                  </p>
                   <StoreCategorySelector
                     selected={storeCategories}
                     onChange={(next) => {
@@ -916,20 +975,29 @@ export default function PartnerOnboardingPage() {
               {step === 2 && !storeOwner ? (
                 <div id="onboard-images" tabIndex={-1}>
                 <ContractorPortfolioUpload
+                  profile={profile}
                   portfolio={profile?.portfolio}
+                  services={registeredServices}
+                  syncRef={projectSync}
                   disabled={busy}
+                  showErrors={Boolean(touched.images)}
                   onProfile={setProfile}
                   onError={setError}
+                  errors={{
+                    avatar: touched.images && !avatarOk ? t('auth.onboardAvatarRequired') : '',
+                    teamLogo: touched.images && !logoOk ? t('auth.onboardLogoRequired') : '',
+                    workshop: touched.images && !workshopOk ? t('auth.onboardWorkshopRequired') : '',
+                  }}
                 />
-                {touched.images && !avatarOk ? <p className="mt-3 text-xs text-red-600">{t('auth.onboardAvatarRequired')}</p> : null}
-                {touched.images && avatarOk && !logoOk ? <p className="mt-3 text-xs text-red-600">{t('auth.onboardLogoRequired')}</p> : null}
-                {touched.images && avatarOk && logoOk && !workshopOk ? <p className="mt-3 text-xs text-red-600">{t('auth.onboardWorkshopRequired')}</p> : null}
                 </div>
               ) : null}
 
               {step === 2 && storeOwner ? (
                 <div id="onboard-images" tabIndex={-1} className="mt-5 space-y-4">
-                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-navy-800/20 bg-paper-50 px-4 py-8 text-center text-sm font-semibold text-navy-800">
+                  <div>
+                  <FormLabel required>{t('auth.onboardPortfolio')}</FormLabel>
+                  <p className="mt-1 text-xs text-ink-400">{t('auth.onboardImageHint')}</p>
+                  <label className={cn('mt-2 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed bg-paper-50 px-4 py-8 text-center text-sm font-medium text-navy-800', touched.images && !imagesOk ? 'border-red-500' : 'border-navy-800/20')}>
                     {t('auth.onboardPortfolio')}
                     <input
                       className="sr-only"
@@ -943,6 +1011,7 @@ export default function PartnerOnboardingPage() {
                       }}
                     />
                   </label>
+                  </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {portfolioDocs.map((doc) => (
                       <DocTile key={doc._id} doc={doc} busy={busy} onRemove={() => void removeDoc(doc._id)} removeLabel={t('common.remove')} />
@@ -954,8 +1023,8 @@ export default function PartnerOnboardingPage() {
 
               {step === 3 ? (
                 <div className="mt-5 space-y-4">
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.onboardAddress')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.onboardAddress')}</FormLabel>
                     <input
                       id="onboard-address"
                       className={inputClass(addressOk, Boolean(touched.address))}
@@ -965,8 +1034,8 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.address && !addressOk ? <span className="mt-1 block text-xs text-red-600">{t('auth.onboardAddressRequired')}</span> : null}
                   </label>
-                  <label className="block text-sm font-medium text-navy-800">
-                    {t('auth.onboardCity')}
+                  <label className="block">
+                    <FormLabel required>{t('auth.onboardCity')}</FormLabel>
                     <input
                       id="onboard-city"
                       className={inputClass(cityOk, Boolean(touched.city))}
@@ -982,9 +1051,13 @@ export default function PartnerOnboardingPage() {
               {step === 4 ? (
                 <div id="onboard-docs" tabIndex={-1} className="mt-5 space-y-6">
                   <section className="space-y-3">
-                    <h3 className="text-sm font-semibold text-navy-800">{t('docType.ID_CARD')} *</h3>
+                    <h3 className="text-sm font-semibold text-navy-800">{t('docType.ID_CARD')}</h3>
+                    {storeOwner ? (
+                      <>
                     <VerifySlot
                       id="onboard-cccd-front"
+                      required
+                      error={touched.documents && !cccdFrontOk ? t('auth.onboardCccdFrontRequired') : ''}
                       title={t('docType.CCCD_FRONT')}
                       doc={docByType('CCCD_FRONT')}
                       busy={busy}
@@ -997,6 +1070,8 @@ export default function PartnerOnboardingPage() {
                     />
                     <VerifySlot
                       id="onboard-cccd-back"
+                      required
+                      error={touched.documents && !cccdBackOk ? t('auth.onboardCccdBackRequired') : ''}
                       title={t('docType.CCCD_BACK')}
                       doc={docByType('CCCD_BACK')}
                       busy={busy}
@@ -1007,11 +1082,27 @@ export default function PartnerOnboardingPage() {
                       onUpload={(list) => void uploadFiles(list, 'CCCD_BACK', false)}
                       onRemove={(id) => void removeDoc(id)}
                     />
+                      </>
+                    ) : (
+                      <div className="space-y-3 rounded-2xl border border-navy-800/10 p-4">
+                        <p className="text-sm text-ink-500">{t('ekyc.intro')}</p>
+                        <p className="text-sm font-semibold text-navy-800">
+                          {t('ekyc.statusLabel')}: {ekyc?.status || 'NOT_STARTED'}
+                        </p>
+                        {ekyc?.retakeReason ? <p className="text-sm text-navy-800">{ekyc.retakeReason}</p> : null}
+                        {touched.documents && ekyc?.status !== 'SUBMITTED' ? <p className="text-xs text-red-600">{t('ekyc.needSubmit')}</p> : null}
+                        <button type="button" className="rounded-full bg-navy-800 px-4 py-2 text-sm font-semibold text-white" onClick={() => setWizardOpen(true)}>
+                          {t('ekyc.open')}
+                        </button>
+                      </div>
+                    )}
                   </section>
                   <section className="space-y-3">
-                    <h3 className="text-sm font-semibold text-navy-800">{t('docType.BUSINESS_LICENSE')} *</h3>
+                    <h3 className="text-sm font-semibold text-navy-800">{t('docType.BUSINESS_LICENSE')}</h3>
                     <VerifySlot
                       id="onboard-license"
+                      required
+                      error={touched.documents && !licenseOk ? t('auth.onboardLicenseRequired') : ''}
                       title={t('docType.BUSINESS_LICENSE')}
                       doc={docByType('BUSINESS_LICENSE')}
                       busy={busy}
@@ -1024,13 +1115,13 @@ export default function PartnerOnboardingPage() {
                     />
                   </section>
                   <section className="space-y-3">
-                    <h3 className="text-sm font-semibold text-navy-800">
-                      {t('docType.CERTIFICATE')}
-                      {storeOwner ? '' : ' *'}
-                    </h3>
+                    <h3 className="text-sm font-semibold text-navy-800">{t('docType.CERTIFICATE')}</h3>
                     {storeOwner ? <p className="text-xs text-ink-400">{t('auth.onboardOptionalCert')}</p> : null}
                     <VerifySlot
                       id="onboard-certificate"
+                      required={!storeOwner}
+                      optional={storeOwner ? t('auth.onboardOptionalMark') : undefined}
+                      error={touched.documents && !storeOwner && !certificateOk ? t('auth.onboardCertificateRequired') : ''}
                       title={t('docType.CERTIFICATE')}
                       doc={docByType('CERTIFICATE')}
                       busy={busy}
@@ -1081,7 +1172,7 @@ export default function PartnerOnboardingPage() {
                         setTouched((current) => ({ ...current, agreed: true }));
                       }}
                     />
-                    <span>{t('auth.onboardAgreeTerms')}</span>
+                    <FormLabel required>{t('auth.onboardAgreeTerms')}</FormLabel>
                   </label>
                   {touched.agreed && !agreed ? <p className="text-xs text-red-600">{t('auth.onboardTermsRequired')}</p> : null}
                   <label className="flex items-start gap-3 text-sm text-navy-800">
@@ -1095,7 +1186,7 @@ export default function PartnerOnboardingPage() {
                         setTouched((current) => ({ ...current, accurate: true }));
                       }}
                     />
-                    <span>{t('auth.onboardConfirmAccurate')}</span>
+                    <FormLabel required>{t('auth.onboardConfirmAccurate')}</FormLabel>
                   </label>
                   {touched.accurate && !accurate ? <p className="text-xs text-red-600">{t('auth.onboardAccurateRequired')}</p> : null}
                 </div>
@@ -1105,6 +1196,16 @@ export default function PartnerOnboardingPage() {
               {hint ? <p className="mt-4 text-sm text-ink-400">{hint}</p> : null}
 
               <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row">
+                {step === 0 ? (
+                  <button
+                    type="button"
+                    className="h-12 flex-1 rounded-full border border-navy-800/15 text-sm font-semibold text-navy-800 disabled:opacity-60"
+                    disabled={busy}
+                    onClick={() => goBackOrFallback(navigate, location, '/')}
+                  >
+                    {t('common.back')}
+                  </button>
+                ) : null}
                 {step > 0 ? (
                   <button
                     type="button"
@@ -1144,6 +1245,21 @@ export default function PartnerOnboardingPage() {
             </section>
           </div>
       </main>
+      {wizardOpen && !storeOwner ? (
+        <ContractorEkycWizard
+          t={t}
+          onClose={() => {
+            setWizardOpen(false);
+            setEkycNonce((value) => value + 1);
+          }}
+          onFinished={async () => {
+            setWizardOpen(false);
+            setEkycNonce((value) => value + 1);
+            const res = await contractorApi.getProfile();
+            setProfile(res.data.data);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1151,6 +1267,9 @@ export default function PartnerOnboardingPage() {
 function VerifySlot({
   id,
   title,
+  required,
+  optional,
+  error,
   doc,
   busy,
   uploadLabel,
@@ -1162,6 +1281,9 @@ function VerifySlot({
 }: {
   id: string;
   title: string;
+  required?: boolean;
+  optional?: string;
+  error?: string;
   doc?: VerificationDocument;
   busy: boolean;
   uploadLabel: string;
@@ -1172,9 +1294,9 @@ function VerifySlot({
   onRemove: (id: string) => void;
 }) {
   return (
-    <div id={id} tabIndex={-1} className="rounded-2xl border border-navy-800/10 p-3">
-      <p className="text-sm font-medium text-navy-800">{title}</p>
-      <label className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-navy-800/20 bg-paper-50 px-4 py-4 text-center text-sm font-semibold text-navy-800">
+    <div id={id} tabIndex={-1} className={cn('rounded-xl border p-3', error ? 'border-red-400' : 'border-navy-800/10')}>
+      <FormLabel required={required} optional={optional}>{title}</FormLabel>
+      <label className={cn('mt-2 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed bg-paper-50 px-4 py-4 text-center text-sm font-medium text-navy-800', error ? 'border-red-500' : 'border-navy-800/20')}>
         {uploadLabel}
         <input
           className="sr-only"
@@ -1202,6 +1324,7 @@ function VerifySlot({
           </button>
         ) : null}
       </div>
+      {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
     </div>
   );
 }

@@ -71,7 +71,7 @@ export function Sidebar() {
           cn(
             'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/55 transition hover:bg-white/6 hover:text-white',
             collapsed && 'justify-center px-2',
-            isActive && 'bg-copper-500/15 text-copper-300'
+            isActive && 'bg-copper-500/15 font-semibold text-copper-300'
           )
         }
       >
@@ -106,11 +106,11 @@ export function Sidebar() {
       </div>
       <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
         {items.map((item) => renderNavItem(item))}
-        <p className={cn('px-3 pb-1 pt-4 text-[10px] uppercase tracking-[0.18em] text-white/35', collapsed && 'px-2 text-center')}>
+        <p className={cn('px-3 pb-1 pt-4 text-xs font-semibold uppercase text-white/40', collapsed && 'px-2 text-center')}>
           {collapsed ? '·' : t('nav.partners')}
         </p>
         {partnerItems.map((item) => renderNavItem(item))}
-        <p className={cn('px-3 pb-1 pt-4 text-[10px] uppercase tracking-[0.18em] text-white/35', collapsed && 'px-2 text-center')}>
+        <p className={cn('px-3 pb-1 pt-4 text-xs font-semibold uppercase text-white/40', collapsed && 'px-2 text-center')}>
           {collapsed ? '·' : t('nav.system')}
         </p>
         {systemItems.map((item) => renderNavItem(item))}

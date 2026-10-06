@@ -48,6 +48,24 @@ export function rememberedGpsOrigin(): LatLng | null {
   }
 }
 
+export function autocompleteFocus(
+  origin?: { lat: number; lng: number; source?: string } | null,
+  mapCenter?: LatLng | null,
+): LatLng | null {
+  const gps = rememberedGpsOrigin();
+  if (gps) return gps;
+  if (origin?.source && Number.isFinite(origin.lat) && Number.isFinite(origin.lng)) {
+    return { lat: origin.lat, lng: origin.lng };
+  }
+  if (mapCenter && Number.isFinite(mapCenter.lat) && Number.isFinite(mapCenter.lng)) {
+    return { lat: mapCenter.lat, lng: mapCenter.lng };
+  }
+  if (origin && Number.isFinite(origin.lat) && Number.isFinite(origin.lng)) {
+    return { lat: origin.lat, lng: origin.lng };
+  }
+  return null;
+}
+
 const SAVED_PLACE_KEY = 'buildmate-saved-place';
 
 export function loadSavedPlace(): PlacePin | null {
@@ -79,6 +97,35 @@ export function openGoogleMapsDirections(lat: number, lng: number, origin?: LatL
 
 export function mapSearchUrl(lat: number, lng: number) {
   return sharedMapSearchUrl(lat, lng);
+}
+
+export function persistedLocationSource(source?: string) {
+  if (source === 'GPS') return 'GPS' as const;
+  if (source === 'VIETMAP_PLACE' || source === 'VIETMAP_AUTOCOMPLETE') return 'VIETMAP_PLACE' as const;
+  return 'MANUAL_PIN' as const;
+}
+
+export function storeLocationPatch(origin: {
+  lat: number;
+  lng: number;
+  label?: string;
+  address?: string;
+  city?: string;
+  source?: string;
+  refId?: string;
+  locationConfirmed?: boolean;
+}) {
+  const address = (origin.address || origin.label || '').trim();
+  const city = (origin.city || '').trim();
+  return {
+    lat: origin.lat,
+    lng: origin.lng,
+    locationConfirmed: origin.locationConfirmed === true,
+    locationSource: persistedLocationSource(origin.source),
+    ...(origin.refId ? { providerRefId: origin.refId } : {}),
+    ...(address.length >= 4 ? { address: address.slice(0, 200) } : {}),
+    ...(city ? { city: city.slice(0, 80) } : {}),
+  };
 }
 
 export function formatCoordinates(lat: number, lng: number, digits = 5) {

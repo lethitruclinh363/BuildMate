@@ -14,13 +14,13 @@ export function ServicesSection() {
   ];
 
   return (
-    <section id="services" className="mx-auto max-w-7xl px-4 py-24 md:px-8">
+    <section id="services" className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-10">
       <p className="text-xs uppercase tracking-[0.28em] text-copper-500">{t('landing.servicesEyebrow')}</p>
-      <h2 className="mt-3 font-display text-3xl text-navy-800 md:text-5xl">{t('landing.servicesTitle')}</h2>
+      <h2 className="mt-3 font-display text-3xl text-navy-800 md:text-4xl">{t('landing.servicesTitle')}</h2>
       <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {services.map((s) => (
-          <Card key={s.name} className="flex items-center gap-4">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-navy-800 text-paper-50">
+          <Card key={s.name} className="flex min-h-[80px] items-center gap-4 px-5 py-4">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-navy-800/8 text-navy-800">
               <s.icon className="h-5 w-5" />
             </span>
             <div>

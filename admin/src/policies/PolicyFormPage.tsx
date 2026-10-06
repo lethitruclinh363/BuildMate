@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { AdminBackButton } from '@/components/AdminBackButton';
 import { Button } from '@/components/Button';
 import { GlassCard } from '@/components/GlassCard';
 import { Input } from '@/components/Input';
@@ -77,10 +78,10 @@ export function PolicyFormPage({ mode }: { mode: 'create' | 'edit' }) {
 
   return (
     <div>
+      <AdminBackButton fallback={mode === 'edit' && id ? `/policies/${id}` : '/policies'} label={t('policy.back')} />
       <PageHeader
         eyebrow={t('policy.eyebrow')}
         title={mode === 'create' ? t('policy.newTitle') : t('policy.editTitle')}
-        actions={<Link to="/policies" className="text-sm text-copper-300">{t('policy.back')}</Link>}
       />
       <GlassCard>
         <form className="grid gap-4" onSubmit={onSubmit}>

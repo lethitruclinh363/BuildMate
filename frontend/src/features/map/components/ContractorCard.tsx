@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useReturnState } from '@/lib/navigation';
 import { BadgeCheck, MapPin, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -27,6 +28,7 @@ export function ContractorResultCard({
   onHover?: () => void;
 }) {
   const { t } = useI18n();
+  const back = useReturnState();
   const photo = place.avatar || place.logo || '';
   const intro = meaningfulIntro(place.description);
   const trades = [...new Set(place.services.map((service) => catalogCategoryLabel(service.category, t)))].slice(0, 2);
@@ -35,9 +37,9 @@ export function ContractorResultCard({
 
   return (
     <div id={`place-contractor-${place.id}`} className="scroll-mt-24">
-    <Card hover={false} className={`flex h-full min-h-[220px] flex-col p-4 sm:p-6 ${active ? 'ring-2 ring-copper-400' : ''}`} onClick={onHover}>
+    <Card hover={false} className={`flex h-full flex-col p-4 ${active ? 'ring-2 ring-copper-400' : ''}`} onClick={onHover}>
       <div className="flex gap-4">
-        <Link to={profilePath} className="h-14 w-14 shrink-0 sm:h-[72px] sm:w-[72px]" aria-label={name}>
+        <Link to={profilePath} state={back} className="h-14 w-14 shrink-0 sm:h-[72px] sm:w-[72px]" aria-label={name}>
           <MediaFrame
             src={photo}
             alt={name}
@@ -48,7 +50,7 @@ export function ContractorResultCard({
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Link to={profilePath} className="font-display text-xl text-navy-800 hover:text-copper-600 sm:text-[22px]">
+            <Link to={profilePath} state={back} className="font-display text-xl text-navy-800 hover:text-copper-600 sm:text-[22px]">
               {name}
             </Link>
             {place.verified ? (
@@ -77,7 +79,7 @@ export function ContractorResultCard({
       </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-5">
         <Button asChild size="sm" variant="outline">
-          <Link to={profilePath}>{t('explore.viewProfile')}</Link>
+          <Link to={profilePath} state={back}>{t('explore.viewProfile')}</Link>
         </Button>
         <RequestRepairButton contractorId={place.contractorId} />
       </div>

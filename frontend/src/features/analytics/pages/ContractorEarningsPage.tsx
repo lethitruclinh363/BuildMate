@@ -50,7 +50,7 @@ export function ContractorEarningsPage() {
         </Card>
         <Card hover={false}>
           <p className="mb-4 text-xs uppercase tracking-[0.18em] text-copper-500">{t('earn.chartJobs')}</p>
-          <p className="font-display text-4xl text-navy-800">{completed}</p>
+          <p className="text-2xl font-semibold text-navy-800">{completed}</p>
         </Card>
       </div>
       {rows.length === 0 ? (

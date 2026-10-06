@@ -15,8 +15,14 @@ const searchQuerySchema = z.object({
   store: z.string().trim().optional(),
 });
 
-const geocodeQuerySchema = z.object({
-  q: z.string().trim().min(3).max(200),
+const autocompleteQuerySchema = z.object({
+  q: z.string().trim().min(2).max(200),
+  focusLat: z.coerce.number().min(-90).max(90).optional(),
+  focusLng: z.coerce.number().min(-180).max(180).optional(),
+});
+
+const placeQuerySchema = z.object({
+  refId: z.string().trim().min(3).max(2000),
 });
 
 const reverseQuerySchema = z.object({
@@ -24,4 +30,10 @@ const reverseQuerySchema = z.object({
   lng: z.coerce.number().min(-180).max(180),
 });
 
-module.exports = { nearbyQuerySchema, searchQuerySchema, geocodeQuerySchema, reverseQuerySchema };
+module.exports = {
+  nearbyQuerySchema,
+  searchQuerySchema,
+  autocompleteQuerySchema,
+  placeQuerySchema,
+  reverseQuerySchema,
+};

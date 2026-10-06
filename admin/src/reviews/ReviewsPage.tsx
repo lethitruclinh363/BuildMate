@@ -10,9 +10,11 @@ import { PageHeader } from '@/components/PageHeader';
 import { Spinner } from '@/components/Spinner';
 import { StatCard } from '@/components/StatCard';
 import { formatDate, shortenId } from '@/lib/utils';
+import { useReturnState } from '@/lib/navigation';
 
 export function ReviewsPage() {
   const { t } = useTranslation();
+  const back = useReturnState();
   const { data, loading, error, reload } = useAsync(loadAdminDirectory, []);
 
   if (loading) return <Spinner />;
@@ -36,7 +38,7 @@ export function ReviewsPage() {
           `${row.rating}/5`,
           `${row.targetType === 'CONTRACTOR' ? t('roles.CONTRACTOR') : t('nav.stores')} · ${shortenId(row.targetUserId)}`,
           row.comment || '—',
-          <Link key={row.id} to={`/orders/${row.orderId}`} className="text-copper-300">
+          <Link key={row.id} to={`/orders/${row.orderId}`} state={back} className="text-copper-300">
             {shortenId(row.orderId)}
           </Link>,
           formatDate(row.createdAt),

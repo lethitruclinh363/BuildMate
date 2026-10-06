@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Spinner } from '@/components/Spinner';
 import { StatCard } from '@/components/StatCard';
 import { TextArea } from '@/components/Input';
+import { EkycReviewPanel } from '@/pages/verification/EkycReviewPanel';
 import { getApiErrorMessage } from '@/services/api';
 import { mediaUrl } from '@/lib/utils';
 import type { DocumentType, PartnerApplication, VerificationStatus } from '@/types/admin';
@@ -104,8 +105,8 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
     }
   };
 
-  const imageDocuments = documents.filter((doc) => doc.mimeType?.startsWith('image/'));
-  const fileDocuments = documents.filter((doc) => !doc.mimeType?.startsWith('image/'));
+  const imageDocuments = documents.filter((doc) => doc.mimeType?.startsWith('image/') && !String(doc.url || '').startsWith('private:'));
+  const fileDocuments = documents.filter((doc) => !doc.mimeType?.startsWith('image/') && !String(doc.url || '').startsWith('private:'));
 
   return (
     <div>
@@ -353,6 +354,16 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
             {selected.rejectionReason ? (
               <p className="mt-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-300">{selected.rejectionReason}</p>
             ) : null}
+            {actor === 'CONTRACTOR' ? (
+              <EkycReviewPanel
+                applicationId={selected.id}
+                ekyc={selected.ekyc}
+                busy={busy}
+                reasonReady={reason.trim().length >= 8}
+                t={t}
+                onRetake={() => void act(() => adminApi.retakeEkyc(selected.id, reason), t('verify.ekycRetakeToast'))}
+              />
+            ) : null}
             {selected.verificationStatus === 'SUBMITTED' ? (
               <div className="mt-6 space-y-3 border-t border-white/8 pt-5">
                 <TextArea label={t('verify.returnReason')} value={reason} onChange={setReason} />
@@ -480,22 +491,32 @@ function isPdf(url: string) {
   return url.toLowerCase().split('?')[0].endsWith('.pdf');
 }
 
+function serviceLabel(name: string, t: (key: string) => string) {
+  if (!name) return '';
+  const key = `serviceCatalog.${name}`;
+  const hit = t(key);
+  return hit && hit !== key ? hit : name;
+}
+
 function PortfolioReview({ portfolio }: { portfolio?: PartnerApplication['portfolio'] }) {
   const { t } = useTranslation();
+  const projects = portfolio?.projects || [];
+  const projectUrls = new Set(projects.flatMap((project) => project.images || []));
   const shots = [
     portfolio?.avatar ? { url: portfolio.avatar, label: t('verify.avatar') } : null,
     portfolio?.teamLogo ? { url: portfolio.teamLogo, label: t('verify.teamLogo') } : null,
     portfolio?.workshop ? { url: portfolio.workshop, label: t('verify.workshop') } : null,
-    ...(portfolio?.construction || []).map((url) => ({ url, label: t('verify.construction') })),
+    ...(portfolio?.construction || []).filter((url) => !projectUrls.has(url)).map((url) => ({ url, label: t('verify.construction') })),
     ...(portfolio?.certificates || []).map((url) => ({ url, label: t('verify.certificates') })),
   ].filter((item): item is { url: string; label: string } => item !== null);
 
   return (
     <div className="mt-6">
       <h3 className="font-display text-lg">{t('verify.portfolio')}</h3>
-      {shots.length === 0 ? (
+      {shots.length === 0 && projects.length === 0 ? (
         <p className="mt-2 text-sm text-white/45">{t('verify.noPortfolio')}</p>
-      ) : (
+      ) : null}
+      {shots.length ? (
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {shots.map((shot) => (
             <a
@@ -514,7 +535,33 @@ function PortfolioReview({ portfolio }: { portfolio?: PartnerApplication['portfo
             </a>
           ))}
         </div>
-      )}
+      ) : null}
+      {projects.length ? (
+        <div className="mt-5 border-t border-white/10 pt-4">
+          <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white/70">{t('verify.projectsTitle')}</h4>
+          <div className="mt-3 divide-y divide-white/10">
+            {projects.map((project, index) => (
+              <div key={project.id || `${project.serviceId}-${index}`} className="py-4">
+                <p className="text-sm font-semibold text-white">{t('verify.projectNumber', { n: index + 1 })}</p>
+                <p className="mt-1 text-sm text-white/70">
+                  {t('verify.projectService')}: {serviceLabel(project.serviceNameSnapshot, t)}
+                </p>
+                <p className="mt-2 text-xs uppercase tracking-[0.12em] text-white/40">{t('verify.projectDescription')}</p>
+                <p className="mt-1 text-sm text-white/80">{project.description}</p>
+                {project.images?.length ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {project.images.map((url) => (
+                      <a key={url} href={mediaUrl(url)} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border border-white/10">
+                        <img src={mediaUrl(url)} alt="" className="aspect-[4/3] w-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

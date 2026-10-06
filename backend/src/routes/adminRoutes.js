@@ -5,6 +5,7 @@ const { validate } = require('../utils/validator');
 const { rejectSchema, catalogReviewSchema, catalogWriteSchema, catalogStatusSchema, materialCategoryNameSchema } = require('../validators/partner.validator');
 const { refundSchema, complaintPatchSchema, commissionRuleSchema } = require('../validators/finance.validator');
 const adminController = require('../controllers/adminController');
+const contractorEkycController = require('../controllers/contractorEkycController');
 const paymentController = require('../controllers/paymentController');
 const complaintController = require('../controllers/complaintController');
 
@@ -19,6 +20,8 @@ router.get('/verifications', ...adminOnly, adminController.list);
 router.get('/verifications/:id', ...adminOnly, adminController.getOne);
 router.post('/verifications/:id/approve', ...adminOnly, adminController.approve);
 router.post('/verifications/:id/reject', ...adminOnly, validate(rejectSchema), adminController.reject);
+router.get('/verifications/:id/ekyc/files/:kind', ...adminOnly, contractorEkycController.adminFile);
+router.post('/verifications/:id/ekyc/retake', ...adminOnly, validate(rejectSchema), contractorEkycController.retake);
 router.get('/service-catalog', ...adminOnly, adminController.listCatalog);
 router.post('/service-catalog', ...adminOnly, validate(catalogWriteSchema), adminController.createCatalog);
 router.patch('/service-catalog/:id/status', ...adminOnly, validate(catalogStatusSchema), adminController.setCatalogStatus);

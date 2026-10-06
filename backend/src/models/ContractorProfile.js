@@ -96,6 +96,20 @@ const contractorProfileSchema = new mongoose.Schema(
       workshop: { type: String, default: '' },
       construction: { type: [String], default: [] },
       certificates: { type: [String], default: [] },
+      projects: {
+        type: [
+          new mongoose.Schema(
+            {
+              serviceId: { type: String, default: '', maxlength: 120 },
+              serviceNameSnapshot: { type: String, default: '', maxlength: 80 },
+              description: { type: String, default: '', maxlength: 500 },
+              images: { type: [String], default: [] },
+            },
+            { _id: true }
+          ),
+        ],
+        default: [],
+      },
     },
     documents: { type: [documentSchema], default: [] },
     completedSteps: { type: [Boolean], default: () => [false, false, false, false, false, false] },
@@ -149,6 +163,13 @@ contractorProfileSchema.methods.toPublic = function toPublic() {
       workshop: this.portfolio?.workshop || '',
       construction: this.portfolio?.construction || [],
       certificates: this.portfolio?.certificates || [],
+      projects: (this.portfolio?.projects || []).map((project) => ({
+        id: String(project._id),
+        serviceId: project.serviceId || '',
+        serviceNameSnapshot: project.serviceNameSnapshot || '',
+        description: project.description || '',
+        images: project.images || [],
+      })),
     },
     completedSteps: Array.from({ length: 6 }, (_, index) => this.completedSteps?.[index] === true),
     verificationStatus: this.verificationStatus,

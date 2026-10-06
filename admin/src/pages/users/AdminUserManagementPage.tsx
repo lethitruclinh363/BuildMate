@@ -11,9 +11,11 @@ import { PageHeader } from '@/components/PageHeader';
 import { Spinner } from '@/components/Spinner';
 import { StatCard } from '@/components/StatCard';
 import { formatDate } from '@/lib/utils';
+import { useReturnState } from '@/lib/navigation';
 
 export function AdminUserManagementPage() {
   const { t } = useTranslation();
+  const back = useReturnState();
   const { data, loading, error, reload } = useAsync(() => adminApi.listCustomers(), []);
 
   if (loading) return <Spinner />;
@@ -45,7 +47,7 @@ export function AdminUserManagementPage() {
           <Badge key={`${user.id}-status`} tone={user.status === 'ACTIVE' ? 'success' : 'warn'}>
             {user.status}
           </Badge>,
-          <Link key={`${user.id}-link`} to={`/users/${user.id}`} className="text-copper-300">
+          <Link key={`${user.id}-link`} to={`/users/${user.id}`} state={back} className="text-copper-300">
             {t('customers.view')}
           </Link>,
         ])}

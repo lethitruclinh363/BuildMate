@@ -15,6 +15,7 @@ const { seedPublicProfile, publicSnapshots } = require('./publicProfileService')
 const commissionService = require('./commissionService');
 const materialCategoryService = require('./material-category.service');
 const activationService = require('./activation.service');
+const contractorEkycService = require('./contractorEkycService');
 
 function customerPublic(user, city = '') {
   return {
@@ -69,6 +70,9 @@ async function listVerifications(status) {
     .populate('userId', 'name email phone avatar status role');
   const categoriesByProfile = await materialCategoryService.selectionsForProfiles(profiles);
   const snapshots = await publicSnapshots(profiles.map((profile) => profile.userId?._id || profile.userId));
+  const ekycByUser = await contractorEkycService.publicByUserIds(
+    profiles.map((profile) => profile.userId?._id || profile.userId)
+  );
 
   return Promise.all(profiles.map(async (profile) => {
     const published = profile.toPublic();
@@ -81,6 +85,7 @@ async function listVerifications(status) {
     return {
       ...published,
       activation,
+      ekyc: ekycByUser.get(ownerId) || null,
       user: profile.userId
         ? {
             id: profile.userId._id,
@@ -118,9 +123,11 @@ async function getVerification(id) {
   const snapshot = snapshots.get(String(profile.userId?._id || profile.userId || ''));
   if (snapshot) published.publicProfile = snapshot;
   const activation = userId ? await activationService.getActivationReadiness(userId) : null;
+  const ekycMap = userId ? await contractorEkycService.publicByUserIds([userId]) : new Map();
 
   return {
     activation,
+    ekyc: ekycMap.get(String(userId)) || null,
     ...published,
     services: (published.services || []).map((item) => ({
       ...item,
@@ -152,6 +159,11 @@ async function approve(id, adminId) {
   profile.reviewedBy = adminId;
   profile.rejectionReason = '';
   await profile.save();
+  try {
+    await contractorEkycService.recordAdminDecision(profile.userId, adminId, 'APPROVE');
+  } catch (err) {
+    console.error('[ekyc] admin decision was not recorded');
+  }
 
   const user = await User.findByIdAndUpdate(
     profile.userId,
@@ -223,6 +235,11 @@ async function reject(id, adminId, reason) {
   profile.reviewedBy = adminId;
   profile.rejectionReason = reason;
   await profile.save();
+  try {
+    await contractorEkycService.recordAdminDecision(profile.userId, adminId, 'REJECT', reason);
+  } catch (err) {
+    console.error('[ekyc] admin decision was not recorded');
+  }
 
   await User.findByIdAndUpdate(profile.userId, {
     status: USER_STATUS.PENDING_VERIFICATION,

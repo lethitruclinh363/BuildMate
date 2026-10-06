@@ -7,11 +7,11 @@ import { EmptyState } from '@/components/dashboard/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { useMaterialOrderLiveStore } from '@/features/material-orders/material-order-live';
 import { getApiErrorMessage } from '@/lib/api';
 import { materialOrderApi, type MaterialOrder } from '@/lib/material-order-api';
 import { vnd } from '@/lib/partner-api';
+import { useReturnState } from '@/lib/navigation';
 import { useI18n } from '@/locales';
 
 const FILTERS = ['all', 'DEPOSIT_PAID', 'CONFIRMED', 'PREPARING', 'DELIVERING', 'DELIVERED', 'COMPLETED', 'CANCELLED'] as const;
@@ -26,6 +26,7 @@ function when(value?: string) {
 
 export function CustomerMaterialOrdersPage() {
   const { t } = useI18n();
+  const back = useReturnState();
   const tick = useMaterialOrderLiveStore((state) => state.tick);
   const [rows, setRows] = useState<MaterialOrder[]>([]);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('all');
@@ -78,13 +79,13 @@ export function CustomerMaterialOrdersPage() {
           body={t('materialOrder.listBody')}
         />
       ) : (
-        <div className="grid gap-3">
+        <div className="divide-y divide-navy-800/10 overflow-hidden rounded-xl border border-navy-800/10 bg-white">
           {visible.map((order) => (
-            <Link key={order.id} to={`/customer/material-orders/${order.id}`}>
-              <Card>
+            <Link key={order.id} to={`/customer/material-orders/${order.id}`} state={back} className="block px-4 py-4 hover:bg-paper-100">
+              <div>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-display text-xl text-navy-800">{order.orderCode}</p>
+                    <p className="text-base font-semibold text-navy-800">{order.orderCode}</p>
                     <p className="mt-1 text-sm text-ink-500">{order.storeName}</p>
                     <p className="text-xs text-ink-400">{when(order.createdAt)}</p>
                   </div>
@@ -104,7 +105,7 @@ export function CustomerMaterialOrdersPage() {
                     <dd className="font-semibold text-navy-800">{vnd(order.remainingAmount)}</dd>
                   </div>
                 </dl>
-              </Card>
+              </div>
             </Link>
           ))}
         </div>

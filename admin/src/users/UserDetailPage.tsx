@@ -1,4 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
+import { AdminBackButton } from '@/components/AdminBackButton';
+import { useReturnState } from '@/lib/navigation';
 import { useTranslation } from 'react-i18next';
 import { useAsync } from '@/hooks/useAsync';
 import { adminApi } from '@/services/admin.api';
@@ -12,6 +14,7 @@ import { formatDate } from '@/lib/utils';
 export function UserDetailPage() {
   const { id = '' } = useParams();
   const { t } = useTranslation();
+  const back = useReturnState();
   const { data, loading, error, reload } = useAsync(async () => adminApi.getCustomer(id), [id]);
 
   if (loading) return <Spinner />;
@@ -21,9 +24,7 @@ export function UserDetailPage() {
 
   return (
     <div>
-      <Link to="/users" className="mb-4 inline-block text-sm text-copper-300">
-        ← {t('customers.back')}
-      </Link>
+      <AdminBackButton fallback="/users" label={t('customers.back')} />
       <PageHeader
         eyebrow={t('customers.record')}
         title={user.name}
@@ -57,7 +58,7 @@ export function UserDetailPage() {
             <p className="text-sm text-white/40">{t('customers.noOrders')}</p>
           ) : (
             orders.map((order) => (
-              <Link key={order.id} to={`/orders/${order.id}`} className="mb-2 block text-sm text-copper-300">
+              <Link key={order.id} to={`/orders/${order.id}`} state={back} className="mb-2 block text-sm text-copper-300">
                 {order.orderCode} · {order.title}
               </Link>
             ))
@@ -81,7 +82,7 @@ export function UserDetailPage() {
             <p className="text-sm text-white/40">{t('customers.noComplaints')}</p>
           ) : (
             complaints.map((row) => (
-              <Link key={row.id} to={`/complaints/${row.id}`} className="mb-2 block text-sm text-white/70">
+              <Link key={row.id} to={`/complaints/${row.id}`} state={back} className="mb-2 block text-sm text-white/70">
                 {row.reason} · {formatDate(row.createdAt)}
               </Link>
             ))

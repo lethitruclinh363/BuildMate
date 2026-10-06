@@ -13,6 +13,9 @@ const createRepairSchema = z.object({
   address: z.string().trim().max(200).optional().or(z.literal('')),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
+  locationConfirmed: z.union([z.boolean(), z.literal('true'), z.literal('false')]).optional(),
+  locationSource: z.enum(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN', 'VIETMAP_AUTOCOMPLETE', 'MAP_PIN']).optional(),
+  providerRefId: z.string().trim().max(2000).optional(),
 });
 
 const chatLocationSchema = z.object({

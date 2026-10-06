@@ -16,10 +16,24 @@ const config: Config = {
         display: tokens.fonts.display,
         sans: tokens.fonts.sans,
       },
+      borderRadius: {
+        md: '10px',
+        lg: '12px',
+        xl: '12px',
+        '2xl': '12px',
+        '3xl': '12px',
+      },
       boxShadow: {
-        card: '0 12px 40px -18px rgba(11, 46, 74, 0.28)',
-        glow: '0 0 0 4px rgba(201, 132, 42, 0.18)',
-        lift: '0 22px 50px -20px rgba(11, 46, 74, 0.35)',
+        sm: '0 1px 2px rgba(15, 23, 42, 0.04)',
+        md: '0 1px 2px rgba(15, 23, 42, 0.04)',
+        lg: '0 1px 2px rgba(15, 23, 42, 0.04)',
+        xl: '0 4px 12px rgba(15, 23, 42, 0.05)',
+        '2xl': '0 4px 12px rgba(15, 23, 42, 0.05)',
+        card: '0 1px 2px rgba(15, 23, 42, 0.04)',
+        glow: '0 0 0 1px rgba(15, 23, 42, 0.06)',
+        lift: '0 4px 12px rgba(15, 23, 42, 0.05)',
+        soft: '0 1px 2px rgba(15, 23, 42, 0.04)',
+        panel: '0 4px 12px rgba(15, 23, 42, 0.05)',
       },
       backgroundImage: {
         'hero-wash':

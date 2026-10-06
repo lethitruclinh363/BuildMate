@@ -10,6 +10,9 @@
   "verified": "Verified",
   "viewDetail": "View details",
   "back": "Back",
+  "backToHome": "Back to home",
+  "backToLogin": "Back to login",
+  "backToCart": "Back to cart",
   "backToMap": "Back to map",
   "openDashboard": "Open dashboard",
   "openProfile": "Open my page",
@@ -45,7 +48,7 @@
     "slogan": "BuildMate — Connect homeowners with trusted local crews",
     "subtitle": "Find contractors, building materials, and manage repairs on one platform",
     "short": "Local construction, trusted people, one platform.",
-    "tagline": "Construction OS"
+    "tagline": "A handshake builds a home"
   },
   "role": {
     "CUSTOMER": "Customer",
@@ -187,10 +190,8 @@
     }
   },
   "header": {
-    "searchPlaceholder": "Search crews, stores, orders…",
     "toggleSidebar": "Collapse menu",
-    "openMenu": "Open menu",
-    "fieldOps": "Field ops · BuildMate"
+    "openMenu": "Open menu"
   },
   "errors": {
     "generic": "Something went wrong, please try again",

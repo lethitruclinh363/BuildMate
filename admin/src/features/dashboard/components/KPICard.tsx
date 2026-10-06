@@ -1,6 +1,5 @@
 import { memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import { CountUp } from '@/features/dashboard/components/CountUp';
 import { formatKpi } from '@/features/dashboard/lib/format';
 import { cn } from '@/lib/utils';
@@ -10,11 +9,9 @@ export const KPICard = memo(function KPICard({ item, icon }: { item: KpiItem; ic
   const { t } = useTranslation();
   const up = item.delta >= 0;
   return (
-    <motion.section
-      whileHover={{ y: -4 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+    <section
       className={cn(
-        'glass-card p-5',
+        'glass-card p-4',
         item.tone === 'danger' && 'border-red-400/25',
         item.tone === 'success' && 'border-emerald-400/20'
       )}
@@ -22,7 +19,7 @@ export const KPICard = memo(function KPICard({ item, icon }: { item: KpiItem; ic
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-copper-400">{t(item.label)}</p>
-          <p className="mt-2 font-display text-2xl font-semibold text-white sm:text-3xl">
+          <p className="mt-1 font-display text-2xl font-semibold text-white">
             <CountUp value={item.value} format={(n) => formatKpi(n, item.format)} />
           </p>
           <p className={cn('mt-2 text-xs font-semibold', item.tone === 'danger' ? 'text-red-300' : up ? 'text-emerald-300' : 'text-red-300')}>
@@ -32,7 +29,7 @@ export const KPICard = memo(function KPICard({ item, icon }: { item: KpiItem; ic
         </div>
         <div className="rounded-xl border border-copper-500/25 bg-copper-500/10 p-2.5 text-copper-400">{icon}</div>
       </div>
-    </motion.section>
+    </section>
   );
 });
 

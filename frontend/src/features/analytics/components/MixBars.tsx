@@ -25,9 +25,9 @@ export function MixBars({ items }: { items: { label: string; value: number; tone
 
 export function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <Card hover={false}>
-      <p className="text-xs uppercase tracking-[0.16em] text-copper-500">{label}</p>
-      <p className="mt-2 font-display text-3xl text-navy-800">{value}</p>
+    <Card hover={false} className="p-4">
+      <p className="text-sm text-ink-500">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-navy-800">{value}</p>
     </Card>
   );
 }

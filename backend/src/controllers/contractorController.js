@@ -56,6 +56,37 @@ const removePortfolio = asyncHandler(async (req, res) => {
   return success(res, data, 'Portfolio file removed');
 });
 
+const createPortfolioProject = asyncHandler(async (req, res) => {
+  const data = await contractorService.createPortfolioProject(req.user.id);
+  return created(res, data, 'Project added');
+});
+
+const updatePortfolioProject = asyncHandler(async (req, res) => {
+  const data = await contractorService.updatePortfolioProject(req.user.id, req.params.projectId, req.body);
+  return success(res, data, 'Project saved');
+});
+
+const deletePortfolioProject = asyncHandler(async (req, res) => {
+  const data = await contractorService.deletePortfolioProject(req.user.id, req.params.projectId);
+  return success(res, data, 'Project removed');
+});
+
+const uploadProjectImage = asyncHandler(async (req, res) => {
+  if (!req.file) throw new ApiError(400, 'Choose a file to upload');
+  const data = await contractorService.addProjectImage(req.user.id, req.params.projectId, {
+    url: publicFileUrl(req.file.path),
+    originalName: req.file.originalname,
+    mimeType: req.file.mimetype,
+    size: req.file.size,
+  });
+  return created(res, data, 'Project image uploaded');
+});
+
+const removeProjectImage = asyncHandler(async (req, res) => {
+  const data = await contractorService.removeProjectImage(req.user.id, req.params.projectId, req.body.url);
+  return success(res, data, 'Project image removed');
+});
+
 const uploadDocument = asyncHandler(async (req, res) => {
   if (!req.file) {
     throw new ApiError(400, 'Choose a file to upload');
@@ -138,6 +169,11 @@ module.exports = {
   uploadDocument,
   uploadPortfolio,
   removePortfolio,
+  createPortfolioProject,
+  updatePortfolioProject,
+  deletePortfolioProject,
+  uploadProjectImage,
+  removeProjectImage,
   removeDocument,
   submitVerification,
   requestVerificationChange,
