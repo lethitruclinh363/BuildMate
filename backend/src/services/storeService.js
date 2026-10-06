@@ -5,15 +5,24 @@ const { Service } = require('../models/Service');
 const { ApiError } = require('../utils/ApiError');
 const { assertDeliveryPolicy } = require('../utils/delivery-policy');
 const { toGeoPoint } = require('../utils/geo');
+const locationCorrection = require('./locationCorrection.service');
 
 function applyGeo(payload) {
   const data = { ...payload };
   delete data.locationConfirmed;
+  delete data.locationSource;
+  delete data.locationConfirmedAt;
+  delete data.providerRefId;
   if (payload.lng !== undefined && payload.lat !== undefined) {
     const point = toGeoPoint(payload.lat, payload.lng);
     if (!point) throw new ApiError(422, 'Coordinates are invalid');
     data.location = point;
-    data.locationConfirmed = true;
+    const confirmed = locationCorrection.confirmedFlag(payload.locationConfirmed);
+    data.locationConfirmed = confirmed;
+    if (confirmed) {
+      data.locationSource = locationCorrection.locationSourceOf(payload.locationSource);
+      data.locationConfirmedAt = new Date();
+    }
   }
   delete data.lng;
   delete data.lat;
@@ -130,6 +139,15 @@ async function updateStore(contractorId, payload, lockedType) {
   assertDeliveryPolicy(store, data);
   store.set(data);
   await store.save();
+  if (store.locationConfirmed) {
+    const coordinates = store.location && store.location.coordinates;
+    await locationCorrection.record({
+      address: store.address,
+      lat: coordinates && coordinates[1],
+      lng: coordinates && coordinates[0],
+      refId: payload.providerRefId,
+    }).catch(() => null);
+  }
   await separateCatalog(store);
   return store.toPublic();
 }

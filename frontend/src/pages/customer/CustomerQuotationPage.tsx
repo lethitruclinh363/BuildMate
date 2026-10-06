@@ -6,6 +6,7 @@ import { ConfirmModal } from '@/components/feedback/ConfirmModal';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { SuccessState } from '@/components/feedback/SuccessState';
 import { PageTransition } from '@/components/motion/PageTransition';
+import { BackButton } from '@/components/navigation/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { quotationApi } from '@/features/chat/services/sprint4.api';
@@ -62,6 +63,7 @@ export function CustomerQuotationPage() {
 
   return (
     <PageTransition>
+      <BackButton fallback="/customer/request/history" />
       <PageHeader eyebrow={t('quote.pageEyebrow')} title={t('quote.title')} description={t('quote.pageDesc')} />
       <div className="mx-auto grid max-w-3xl gap-6">
         <QuotationCard quote={quote} />

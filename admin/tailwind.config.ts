@@ -22,12 +22,14 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['"IBM Plex Sans"', 'Segoe UI', 'sans-serif'],
-        display: ['"DM Sans"', '"IBM Plex Sans"', 'sans-serif'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        display: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
       boxShadow: {
-        glass: '0 18px 50px -24px rgba(0, 0, 0, 0.55)',
-        copper: '0 0 0 1px rgba(201, 163, 106, 0.28), 0 12px 40px -18px rgba(201, 163, 106, 0.35)',
+        glass: '0 1px 2px rgba(0, 0, 0, 0.2)',
+        copper: '0 0 0 1px rgba(201, 163, 106, 0.28)',
+        xl: '0 4px 12px rgba(0, 0, 0, 0.18)',
+        '2xl': '0 4px 12px rgba(0, 0, 0, 0.18)',
       },
       backgroundImage: {
         'admin-grid':

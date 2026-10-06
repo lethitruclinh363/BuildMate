@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { type FormEvent, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PasswordInput } from '@/components/common/PasswordInput';
+import { BackButton } from '@/components/navigation/BackButton';
 import { homeForUser, useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/lib/api';
 import { useI18n } from '@/locales';
@@ -56,6 +57,7 @@ export default function Login() {
       transition={{ duration: 0.4 }}
       className="rounded-[28px] border border-navy-800/8 bg-white p-7 shadow-lift"
     >
+      <BackButton fallback="/" label={t('common.backToHome')} />
       <p className="text-xs uppercase tracking-[0.24em] text-copper-500">BuildMate</p>
       <h1 className="mt-2 font-display text-3xl text-navy-800">{t('auth.loginHeading')}</h1>
       <p className="mt-2 text-sm text-ink-400">{t('auth.loginLead')}</p>

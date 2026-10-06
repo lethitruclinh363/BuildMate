@@ -22,7 +22,7 @@ export function HeroSection() {
         <motion.p
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-xs uppercase tracking-[0.32em] text-copper-300"
+          className="text-xs font-semibold uppercase text-copper-300"
         >
           {t('landing.heroEyebrow')}
         </motion.p>
@@ -30,7 +30,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08 }}
-          className="mt-5 max-w-3xl font-display text-4xl font-semibold leading-[1.05] md:text-6xl lg:text-7xl"
+          className="mt-5 max-w-3xl font-display text-[2rem] font-bold leading-[1.12] tracking-tight md:text-5xl lg:text-[3.25rem]"
         >
           {t('brand.slogan')}
         </motion.h1>
@@ -38,7 +38,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.16 }}
-          className="mt-6 max-w-xl text-base text-white/75 md:text-lg"
+          className="mt-6 max-w-xl text-base font-normal leading-relaxed text-white/80 md:text-lg"
         >
           {t('brand.subtitle')}
         </motion.p>

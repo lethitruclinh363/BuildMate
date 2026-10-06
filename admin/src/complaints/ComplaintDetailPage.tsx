@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { AdminBackButton } from '@/components/AdminBackButton';
 import { useAsync } from '@/hooks/useAsync';
 import { adminApi } from '@/services/admin.api';
 import { Badge } from '@/components/Badge';
@@ -58,9 +59,7 @@ export function ComplaintDetailPage() {
 
   return (
     <div>
-      <Link to="/complaints" className="mb-4 inline-block text-sm text-copper-300">
-        ← {t('pages.backComplaints')}
-      </Link>
+      <AdminBackButton fallback="/complaints" label={t('pages.backComplaints')} />
       <PageHeader eyebrow={t('pages.case')} title={row.reason} description={data?.order?.orderCode} actions={<Badge tone="copper">{complaintStatusLabel(row.status)}</Badge>} />
       <div className="grid gap-6 lg:grid-cols-3">
         <GlassCard className="lg:col-span-2 space-y-3 text-sm text-white/70">

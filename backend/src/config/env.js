@@ -25,15 +25,40 @@ const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || (isProd ? 100 : 500);
 const rateLimitAuthMax = Number(process.env.RATE_LIMIT_AUTH_MAX) || (isProd ? 10 : 30);
 const rateLimitOtpMax = Number(process.env.RATE_LIMIT_OTP_MAX) || (isProd ? 10 : 50);
 
+const DEV_CLIENT_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+];
+
+function resolveClientUrl() {
+  const configured = String(process.env.CLIENT_URL || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (isProd) return configured.join(',');
+  const origins = configured.length ? configured : [...DEV_CLIENT_ORIGINS];
+  for (const origin of DEV_CLIENT_ORIGINS) {
+    if (!origins.includes(origin)) origins.push(origin);
+  }
+  return origins.join(',');
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 5000,
   mongoUri: process.env.MONGODB_URI,
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173,http://localhost:5174',
+  clientUrl: resolveClientUrl(),
   uploadDir: process.env.UPLOAD_DIR || 'uploads',
   maxFileSizeMb: Number(process.env.MAX_FILE_SIZE_MB) || 8,
+  // Face-match thresholds live in the eKYC service config, not here.
+  // Prototype values: MATCH <= 0.30, REVIEW_REQUIRED <= 0.42, otherwise NOT_MATCH.
+  // Calibrate before any production use.
+  ekycServiceUrl: process.env.EKYC_SERVICE_URL || 'http://127.0.0.1:8000',
+  ekycInternalToken: process.env.EKYC_INTERNAL_TOKEN || '',
+  ekycTimeoutMs: Number(process.env.EKYC_TIMEOUT_MS) || 120000,
   isProd,
   rateLimitEnabled,
   rateLimitWindowMs,
@@ -50,6 +75,7 @@ const env = {
     process.env.SMTP_PASS ||
     '',
   smtpFrom: process.env.EMAIL_FROM || process.env.SMTP_FROM || '',
+  vietmapApiKey: process.env.VIETMAP_API_KEY || '',
 };
 
 module.exports = { env };

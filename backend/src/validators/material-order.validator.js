@@ -9,6 +9,9 @@ const createMaterialOrderSchema = z
     deliveryAddress: z.string().trim().min(4, 'Enter a delivery address').max(240),
     lat: z.number().min(-90).max(90),
     lng: z.number().min(-180).max(180),
+    locationConfirmed: z.literal(true),
+    locationSource: z.enum(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']).optional(),
+    providerRefId: z.string().trim().max(2000).optional(),
     customerNote: z.string().trim().max(500).optional().default(''),
     items: z
       .array(

@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useReturnState } from '@/lib/navigation';
 import { Navigation, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatDistance } from '@/features/map/lib/distance';
@@ -29,6 +30,7 @@ export function ExplorePopup({
 }) {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const back = useReturnState();
   const role = useAuthStore((state) => state.user?.role);
   const point = placePoint(place);
   const name = place.businessName || place.storeName;
@@ -87,7 +89,7 @@ export function ExplorePopup({
       ) : null}
       <div className="mt-4 flex flex-wrap gap-2">
         <Button asChild size="sm">
-          <Link to={profilePath}>{kind === 'contractor' ? t('explore.viewProfile') : t('explore.viewStore')}</Link>
+          <Link to={profilePath} state={back}>{kind === 'contractor' ? t('explore.viewProfile') : t('explore.viewStore')}</Link>
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={() => void openChat()}>
           {t('explore.chat')}

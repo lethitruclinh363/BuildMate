@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { distanceKm, describePlace, directionsUrl, gpsErrorKind, mapSearchUrl, requirePlace } = require('../utils/geo');
 const { summarizeMaterialCheckout } = require('../utils/material-checkout');
 const { sanitizeChatLocation } = require('../utils/chat-location');
-const { geoNearStage } = require('../services/location.service');
+const { geoNearStage } = require('../services/locationService');
 
 const policy = {
   deliveryEnabled: true,

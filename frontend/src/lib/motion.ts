@@ -5,7 +5,7 @@ export const easeOutSoft: Transition = {
   ease: [0.22, 1, 0.36, 1],
 };
 
-/** Opacity only. A resting translateY breaks Leaflet tile placement. */
+/** Opacity only. A resting translate would shift the map canvas. */
 export const pageVariants: Variants = {
   initial: { opacity: 0 },
   animate: { opacity: 1, transition: easeOutSoft },

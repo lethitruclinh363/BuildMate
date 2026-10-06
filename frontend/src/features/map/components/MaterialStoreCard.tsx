@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useReturnState } from '@/lib/navigation';
 import { BadgeCheck, MapPin, Star, Store } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -32,6 +33,7 @@ export function StoreResultCard({
   onHover?: () => void;
 }) {
   const { t } = useI18n();
+  const back = useReturnState();
   const name = place.businessName || place.storeName;
   const photo = place.logo || place.avatar || '';
   const materials = categoryLine(place, t);
@@ -40,9 +42,9 @@ export function StoreResultCard({
 
   return (
     <div id={`place-store-${place.id}`} className="scroll-mt-24">
-    <Card hover={false} className={`flex h-full min-h-[220px] flex-col p-4 sm:p-6 ${active ? 'ring-2 ring-copper-400' : ''}`} onClick={onHover}>
+    <Card hover={false} className={`flex h-full flex-col p-4 ${active ? 'ring-2 ring-copper-400' : ''}`} onClick={onHover}>
       <div className="flex gap-4">
-        <Link to={storeHref} className="h-14 w-14 shrink-0 sm:h-[72px] sm:w-[72px]" aria-label={name}>
+        <Link to={storeHref} state={back} className="h-14 w-14 shrink-0 sm:h-[72px] sm:w-[72px]" aria-label={name}>
           <MediaFrame
             src={photo}
             alt={name}
@@ -57,7 +59,7 @@ export function StoreResultCard({
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Link to={storeHref} className="font-display text-xl text-navy-800 hover:text-copper-600 sm:text-[22px]">
+            <Link to={storeHref} state={back} className="font-display text-xl text-navy-800 hover:text-copper-600 sm:text-[22px]">
               {name}
             </Link>
             {place.verified ? (
@@ -84,13 +86,13 @@ export function StoreResultCard({
       </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-5">
         <Button asChild size="sm" variant="copper">
-          <Link to={storeHref}>{t('explore.viewStore')}</Link>
+          <Link to={storeHref} state={back}>{t('explore.viewStore')}</Link>
         </Button>
         <Button asChild size="sm" variant="outline">
-          <Link to={productsHref}>{t('explore.viewProducts')}</Link>
+          <Link to={productsHref} state={back}>{t('explore.viewProducts')}</Link>
         </Button>
         <Button asChild size="sm" variant="outline">
-          <Link to={productsHref}>{t('explore.buy')}</Link>
+          <Link to={productsHref} state={back}>{t('explore.buy')}</Link>
         </Button>
       </div>
     </Card>

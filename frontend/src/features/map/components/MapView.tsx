@@ -1,16 +1,9 @@
-import { Component, useEffect, useMemo, type ErrorInfo, type ReactNode } from 'react';
-import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { LocateFixed, Navigation } from 'lucide-react';
-import { MAP_TILES } from '@/features/map/lib/tiles';
+import { VietMapView, type VietMapPlaceMarker } from '@/features/map/components/VietMapView';
+import type { MapOrigin } from '@/features/map/types';
 import type { NearbyPlace } from '@/types/marketplace';
-import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
-import { t, useI18n } from '@/locales';
-import { MapResize } from './MapResize';
-import { CONTRACTOR_PIN, JOB_SITE_PIN, PlaceMarker, STORE_PIN, makePin } from './Marker';
-
-const PERSON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
-const SHOP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M3 9 5 4h14l2 5"/><path d="M4 9h16v11H4z"/><path d="M9 20v-6h6v6"/></svg>';
+import { useI18n } from '@/locales';
 
 function zoomFor(radiusKm: number) {
   if (radiusKm <= 3) return 14;
@@ -18,106 +11,11 @@ function zoomFor(radiusKm: number) {
   return 12;
 }
 
-function FlyTo({
-  origin,
-  radiusKm,
-  focus,
-  focusToken,
-}: {
-  origin: MapOrigin;
-  radiusKm: number;
-  focus?: { lat: number; lng: number } | null;
-  focusToken?: number;
-}) {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo([origin.lat, origin.lng], zoomFor(radiusKm), { duration: 0.65 });
-  }, [origin.lat, origin.lng, radiusKm, map]);
-  useEffect(() => {
-    if (!focus || !focusToken) return;
-    map.flyTo([focus.lat, focus.lng], Math.max(map.getZoom(), 15), { duration: 0.7 });
-  }, [focusToken, focus?.lat, focus?.lng, map]);
-  return null;
-}
-
-function ClickToPin({ onPick }: { onPick: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click(event) {
-      onPick(event.latlng.lat, event.latlng.lng);
-    },
-  });
-  return null;
-}
-
-function MapTools({
-  origin,
-  radiusKm,
-  onGps,
-  asking,
-  gpsLabel,
-  recenterLabel,
-}: {
-  origin: MapOrigin;
-  radiusKm: number;
-  onGps?: () => void;
-  asking?: boolean;
-  gpsLabel: string;
-  recenterLabel: string;
-}) {
-  const map = useMap();
-  const keep = (node: HTMLButtonElement | null) => {
-    if (node) L.DomEvent.disableClickPropagation(node);
-  };
-  return (
-    <div className="absolute right-3 top-3 z-[500] flex flex-col items-end gap-2">
-      <button
-        type="button"
-        ref={keep}
-        aria-label={recenterLabel}
-        title={recenterLabel}
-        className="grid h-11 w-11 place-items-center rounded-full bg-white text-navy-800 shadow-card"
-        onClick={() => map.flyTo([origin.lat, origin.lng], zoomFor(radiusKm), { duration: 0.65 })}
-      >
-        <LocateFixed className="h-5 w-5" />
-      </button>
-      {onGps ? (
-        <button
-          type="button"
-          ref={keep}
-          aria-label={gpsLabel}
-          title={gpsLabel}
-          disabled={asking}
-          className="inline-flex h-11 items-center gap-2 rounded-full bg-navy-800 px-4 text-sm font-semibold text-paper-50 shadow-card disabled:opacity-60"
-          onClick={onGps}
-        >
-          <Navigation className="h-4 w-4" /> {gpsLabel}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-class MapErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.warn('[BuildMate] map failed', error, info.componentStack);
-  }
-
-  render() {
-    if (this.state.failed) {
-      return (
-        <div className="grid h-[320px] w-full place-items-center rounded-[22px] border border-navy-800/10 bg-mist-100 px-4 text-center text-sm text-ink-400 sm:h-[460px]">
-          {t('map.unavailable')}
-        </div>
-      );
-    }
-    return this.props.children;
-  }
+function pointOf(place: NearbyPlace) {
+  const lng = Number(place.location?.coordinates?.[0]);
+  const lat = Number(place.location?.coordinates?.[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
 }
 
 export function MapView({
@@ -133,6 +31,7 @@ export function MapView({
   onPick,
   onSelect,
   onGps,
+  onViewChange,
   gpsAsking,
   overlay,
 }: {
@@ -148,77 +47,101 @@ export function MapView({
   onPick: (lat: number, lng: number) => void;
   onSelect: (id: string, kind: 'contractor' | 'store') => void;
   onGps?: () => void;
+  onViewChange?: (point: { lat: number; lng: number }) => void;
   gpsAsking?: boolean;
   overlay?: ReactNode;
 }) {
-  const { t: tr } = useI18n();
-  const selectedContractor = useMemo(() => makePin('#C9842A', PERSON, true), []);
-  const selectedStore = useMemo(() => makePin('#D4A017', SHOP, true), []);
+  const { t } = useI18n();
+  const [recenter, setRecenter] = useState(0);
+  const [streetZoom, setStreetZoom] = useState(false);
+  const seenOrigin = useRef(origin);
+  useEffect(() => {
+    const previous = seenOrigin.current;
+    seenOrigin.current = origin;
+    const moved = previous.lat !== origin.lat || previous.lng !== origin.lng;
+    if (moved && (origin.source === 'VIETMAP_AUTOCOMPLETE' || origin.source === 'VIETMAP_PLACE')) setStreetZoom(true);
+  }, [origin]);
+  useEffect(() => {
+    setStreetZoom(false);
+  }, [radiusKm]);
   const empty = !loading && contractors.length === 0 && stores.length === 0;
+  const markers = useMemo(() => {
+    const pins: VietMapPlaceMarker[] = [];
+    contractors.forEach((place) => {
+      const point = pointOf(place);
+      if (!point) return;
+      const selected = activeId === place.id && activeKind !== 'store';
+      pins.push({
+        id: place.id,
+        kind: 'contractor',
+        ...point,
+        selected,
+        dimmed: Boolean(activeId && !selected),
+      });
+    });
+    stores.forEach((place) => {
+      const point = pointOf(place);
+      if (!point) return;
+      const selected = activeId === place.id && activeKind === 'store';
+      pins.push({
+        id: place.id,
+        kind: 'store',
+        ...point,
+        selected,
+        dimmed: Boolean(activeId && !selected),
+      });
+    });
+    return pins;
+  }, [contractors, stores, activeId, activeKind]);
 
   return (
     <div className="relative">
-      <MapErrorBoundary>
-        <MapContainer
-          center={[origin.lat, origin.lng]}
-          zoom={zoomFor(radiusKm)}
-          className="h-[320px] w-full sm:h-[460px]"
-          scrollWheelZoom
+      <VietMapView
+        center={origin}
+        zoom={streetZoom ? 18 : zoomFor(radiusKm)}
+        radiusKm={radiusKm}
+        marker={{ lat: origin.lat, lng: origin.lng, draggable: true }}
+        markers={markers}
+        focus={focus}
+        focusToken={focusToken}
+        flyToken={recenter}
+        className="h-[320px] w-full sm:h-[460px]"
+        onMapClick={onPick}
+        onMarkerDrag={onPick}
+        onSelectMarker={onSelect}
+        onViewChange={onViewChange}
+      />
+      <div className="pointer-events-none absolute right-3 top-3 z-10 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          aria-label={t('explore.recenter')}
+          title={t('explore.recenter')}
+          className="pointer-events-auto grid h-11 w-11 place-items-center rounded-full bg-white text-navy-800 shadow-card"
+          onClick={() => setRecenter((value) => value + 1)}
         >
-          <TileLayer attribution={MAP_TILES.attribution} url={MAP_TILES.url} />
-          <MapResize />
-          <FlyTo origin={origin} radiusKm={radiusKm} focus={focus} focusToken={focusToken} />
-          <ClickToPin onPick={onPick} />
-          <Circle
-            center={[origin.lat, origin.lng]}
-            radius={radiusKm * 1000}
-            pathOptions={{ color: '#0B2E4A', fillColor: '#1E6493', fillOpacity: 0.08, weight: 1.5 }}
-          />
-          <Marker position={[origin.lat, origin.lng]} icon={JOB_SITE_PIN} zIndexOffset={400} />
-          {contractors.map((place) => {
-            const selected = activeId === place.id && activeKind !== 'store';
-            return (
-            <PlaceMarker
-              key={`c-${place.id}`}
-              place={place}
-              icon={selected ? selectedContractor : CONTRACTOR_PIN}
-              selected={selected}
-              dimmed={Boolean(activeId && !selected)}
-              onSelect={() => onSelect(place.id, 'contractor')}
-            />
-            );
-          })}
-          {stores.map((place) => {
-            const selected = activeId === place.id && activeKind === 'store';
-            return (
-            <PlaceMarker
-              key={`s-${place.id}`}
-              place={place}
-              icon={selected ? selectedStore : STORE_PIN}
-              selected={selected}
-              dimmed={Boolean(activeId && !selected)}
-              onSelect={() => onSelect(place.id, 'store')}
-            />
-            );
-          })}
-          <MapTools
-            origin={origin}
-            radiusKm={radiusKm}
-            onGps={onGps}
-            asking={gpsAsking}
-            gpsLabel={tr('explore.useGps')}
-            recenterLabel={tr('explore.recenter')}
-          />
-        </MapContainer>
-      </MapErrorBoundary>
+          <LocateFixed className="h-5 w-5" />
+        </button>
+        {onGps ? (
+          <button
+            type="button"
+            aria-label={t('explore.useGps')}
+            title={t('explore.useGps')}
+            disabled={gpsAsking}
+            className="pointer-events-auto inline-flex h-11 items-center gap-2 rounded-full bg-navy-800 px-4 text-sm font-semibold text-paper-50 shadow-card disabled:opacity-60"
+            onClick={onGps}
+          >
+            <Navigation className="h-4 w-4" /> {t('explore.useGps')}
+          </button>
+        ) : null}
+      </div>
       {loading ? (
-        <div className="pointer-events-none absolute left-14 top-3 z-[500]">
-          <p className="rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-navy-800 shadow-card">{tr('explore.loadingMap')}</p>
+        <div className="pointer-events-none absolute left-14 top-3 z-10">
+          <p className="rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-navy-800 shadow-card">{t('explore.loadingMap')}</p>
         </div>
       ) : null}
       {empty ? (
-        <div className="pointer-events-none absolute inset-x-4 top-16 z-[500] sm:inset-x-auto sm:left-4 sm:max-w-sm">
-          <p className="rounded-2xl bg-white/95 px-4 py-3 text-sm text-ink-600 shadow-card">{tr('explore.mapEmpty')}</p>
+        <div className="pointer-events-none absolute inset-x-4 top-16 z-10 sm:inset-x-auto sm:left-4 sm:max-w-sm">
+          <p className="rounded-2xl bg-white/95 px-4 py-3 text-sm text-ink-600 shadow-card">{t('explore.mapEmpty')}</p>
         </div>
       ) : null}
       {overlay}

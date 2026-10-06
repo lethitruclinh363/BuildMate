@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/dashboard/PageHeader';
+import { BackButton } from '@/components/navigation/BackButton';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
@@ -104,6 +105,7 @@ export function CreateQuotationPage() {
 
   return (
     <PageTransition>
+      <BackButton fallback="/contractor/requests" />
       <PageHeader
         eyebrow={t('quote.createEyebrow')}
         title={`${t('quote.title')} · ${request.title}`}

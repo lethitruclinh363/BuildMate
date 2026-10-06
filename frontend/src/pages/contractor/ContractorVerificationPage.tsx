@@ -6,7 +6,7 @@ import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Card } from '@/components/ui/Card';
-import { catalogPickLabel } from '@/data/contractor-services';
+import { catalogPickLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
 import { mediaUrl } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
@@ -148,6 +148,28 @@ export function ContractorVerificationPage() {
           ) : (
             <p className="mt-4 text-sm text-ink-400">{t('verify.noPhotos')}</p>
           )}
+          {profile.portfolio?.projects?.length ? (
+            <div className="mt-5 divide-y divide-navy-800/10 border-t border-navy-800/10">
+              <h3 className="py-3 text-sm font-semibold text-navy-800">{t('verify.projectsTitle')}</h3>
+              {profile.portfolio.projects.map((project, index) => (
+                <div key={project.id} className="py-4">
+                  <p className="text-sm font-semibold text-navy-800">{t('verify.projectNumber', { n: index + 1 })}</p>
+                  <p className="mt-1 text-sm text-ink-500">
+                    {t('verify.projectService')}: {catalogServiceLabel(project.serviceNameSnapshot, t)}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">{t('verify.projectDescription')}</p>
+                  <p className="mt-1 text-sm text-navy-800">{project.description}</p>
+                  {project.images.length ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {project.images.map((url) => (
+                        <img key={url} src={mediaUrl(url)} alt="" className="aspect-[4/3] w-full rounded-lg object-cover" />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </Card>
 
         <Card hover={false}>
@@ -191,11 +213,14 @@ function bannerClass(status: ContractorProfile['verificationStatus']) {
 
 function photoSlots(profile: ContractorProfile, t: (key: string) => string) {
   const portfolio = profile.portfolio;
+  const projectUrls = new Set((portfolio?.projects || []).flatMap((project) => project.images));
   const slots = [
     { key: 'avatar', src: portfolio?.avatar || '', label: t('verify.avatar') },
     { key: 'logo', src: portfolio?.teamLogo || '', label: t('verify.teamLogo') },
     { key: 'workshop', src: portfolio?.workshop || '', label: t('verify.workshop') },
-    ...(portfolio?.construction || []).map((src, index) => ({ key: `work-${index}`, src, label: t('verify.construction') })),
+    ...(portfolio?.construction || [])
+      .filter((src) => !projectUrls.has(src))
+      .map((src, index) => ({ key: `work-${index}`, src, label: t('verify.construction') })),
     ...(portfolio?.certificates || []).map((src, index) => ({ key: `cert-${index}`, src, label: t('verify.certificatePhoto') })),
   ];
   return slots.filter((item) => item.src);

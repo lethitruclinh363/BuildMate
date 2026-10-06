@@ -10,6 +10,9 @@
   "verified": "Đã xác minh",
   "viewDetail": "Xem chi tiết",
   "back": "Quay lại",
+  "backToHome": "Về trang chủ",
+  "backToLogin": "Quay lại đăng nhập",
+  "backToCart": "Quay lại giỏ hàng",
   "backToMap": "Về bản đồ",
   "openDashboard": "Vào trang làm việc",
   "openProfile": "Vào trang cá nhân",
@@ -45,7 +48,7 @@
     "slogan": "BuildMate — Kết nối chủ nhà với thợ xây dựng đáng tin cậy",
     "subtitle": "Tìm kiếm thợ, vật liệu xây dựng và quản lý sửa chữa trong một nền tảng duy nhất",
     "short": "Xây dựng địa phương, đội thợ tin cậy, một nền tảng.",
-    "tagline": "Hệ điều hành xây dựng"
+    "tagline": "Bắt tay dựng nhà"
   },
   "role": {
     "CUSTOMER": "Khách hàng",
@@ -187,10 +190,8 @@
     }
   },
   "header": {
-    "searchPlaceholder": "Tìm thợ, cửa hàng, đơn hàng…",
     "toggleSidebar": "Thu gọn menu",
-    "openMenu": "Mở menu",
-    "fieldOps": "Hiện trường · BuildMate"
+    "openMenu": "Mở menu"
   },
   "errors": {
     "generic": "Đã xảy ra lỗi, vui lòng thử lại",

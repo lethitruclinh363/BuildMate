@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { AdminBackButton } from '@/components/AdminBackButton';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useAsync } from '@/hooks/useAsync';
@@ -45,9 +46,7 @@ export function OrderDetailPage() {
 
   return (
     <div>
-      <Link to="/orders" className="mb-4 inline-block text-sm text-copper-300">
-        ← {t('pages.orders')}
-      </Link>
+      <AdminBackButton fallback="/orders" label={t('pages.orders')} />
       <PageHeader
         eyebrow={order.orderCode}
         title={order.title}

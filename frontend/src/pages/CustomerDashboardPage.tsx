@@ -4,10 +4,10 @@ import { MessageSquare, Package, UserRound, Wrench } from 'lucide-react';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Spinner } from '@/components/feedback/Spinner';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { locationApi } from '@/features/map/services/location.api';
 import { repairApi } from '@/features/chat/services/sprint4.api';
 import { orderApi } from '@/features/orders/services/order.api';
+import { useReturnState } from '@/lib/navigation';
 import { useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
 import { CAN_THO } from '@/types/marketplace';
@@ -15,6 +15,7 @@ import { CAN_THO } from '@/types/marketplace';
 export function CustomerDashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { t } = useI18n();
+  const back = useReturnState();
   const [requestCount, setRequestCount] = useState<number | null>(null);
   const [orderCount, setOrderCount] = useState<number | null>(null);
   const [nearbyCount, setNearbyCount] = useState<number | null>(null);
@@ -75,20 +76,22 @@ export function CustomerDashboardPage() {
 
       {requestCount === null ? <Spinner className="py-6" /> : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
-          <Card key={s.label}>
-            <s.icon className="h-5 w-5 text-copper-500" />
-            <p className="mt-4 font-display text-3xl text-navy-800">{s.value}</p>
-            <p className="text-sm text-ink-400">{s.label}</p>
-          </Card>
+          <div key={s.label} className="rounded-xl border border-navy-800/10 bg-white px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-ink-500">{s.label}</p>
+              <s.icon className="h-4 w-4 text-copper-600" />
+            </div>
+            <p className="mt-1 text-2xl font-semibold text-navy-800">{s.value}</p>
+          </div>
         ))}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2" hover={false}>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-xl text-navy-800">{t('customerHome.activity')}</h2>
+      <div className="mt-8 grid gap-8 lg:grid-cols-3">
+        <section className="lg:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-lg text-navy-800">{t('customerHome.activity')}</h2>
           </div>
           {recentOrders.length === 0 && (requestCount || 0) === 0 ? (
             <p className="text-sm text-ink-500">{t('customerHome.activityEmpty')}</p>
@@ -106,7 +109,7 @@ export function CustomerDashboardPage() {
               <ul className="mt-4 space-y-2">
                 {recentOrders.map((row) => (
                   <li key={row.id}>
-                    <Link to={`/customer/orders/${row.id}`} className="text-sm font-medium text-copper-600 hover:underline">
+                    <Link to={`/customer/orders/${row.id}`} state={back} className="text-sm font-medium text-copper-600 hover:underline">
                       {row.title}
                     </Link>
                   </li>
@@ -114,9 +117,9 @@ export function CustomerDashboardPage() {
               </ul>
             </>
           )}
-        </Card>
-        <Card hover={false}>
-          <h2 className="font-display text-xl text-navy-800">{t('customerHome.mapTitle')}</h2>
+        </section>
+        <section className="border-t border-navy-800/10 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <h2 className="font-display text-lg text-navy-800">{t('customerHome.mapTitle')}</h2>
           <p className="mt-1 text-sm text-ink-400">{t('customerHome.mapHint')}</p>
           <Button asChild className="mt-4" size="sm" variant="copper">
             <Link to="/customer/explore">{t('customerHome.openSearch')}</Link>
@@ -124,7 +127,7 @@ export function CustomerDashboardPage() {
           <Button asChild className="mt-2" size="sm" variant="outline">
             <Link to="/customer/request/history">{t('customerHome.history')}</Link>
           </Button>
-        </Card>
+        </section>
       </div>
     </PageTransition>
   );

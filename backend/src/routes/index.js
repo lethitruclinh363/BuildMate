@@ -6,6 +6,7 @@ const adminAuthRoutes = require('./adminAuthRoutes');
 const adminRoutes = require('./adminRoutes');
 const locationRoutes = require('./locationRoutes');
 const marketplaceRoutes = require('./marketplaceRoutes');
+const publicRoutes = require('./publicRoutes');
 const repairRoutes = require('./repairRoutes');
 const chatRoutes = require('./chatRoutes');
 const quotationRoutes = require('./quotationRoutes');
@@ -21,6 +22,7 @@ const materialCheckoutRoutes = require('./material-checkout.routes');
 const materialOrderRoutes = require('./material-order.routes');
 const policyRoutes = require('./policyRoutes');
 const catalogRoutes = require('./catalogRoutes');
+const serviceSuggestionRoutes = require('./serviceSuggestionRoutes');
 
 const router = express.Router();
 
@@ -34,6 +36,7 @@ router.get('/health', (_req, res) => {
 
 router.use('/policies', policyRoutes);
 router.use('/service-catalog', catalogRoutes);
+router.use('/service-suggestions', serviceSuggestionRoutes);
 router.use('/auth', authRoutes);
 router.use('/user', userRoutes);
 router.use('/contractor', contractorRoutes);
@@ -53,6 +56,7 @@ router.use('/reviews', reviewRoutes);
 router.use('/complaints', complaintRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/uploads', uploadRoutes);
+router.use('/public', publicRoutes);
 router.use('/', marketplaceRoutes);
 
 module.exports = router;

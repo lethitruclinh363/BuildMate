@@ -1,5 +1,5 @@
 export const STORAGE_KEY = 'buildmate-language';
-export const NAMESPACES = ['common', 'auth', 'dashboard', 'marketplace', 'chat', 'quotation', 'orders', 'finance'] as const;
+export const NAMESPACES = ['common', 'auth', 'dashboard', 'marketplace', 'chat', 'quotation', 'orders', 'finance', 'ekyc'] as const;
 export type Locale = 'vi' | 'en';
 
 const PREFIX_NS: Record<string, (typeof NAMESPACES)[number]> = {
@@ -52,6 +52,7 @@ const PREFIX_NS: Record<string, (typeof NAMESPACES)[number]> = {
   earn: 'finance',
   analytics: 'finance',
   toast: 'finance',
+  ekyc: 'ekyc',
 };
 
 export function readStoredLanguage(): Locale {

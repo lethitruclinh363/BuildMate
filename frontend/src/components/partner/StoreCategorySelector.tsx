@@ -10,6 +10,7 @@ import {
   type MaterialCategoryPick,
 } from '@/data/material-categories';
 import { getApiErrorMessage } from '@/lib/api';
+import { FormLabel } from '@/components/ui/FormLabel';
 import { cn } from '@/lib/cn';
 import { materialStoreApi } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
@@ -194,8 +195,8 @@ export function StoreCategorySelector({
       {customOpen ? (
         <div className="mt-4 rounded-2xl border border-navy-800/10 bg-paper-50 p-4">
           <p className="text-sm font-semibold text-navy-800">{t('auth.onboardCategoryOtherTitle')}</p>
-          <label className="mt-3 block text-sm font-medium text-navy-800">
-            {t('auth.onboardCategoryName')}
+          <label className="mt-3 block">
+            <FormLabel required>{t('auth.onboardCategoryName')}</FormLabel>
             <input
               value={customName}
               maxLength={80}
@@ -204,7 +205,7 @@ export function StoreCategorySelector({
                 setCustomName(event.target.value);
                 if (customError) setCustomError('');
               }}
-              className="mt-1.5 w-full rounded-2xl border border-navy-800/12 bg-white px-4 py-3 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20"
+              className={cn('mt-1.5 w-full rounded-xl border bg-white px-4 py-3 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-2 focus:ring-copper-400/20', customError ? 'border-red-500' : 'border-navy-800/12')}
             />
           </label>
           {customError ? <p className="mt-2 text-sm text-red-600">{customError}</p> : null}

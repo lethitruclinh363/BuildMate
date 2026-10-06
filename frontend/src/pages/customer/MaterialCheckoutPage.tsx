@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios, { type AxiosError } from 'axios';
+import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -9,7 +10,7 @@ import { TextArea } from '@/components/ui/TextArea';
 import { Bookmark } from 'lucide-react';
 import { LocationPicker } from '@/features/map/components/LocationPicker';
 import { useCurrentLocation, type MapOrigin } from '@/features/map/hooks/useCurrentLocation';
-import { loadSavedPlace, placeFromRecord, saveSavedPlace } from '@/features/map/lib/location';
+import { loadSavedPlace, persistedLocationSource, placeFromRecord, saveSavedPlace } from '@/features/map/lib/location';
 import { useMaterialCartStore } from '@/features/material-cart/material-cart.store';
 import { getApiErrorMessage } from '@/lib/api';
 import {
@@ -58,13 +59,20 @@ export function MaterialCheckoutPage() {
 
   function useSaved() {
     if (!saved) return;
-    setOrigin({ lat: saved.lat, lng: saved.lng, label: saved.label || saved.address });
+    setOrigin({
+      lat: saved.lat,
+      lng: saved.lng,
+      label: saved.label || saved.address,
+      address: saved.address,
+      locationConfirmed: true,
+      source: 'MANUAL_PIN',
+    });
     setAddress(saved.address || saved.label);
     setChosen(true);
   }
 
   useEffect(() => {
-    if (!storeId || items.length === 0 || !chosen || address.trim().length < 4) {
+    if (!storeId || items.length === 0 || origin.locationConfirmed !== true || address.trim().length < 4) {
       setQuote(null);
       setQuoting(false);
       setQuoteError('');
@@ -99,7 +107,7 @@ export function MaterialCheckoutPage() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [address, chosen, itemKey, items, origin.lat, origin.lng, storeId]);
+  }, [address, itemKey, items, origin.lat, origin.lng, origin.locationConfirmed, storeId]);
 
   const block =
     quote && !quote.ok
@@ -123,7 +131,7 @@ export function MaterialCheckoutPage() {
 
   async function placeOrder() {
     const delivery = placeFromRecord({ lat: origin.lat, lng: origin.lng, address: address.trim(), label: address.trim() });
-    if (!quote?.ok || !storeId || !chosen || !delivery || delivery.address.length < 4 || submitting) return;
+    if (!quote?.ok || !storeId || origin.locationConfirmed !== true || !delivery || delivery.address.length < 4 || submitting) return;
     setSubmitting(true);
     try {
       saveSavedPlace(delivery);
@@ -132,6 +140,9 @@ export function MaterialCheckoutPage() {
         deliveryAddress: delivery.address,
         lat: delivery.lat,
         lng: delivery.lng,
+        locationConfirmed: true,
+        locationSource: persistedLocationSource(origin.source),
+        ...(origin.refId ? { providerRefId: origin.refId } : {}),
         customerNote: customerNote.trim(),
         items: items.map((item) => ({ materialId: item.materialId, quantity: item.quantity })),
       });
@@ -148,6 +159,7 @@ export function MaterialCheckoutPage() {
   return (
     <PageTransition>
       <div className="mx-auto max-w-3xl">
+        <BackButton fallback="/cart" label={t('common.backToCart')} />
         <p className="text-xs uppercase tracking-[0.22em] text-copper-500">{t('cart.eyebrow')}</p>
         <h1 className="mt-2 font-display text-3xl text-navy-800">{t('cart.checkoutTitle')}</h1>
         <p className="mt-2 text-sm text-ink-500">{storeName || t('cart.checkoutIntro')}</p>

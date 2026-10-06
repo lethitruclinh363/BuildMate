@@ -17,6 +17,6 @@
   "viewMap": "Xem bản đồ",
   "directions": "Chỉ đường",
   "locationFallback": "Vị trí",
-  "gpsDenied": "Trình duyệt đã chặn quyền vị trí.",
+  "gpsDenied": "Không thể truy cập vị trí. Bạn có thể nhập địa chỉ hoặc ghim vị trí trên bản đồ.",
   "gpsUnavailable": "Không lấy được vị trí hiện tại trên thiết bị này."
 }

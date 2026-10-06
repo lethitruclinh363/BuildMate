@@ -56,6 +56,24 @@ export const contractorApi = {
   },
   removePortfolio: (slot: 'avatar' | 'teamLogo' | 'workshop' | 'construction' | 'certificate', url: string) =>
     api.delete<ApiResponse<ContractorProfile>>('/contractor/portfolio', { data: { slot, url } }),
+  createPortfolioProject: () => api.post<ApiResponse<ContractorProfile>>('/contractor/portfolio/projects', {}),
+  updatePortfolioProject: (projectId: string, body: { serviceId?: string; description?: string }) =>
+    api.patch<ApiResponse<ContractorProfile>>(`/contractor/portfolio/projects/${projectId}`, body),
+  deletePortfolioProject: (projectId: string) =>
+    api.delete<ApiResponse<ContractorProfile>>(`/contractor/portfolio/projects/${projectId}`),
+  uploadProjectImage: (projectId: string, file: File, onProgress?: (percent: number) => void) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post<ApiResponse<ContractorProfile>>(`/contractor/portfolio/projects/${projectId}/images`, form, {
+      timeout: 60000,
+      onUploadProgress: (event) => {
+        if (!onProgress || !event.total) return;
+        onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+      },
+    });
+  },
+  removeProjectImage: (projectId: string, url: string) =>
+    api.delete<ApiResponse<ContractorProfile>>(`/contractor/portfolio/projects/${projectId}/images`, { data: { url } }),
   uploadDocument: (file: File, type: DocumentType) => {
     const form = new FormData();
     form.append('file', file);
@@ -83,6 +101,8 @@ export const contractorApi = {
     api.get<ApiResponse<ServiceNameCheck>>('/contractor/service-catalog/check', { params: { name }, silent: true }),
   createCustomService: (body: { name: string; category: ContractorServiceCategory; description?: string }) =>
     api.post<ApiResponse<ContractorServicePick>>('/contractor/service-catalog/custom', body),
+  createServiceSuggestion: (description: string) =>
+    api.post<ApiResponse<{ id: string; status: string }>>('/service-suggestions', { description }),
 };
 
 export const materialStoreApi = {

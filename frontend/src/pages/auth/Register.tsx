@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PolicyConsent } from '@/components/auth/PolicyConsent';
 import { PasswordInput } from '@/components/common/PasswordInput';
+import { BackButton } from '@/components/navigation/BackButton';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -145,6 +146,7 @@ export default function Register() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full">
+      <BackButton fallback="/login" label={t('common.backToLogin')} />
       <p className="text-xs uppercase tracking-[0.24em] text-copper-500">{t('auth.join')}</p>
       <h1 className="mt-2 font-display text-3xl text-navy-800">{t('auth.registerHeading')}</h1>
       <p className="mt-2 text-sm text-ink-400">{t('auth.registerLead')}</p>

@@ -9,6 +9,7 @@ const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const { CatalogService, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
 const { requirePlace } = require('../utils/geo');
+const locationCorrection = require('./locationCorrection.service');
 
 async function populateCard(request) {
   const [customer, contractor, store, room] = await Promise.all([
@@ -75,6 +76,10 @@ async function createRequest(customerId, payload) {
     { addressMax: 300, labelMax: 300 }
   );
   if (!site) throw new ApiError(422, 'Coordinates are invalid');
+  if (!locationCorrection.confirmedFlag(payload.locationConfirmed)) {
+    throw new ApiError(422, 'Confirm the site location');
+  }
+  const confirmedAt = new Date();
 
   const request = await RepairRequest.create({
     customerId,
@@ -89,7 +94,16 @@ async function createRequest(customerId, payload) {
     videos: payload.videos || [],
     address: site.address,
     location: site.point,
+    locationConfirmed: true,
+    locationSource: locationCorrection.locationSourceOf(payload.locationSource),
+    locationConfirmedAt: confirmedAt,
   });
+  await locationCorrection.record({
+    address: site.address,
+    lat: site.lat,
+    lng: site.lng,
+    refId: payload.providerRefId,
+  }).catch(() => null);
 
   const room = await createRoomForRequest(request);
   await notify({

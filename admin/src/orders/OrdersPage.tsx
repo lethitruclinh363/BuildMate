@@ -11,9 +11,11 @@ import { PageHeader } from '@/components/PageHeader';
 import { Spinner } from '@/components/Spinner';
 import { StatCard } from '@/components/StatCard';
 import { formatDate, orderStatusLabel, paymentStatusLabel, vnd } from '@/lib/utils';
+import { useReturnState } from '@/lib/navigation';
 
 export function OrdersPage() {
   const { t } = useTranslation();
+  const back = useReturnState();
   const { data, loading, error, reload } = useAsync(loadAdminDirectory, []);
 
   if (loading) return <Spinner />;
@@ -43,7 +45,7 @@ export function OrdersPage() {
             {paymentStatusLabel(order.paymentStatus)}
           </Badge>,
           formatDate(order.createdAt),
-          <Link key={`${order.id}-l`} to={`/orders/${order.id}`} className="text-copper-300">
+          <Link key={`${order.id}-l`} to={`/orders/${order.id}`} state={back} className="text-copper-300">
             {t('pages.view')}
           </Link>,
         ])}

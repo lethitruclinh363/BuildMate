@@ -11,11 +11,22 @@ const { ApiError } = require('../utils/ApiError');
 const { MIME_BY_EXT, extensionOf } = require('../utils/upload');
 const { ensureContractorProfile } = require('../middleware/contractorMiddleware');
 const { setProfileStatus, PROFILE_STATUS } = require('./profileStatusService');
+const { ContractorEkycVerification } = require('../models/ContractorEkycVerification');
+const { EKYC_STATUS } = require('./ekycStatus');
 const { servicesBlockReason } = require('../constants/contractorServices');
 const catalogService = require('./catalogService');
 const materialCategoryService = require('./material-category.service');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
+const {
+  MAX_PROJECTS,
+  MAX_PROJECT_IMAGES,
+  findRegisteredService,
+  registeredServiceId,
+  firstProjectIssue,
+  projectIssueMessage,
+  imageAllowed,
+} = require('./portfolioProjects');
 
 const MAX_DOCUMENTS = 8;
 const VERIFY_SINGLETONS = new Set(['CCCD_FRONT', 'CCCD_BACK', 'BUSINESS_LICENSE', 'CERTIFICATE']);
@@ -31,7 +42,7 @@ const PORTFOLIO_SLOTS = {
 };
 
 function emptyPortfolio() {
-  return { avatar: '', teamLogo: '', workshop: '', construction: [], certificates: [] };
+  return { avatar: '', teamLogo: '', workshop: '', construction: [], certificates: [], projects: [] };
 }
 
 function resolvedMime(file) {
@@ -91,6 +102,10 @@ async function updateProfile(userId, payload) {
   if (Array.isArray(payload.services)) {
     profile.services = await catalogService.resolveProfileServices(payload.services, profile.services, userId);
     profile.markModified('services');
+  }
+  if (user?.role === 'CONTRACTOR' && Array.isArray(payload.completedSteps) && payload.completedSteps[2] === true) {
+    const issue = firstProjectIssue(profile);
+    if (issue) throw new ApiError(400, projectIssueMessage(issue));
   }
 
   if (profile.verificationStatus === VERIFICATION_STATUS.REJECTED) {
@@ -203,6 +218,116 @@ async function addPortfolioFile(userId, file, slotName) {
   return profile.toPublic();
 }
 
+function reopenIfRejected(profile) {
+  if (profile.verificationStatus === VERIFICATION_STATUS.REJECTED) {
+    profile.verificationStatus = VERIFICATION_STATUS.DRAFT;
+    profile.rejectionReason = '';
+  }
+}
+
+function ensureProjects(profile) {
+  if (!profile.portfolio) profile.portfolio = emptyPortfolio();
+  if (!Array.isArray(profile.portfolio.projects)) profile.portfolio.projects = [];
+}
+
+function findProject(profile, projectId) {
+  const list = profile.portfolio?.projects;
+  if (!list) return null;
+  if (typeof list.id === 'function') return list.id(projectId);
+  return list.find((item) => String(item._id) === String(projectId)) || null;
+}
+
+async function createPortfolioProject(userId) {
+  const profile = await ensureContractorProfile(userId);
+  assertVerificationEditable(profile);
+  ensureProjects(profile);
+  if (profile.portfolio.projects.length >= MAX_PROJECTS) {
+    throw new ApiError(400, projectIssueMessage('limit'));
+  }
+  profile.portfolio.projects.push({
+    serviceId: '',
+    serviceNameSnapshot: '',
+    description: '',
+    images: [],
+  });
+  profile.markModified('portfolio');
+  reopenIfRejected(profile);
+  await profile.save();
+  return profile.toPublic();
+}
+
+async function updatePortfolioProject(userId, projectId, payload) {
+  const profile = await ensureContractorProfile(userId);
+  assertVerificationEditable(profile);
+  ensureProjects(profile);
+  const project = findProject(profile, projectId);
+  if (!project) throw new ApiError(404, 'Project not found');
+  if (payload.serviceId !== undefined) {
+    const serviceId = String(payload.serviceId || '').trim();
+    if (!serviceId) {
+      project.serviceId = '';
+      project.serviceNameSnapshot = '';
+    } else {
+      const match = findRegisteredService(profile.services, serviceId);
+      if (!match) throw new ApiError(400, projectIssueMessage('service'));
+      project.serviceId = registeredServiceId(match);
+      project.serviceNameSnapshot = match.name || '';
+    }
+  }
+  if (payload.description !== undefined) {
+    project.description = String(payload.description || '').trim().slice(0, 500);
+  }
+  profile.markModified('portfolio');
+  reopenIfRejected(profile);
+  await profile.save();
+  return profile.toPublic();
+}
+
+async function deletePortfolioProject(userId, projectId) {
+  const profile = await ensureContractorProfile(userId);
+  assertVerificationEditable(profile);
+  ensureProjects(profile);
+  const project = findProject(profile, projectId);
+  if (!project) throw new ApiError(404, 'Project not found');
+  profile.portfolio.projects.pull(project._id);
+  profile.markModified('portfolio');
+  reopenIfRejected(profile);
+  await profile.save();
+  return profile.toPublic();
+}
+
+async function addProjectImage(userId, projectId, file) {
+  if (!file?.url) throw new ApiError(400, 'Choose a file to upload');
+  if (file.size > 8 * 1024 * 1024) throw new ApiError(400, projectIssueMessage('size'));
+  const mime = resolvedMime(file);
+  if (!imageAllowed(mime)) throw new ApiError(400, projectIssueMessage('type'));
+
+  const profile = await ensureContractorProfile(userId);
+  assertVerificationEditable(profile);
+  ensureProjects(profile);
+  const project = findProject(profile, projectId);
+  if (!project) throw new ApiError(404, 'Project not found');
+  const images = (project.images || []).filter(Boolean);
+  if (images.length >= MAX_PROJECT_IMAGES) throw new ApiError(400, projectIssueMessage('count'));
+  project.images = [...images, file.url];
+  profile.markModified('portfolio');
+  reopenIfRejected(profile);
+  await profile.save();
+  return profile.toPublic();
+}
+
+async function removeProjectImage(userId, projectId, url) {
+  const profile = await ensureContractorProfile(userId);
+  assertVerificationEditable(profile);
+  ensureProjects(profile);
+  const project = findProject(profile, projectId);
+  if (!project) throw new ApiError(404, 'Project not found');
+  project.images = (project.images || []).filter((item) => item !== url);
+  profile.markModified('portfolio');
+  await profile.save();
+  return profile.toPublic();
+}
+
 async function removePortfolioFile(userId, slotName, url) {
   const slot = PORTFOLIO_SLOTS[slotName];
   if (!slot) throw new ApiError(400, 'Choose a portfolio slot');
@@ -248,7 +373,8 @@ function applicationReady(profile, role) {
       && !servicesBlockReason(profile.services)
       && Boolean(profile.portfolio?.avatar)
       && Boolean(profile.portfolio?.teamLogo)
-      && Boolean(profile.portfolio?.workshop);
+      && Boolean(profile.portfolio?.workshop)
+      && !firstProjectIssue(profile);
   }
   const categories = profile.materialCategories?.length ? profile.materialCategories : profile.serviceAreas;
   return (profile.description || '').trim().length >= 10
@@ -269,6 +395,8 @@ async function submitVerification(userId, payload) {
     await catalogService.syncCustomStatuses(profile);
     const serviceReason = servicesBlockReason(profile.services);
     if (serviceReason) throw new ApiError(400, serviceReason);
+    const projectIssue = firstProjectIssue(profile);
+    if (projectIssue) throw new ApiError(400, projectIssueMessage(projectIssue));
   }
   if (user?.role === 'MATERIAL_STORE_OWNER') {
     const source = profile.materialCategories?.length ? profile.materialCategories : profile.serviceAreas;
@@ -281,6 +409,13 @@ async function submitVerification(userId, payload) {
 
   if (!applicationReady(profile, user?.role)) {
     throw new ApiError(400, 'Complete every onboarding step before submitting');
+  }
+
+  if (user?.role === 'CONTRACTOR') {
+    const ekyc = await ContractorEkycVerification.findOne({ userId }).select('status');
+    if (!ekyc || ekyc.status !== EKYC_STATUS.SUBMITTED) {
+      throw new ApiError(400, 'Complete identity verification before submitting');
+    }
   }
 
   if (profile.verificationStatus === VERIFICATION_STATUS.APPROVED) {
@@ -373,6 +508,11 @@ module.exports = {
   removeDocument,
   addPortfolioFile,
   removePortfolioFile,
+  createPortfolioProject,
+  updatePortfolioProject,
+  deletePortfolioProject,
+  addProjectImage,
+  removeProjectImage,
   submitVerification,
   requestVerificationChange,
   getWorkspace,

@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LogOut, Search } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { Avatar } from '@/components/ui/Avatar';
@@ -29,33 +29,16 @@ export function CustomerLayout() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { currentUser: user, logout } = useAuth();
-  const [query, setQuery] = useState('');
   const items = useMemo(() => customerNav(t), [t]);
   const bottom = items.filter((item) => BOTTOM_PATHS.includes(item.to));
 
   if (!user) return null;
-
-  function onSearch(event: FormEvent) {
-    event.preventDefault();
-    const q = query.trim();
-    navigate(q ? `/customer/explore?q=${encodeURIComponent(q)}` : '/customer/explore');
-  }
 
   return (
     <div className="min-h-screen bg-[#f6f7f4]">
       <header className="sticky top-0 z-40 border-b border-navy-800/8 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4">
           <Logo />
-          <form onSubmit={onSearch} className="relative hidden min-w-0 flex-1 md:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('header.searchPlaceholder')}
-              className="h-10 w-full rounded-full border border-navy-800/10 bg-paper-100 pl-10 pr-4 text-sm outline-none focus:border-copper-400 focus:ring-4 focus:ring-copper-400/15"
-              aria-label={t('header.searchPlaceholder')}
-            />
-          </form>
           <div className="ml-auto flex items-center gap-2">
             <LanguageSwitcher variant="light" placement="customer-header" className="hidden sm:inline-flex" />
             <CartLink />

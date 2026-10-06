@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { BadgeCheck, Clock, MapPin, Star } from 'lucide-react';
 import type { AxiosError } from 'axios';
+import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
@@ -15,6 +16,7 @@ import { TextArea } from '@/components/ui/TextArea';
 import { ImageViewer, MediaFrame, type ViewerSlide } from '@/components/media/ProfileMedia';
 import { useHashFocus } from '@/components/partner/useHashFocus';
 import { PartnerLocationSection } from '@/features/map/components/PartnerLocationSection';
+import { storeLocationPatch } from '@/features/map/lib/location';
 import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
 import { ServiceAreaMap } from '@/pages/public/ServiceAreaMap';
 import { StoreProfileShowcase } from '@/pages/public/StoreProfileShowcase';
@@ -141,11 +143,17 @@ export function StorePublicProfilePage() {
   }, []);
 
   async function saveLocation(origin: MapOrigin) {
-    if (busy) return;
+    if (busy || origin.locationConfirmed !== true) return;
     setBusy(true);
     try {
-      await materialStoreApi.updateStore({ lat: origin.lat, lng: origin.lng });
-      const next = { ...profile, areaCenter: { lat: origin.lat, lng: origin.lng }, locationReady: true };
+      await materialStoreApi.updateStore(storeLocationPatch(origin));
+      const next = {
+        ...profile,
+        areaCenter: { lat: origin.lat, lng: origin.lng },
+        locationReady: true,
+        ...(origin.address || origin.label ? { address: origin.address || origin.label || profile.address } : {}),
+        ...(origin.city ? { city: origin.city } : {}),
+      };
       setProfile(next);
       setSaved(next);
       pushToast({ kind: 'success', title: t('storePublic.locationSaved') });
@@ -330,6 +338,7 @@ export function StorePublicProfilePage() {
 
   return (
     <PageTransition>
+      <BackButton fallback="/store/dashboard" />
       <form onSubmit={onSubmit} className="space-y-6">
         <PageHeader
           eyebrow={t('storePublic.eyebrow')}
@@ -569,6 +578,7 @@ export function StorePublicProfilePage() {
             lng={profile.areaCenter?.lng}
             label={profile.address || profile.city}
             ready={profile.locationReady}
+            locationSource={profile.locationSource || undefined}
             saving={busy}
             onSave={(origin) => void saveLocation(origin)}
           />

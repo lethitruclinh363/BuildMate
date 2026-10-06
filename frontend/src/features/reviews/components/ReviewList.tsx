@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/Card';
+import { itemListClass, ListRow } from '@/components/ui/surfaces';
 import { useI18n } from '@/locales';
 import { StarRating } from './StarRating';
 import type { Review, ReviewTargetType } from '../types/review.types';
@@ -10,9 +10,9 @@ export function ReviewList({ items }: { items: Review[] }) {
   const tag = locale === 'en' ? 'en-US' : 'vi-VN';
   const visible = items.filter((row) => VISIBLE_TARGETS.has(row.targetType));
   return (
-    <div className="space-y-3">
+    <div className={itemListClass}>
       {visible.map((row) => (
-        <Card key={row.id} hover={false}>
+        <ListRow key={row.id}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-copper-600">
@@ -23,7 +23,7 @@ export function ReviewList({ items }: { items: Review[] }) {
             <p className="text-xs text-ink-400">{new Date(row.createdAt).toLocaleDateString(tag)}</p>
           </div>
           {row.comment ? <p className="mt-3 text-sm leading-6 text-ink-600">{row.comment}</p> : null}
-        </Card>
+        </ListRow>
       ))}
     </div>
   );

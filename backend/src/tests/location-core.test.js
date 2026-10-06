@@ -1,8 +1,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { toGeoPoint, fromGeoPoint } = require('../utils/geo');
-const { geocodeAddress, reverseGeocode } = require('../services/geocoding.service');
+const { autocomplete, place, reverse } = require('../services/vietmap.service');
 const { ApiError } = require('../utils/ApiError');
+
+const KEY = 'test-vietmap-key';
 
 describe('location core', () => {
   it('stores GeoJSON as [longitude, latitude]', () => {
@@ -14,32 +16,142 @@ describe('location core', () => {
     assert.equal(fromGeoPoint({ type: 'Point', coordinates: [200, 10] }), null);
   });
 
-  it('geocodes through the service and keeps lat/lng named', async () => {
-    const hits = await geocodeAddress('Ninh Kieu', {
+  it('autocompletes through VietMap v4 and keeps the key on the server request', async () => {
+    const hits = await autocomplete('216 đường 3 tháng 2', { lat: 10.045, lng: 105.746 }, {
+      apiKey: KEY,
       fetch: async (url) => {
-        assert.match(String(url), /nominatim\.openstreetmap\.org\/search/);
-        assert.match(String(url), /q=Ninh\+Kieu/);
+        const href = new URL(String(url));
+        assert.equal(href.pathname, '/api/autocomplete/v4');
+        assert.equal(href.searchParams.get('apikey'), KEY);
+        assert.equal(href.searchParams.get('text'), '216 đường 3 tháng 2');
+        assert.equal(href.searchParams.get('focus'), '10.045,105.746');
+        assert.equal(href.searchParams.get('display_type'), '5');
+        assert.equal(href.searchParams.has('circle_radius'), false);
+        assert.equal(href.searchParams.has('circle_center'), false);
         return {
           ok: true,
-          json: async () => [{ display_name: 'Ninh Kiều, Cần Thơ', lat: '10.034', lon: '105.788' }],
+          json: async () => [
+            {
+              ref_id: 'auto:216-3-thang-2',
+              name: '216 Đ. 3 Tháng 2',
+              display: '216 Đ. 3 Tháng 2, Tân An, Cần Thơ',
+              address: 'Tân An, Cần Thơ',
+              boundaries: [
+                { type: 2, full_name: 'Tân An' },
+                { type: 0, full_name: 'Cần Thơ' },
+              ],
+              data_old: {
+                boundaries: [
+                  { type: 2, full_name: 'Tân An' },
+                  { type: 1, full_name: 'Ninh Kiều' },
+                  { type: 0, full_name: 'Cần Thơ' },
+                ],
+              },
+            },
+          ],
         };
       },
     });
-    assert.deepEqual(hits, [{ label: 'Ninh Kiều, Cần Thơ', lat: 10.034, lng: 105.788 }]);
-    assert.deepEqual(await geocodeAddress('ab'), []);
-  });
-
-  it('reverse geocodes a point and rejects bad coordinates before calling the provider', async () => {
-    const hit = await reverseGeocode(10.045, 105.746, {
+    assert.equal(hits[0].refId, 'auto:216-3-thang-2');
+    assert.equal(hits[0].display, '216 Đ. 3 Tháng 2, Tân An, Cần Thơ');
+    assert.equal(hits[0].city, 'Cần Thơ');
+    assert.equal(hits[0].district, 'Ninh Kiều');
+    assert.equal('lat' in hits[0], false);
+    assert.deepEqual(await autocomplete('a', {}, { apiKey: KEY, fetch: async () => assert.fail('fetch') }), []);
+    await autocomplete('197 Trần Phú', { lat: Number.NaN, lng: 105 }, {
+      apiKey: KEY,
       fetch: async (url) => {
-        const href = String(url);
-        assert.match(href, /\/reverse/);
-        assert.match(href, /lat=10\.045/);
-        assert.match(href, /lon=105\.746/);
-        return { ok: true, json: async () => ({ display_name: 'Cần Thơ' }) };
+        const href = new URL(String(url));
+        assert.equal(href.searchParams.get('focus'), null);
+        assert.equal(href.searchParams.has('circle_radius'), false);
+        return { ok: true, json: async () => [] };
       },
     });
-    assert.deepEqual(hit, { label: 'Cần Thơ', lat: 10.045, lng: 105.746 });
-    await assert.rejects(() => reverseGeocode(10, 200, { fetch: async () => assert.fail('fetch') }), ApiError);
+  });
+
+  it('loads place coordinates from ref_id without guessing', async () => {
+    const hit = await place('auto:216-3-thang-2', {
+      apiKey: KEY,
+      fetch: async (url) => {
+        const href = new URL(String(url));
+        assert.equal(href.pathname, '/api/place/v4');
+        assert.equal(href.searchParams.get('refid'), 'auto:216-3-thang-2');
+        assert.equal(href.searchParams.get('apikey'), KEY);
+        return {
+          ok: true,
+          json: async () => ({
+            display: '216 Đ. 3 Tháng 2, Tân An, Cần Thơ',
+            address: '216 Đ. 3 Tháng 2',
+            ward: 'Tân An',
+            district: '',
+            city: 'Cần Thơ',
+            lat: 10.0341,
+            lng: 105.7882,
+          }),
+        };
+      },
+    });
+    assert.equal(hit.lat, 10.0341);
+    assert.equal(hit.lng, 105.7882);
+    assert.equal(hit.city, 'Cần Thơ');
+    assert.equal('district' in hit, false);
+  });
+
+  it('reverse geocodes a point and rejects bad coordinates before calling VietMap', async () => {
+    const hit = await reverse(10.045, 105.746, {
+      apiKey: KEY,
+      fetch: async (url) => {
+        const href = new URL(String(url));
+        assert.equal(href.pathname, '/api/reverse/v4');
+        assert.equal(href.searchParams.get('lat'), '10.045');
+        assert.equal(href.searchParams.get('lng'), '105.746');
+        assert.equal(href.searchParams.get('display_type'), '5');
+        return {
+          ok: true,
+          json: async () => [
+            {
+              display: '216 Đ. 3 Tháng 2, Tân An, Cần Thơ',
+              lat: 10.045,
+              lng: 105.746,
+              ward: 'Tân An',
+              city: 'Cần Thơ',
+            },
+          ],
+        };
+      },
+    });
+    assert.equal(hit.address, '216 Đ. 3 Tháng 2, Tân An, Cần Thơ');
+    assert.equal(hit.lat, 10.045);
+    assert.equal(hit.lng, 105.746);
+    await assert.rejects(() => reverse(10, 200, { apiKey: KEY, fetch: async () => assert.fail('fetch') }), ApiError);
+  });
+
+  it('fails closed when VietMap is not configured or unavailable', async () => {
+    await assert.rejects(
+      () => autocomplete('216', {}, { apiKey: '', fetch: async () => assert.fail('fetch') }),
+      (err) => err instanceof ApiError && err.statusCode === 503
+    );
+    await assert.rejects(
+      () => reverse(10.045, 105.746, {
+        apiKey: KEY,
+        fetch: async () => ({ ok: false, status: 502, text: async () => 'upstream down' }),
+      }),
+      (err) => err instanceof ApiError && err.statusCode === 502 && err.details.providerStatus === 502
+    );
+    await assert.rejects(
+      () => autocomplete('600 Nguyễn Văn Cừ', { lat: 10.045, lng: 105.746 }, {
+        apiKey: KEY,
+        fetch: async () => ({ ok: false, status: 423, text: async () => `limited apikey=${KEY}` }),
+      }),
+      (err) => {
+        assert.ok(err instanceof ApiError);
+        assert.equal(err.statusCode, 423);
+        assert.match(err.message, /quota|chưa được bật/);
+        assert.equal(String(err.message).includes(KEY), false);
+        assert.equal(err.details.code, 'VIETMAP_UNAVAILABLE');
+        assert.equal(err.details.providerStatus, 423);
+        return true;
+      }
+    );
   });
 });

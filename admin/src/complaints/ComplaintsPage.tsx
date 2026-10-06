@@ -11,12 +11,14 @@ import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { Spinner } from '@/components/Spinner';
 import { complaintStatusLabel, formatDate, shortenId } from '@/lib/utils';
+import { useReturnState } from '@/lib/navigation';
 import type { ComplaintStatus } from '@/types/admin';
 
 const filters: Array<ComplaintStatus | ''> = ['', 'OPEN', 'PROCESSING', 'RESOLVED', 'REJECTED'];
 
 export function ComplaintsPage() {
   const { t } = useTranslation();
+  const back = useReturnState();
   const [status, setStatus] = useState<ComplaintStatus | ''>('OPEN');
   const { data, loading, error, reload } = useAsync(() => adminApi.listComplaints(status), [status]);
 
@@ -53,7 +55,7 @@ export function ComplaintsPage() {
           </Badge>,
           shortenId(row.orderId),
           formatDate(row.createdAt),
-          <Link key={`${row.id}-l`} to={`/complaints/${row.id}`} className="text-copper-300">
+          <Link key={`${row.id}-l`} to={`/complaints/${row.id}`} state={back} className="text-copper-300">
             {t('pages.view')}
           </Link>,
         ])}

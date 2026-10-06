@@ -56,9 +56,9 @@ export function StoreEarningsPage() {
       <PageHeader eyebrow={t('nav.store.earnings')} title={t('materialOrder.earningsTitle')} description={t('materialOrder.earningsBody')} />
       <div className="grid gap-3 md:grid-cols-2">
         {ROWS.map((key) => (
-          <Card key={key} hover={false}>
+          <Card key={key} hover={false} className="p-4">
             <p className="text-sm text-ink-500">{labels[key]}</p>
-            <p className="mt-2 font-display text-3xl text-navy-800">{vnd(data[key])}</p>
+            <p className="mt-1 text-2xl font-semibold text-navy-800">{vnd(data[key])}</p>
           </Card>
         ))}
       </div>

@@ -8,7 +8,6 @@ import { AuthProvider } from '@/providers/AuthProvider';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { I18nProvider } from '@/providers/I18nProvider';
 import '@/locales/i18n';
-import 'leaflet/dist/leaflet.css';
 import '@/styles/globals.css';
 
 createRoot(document.getElementById('root')!).render(

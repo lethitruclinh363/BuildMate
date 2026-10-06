@@ -17,6 +17,6 @@
   "viewMap": "View map",
   "directions": "Directions",
   "locationFallback": "Location",
-  "gpsDenied": "Location permission was denied.",
+  "gpsDenied": "Location is unavailable. You can enter an address or drop a pin on the map.",
   "gpsUnavailable": "Current location is unavailable on this device."
 }

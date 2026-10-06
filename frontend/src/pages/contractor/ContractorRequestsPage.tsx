@@ -8,15 +8,17 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { itemListClass, ListRow } from '@/components/ui/surfaces';
 import { repairApi } from '@/features/chat/services/sprint4.api';
 import { getApiErrorMessage } from '@/lib/api';
 import { mediaUrl } from '@/lib/partner-api';
+import { useReturnState } from '@/lib/navigation';
 import { labeled, useI18n } from '@/locales';
 import type { RepairRequest } from '@/types/sprint4';
 
 export function ContractorRequestsPage() {
   const { t, te } = useI18n();
+  const back = useReturnState();
   const [rows, setRows] = useState<RepairRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,9 +54,9 @@ export function ContractorRequestsPage() {
           body={t('contractorRequests.emptyBody')}
         />
       ) : (
-        <div className="space-y-4">
+        <div className={itemListClass}>
           {rows.map((item) => (
-            <Card key={item.id} hover={false}>
+            <ListRow key={item.id}>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap gap-2">
@@ -87,15 +89,15 @@ export function ContractorRequestsPage() {
                   ) : null}
                   {item.roomId ? (
                     <Button asChild size="sm" variant="copper">
-                      <Link to={`/contractor/chat/${item.roomId}`}>{t('request.openChat')}</Link>
+                      <Link to={`/contractor/chat/${item.roomId}`} state={back}>{t('request.openChat')}</Link>
                     </Button>
                   ) : null}
                   <Button asChild size="sm" variant="outline">
-                    <Link to={`/contractor/quotation/create/${item.id}`}>{t('contractorRequests.createQuote')}</Link>
+                    <Link to={`/contractor/quotation/create/${item.id}`} state={back}>{t('contractorRequests.createQuote')}</Link>
                   </Button>
                 </div>
               </div>
-            </Card>
+            </ListRow>
           ))}
         </div>
       )}

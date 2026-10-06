@@ -4,7 +4,9 @@ import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ConfirmModal } from '@/components/feedback/ConfirmModal';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
+import { BackButton } from '@/components/navigation/BackButton';
 import { Button } from '@/components/ui/Button';
+import { useReturnState } from '@/lib/navigation';
 import { Card } from '@/components/ui/Card';
 import { OrderDetailView } from '@/features/orders/components/OrderDetail';
 import { useOrderDetail } from '@/features/orders/hooks/useOrderDetail';
@@ -17,6 +19,7 @@ import { useToastStore } from '@/store/toast.store';
 export function CustomerOrderDetailPage() {
   const { id } = useParams();
   const { t, te } = useI18n();
+  const back = useReturnState();
   const { order, progress, request, quotation, loading, error, reload } = useOrderDetail(id);
   const push = useToastStore((s) => s.push);
   const [confirm, setConfirm] = useState<'complete' | 'cancel' | null>(null);
@@ -41,9 +44,7 @@ export function CustomerOrderDetailPage() {
 
   return (
     <PageTransition>
-      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link to="/customer/orders">{t('common.back')}</Link>
-      </Button>
+      <BackButton fallback="/customer/orders" />
       <OrderDetailView
         order={order}
         progress={progress}
@@ -54,22 +55,22 @@ export function CustomerOrderDetailPage() {
           <Card hover={false} className="space-y-2">
             {request?.roomId ? (
               <Button asChild variant="outline" className="w-full">
-                <Link to={`/customer/chat/${request.roomId}`}>{t('quote.backChat')}</Link>
+                <Link to={`/customer/chat/${request.roomId}`} state={back}>{t('quote.backChat')}</Link>
               </Button>
             ) : null}
             {order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED' ? (
               <Button asChild className="w-full">
-                <Link to={`/customer/payment/${order.id}`}>{t('pay.cta')}</Link>
+                <Link to={`/customer/payment/${order.id}`} state={back}>{t('pay.cta')}</Link>
               </Button>
             ) : null}
             {order.status === 'CUSTOMER_ACCEPTED' ? (
               <Button asChild variant="copper" className="w-full">
-                <Link to={`/customer/orders/${order.id}/review`}>{t('review.write')}</Link>
+                <Link to={`/customer/orders/${order.id}/review`} state={back}>{t('review.write')}</Link>
               </Button>
             ) : null}
             {order.status !== 'CANCELLED' ? (
               <Button asChild variant="outline" className="w-full">
-                <Link to={`/customer/orders/${order.id}/complaint`}>{t('complaint.open')}</Link>
+                <Link to={`/customer/orders/${order.id}/complaint`} state={back}>{t('complaint.open')}</Link>
               </Button>
             ) : null}
             {order.status === 'COMPLETED' ? (

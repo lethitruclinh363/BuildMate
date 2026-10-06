@@ -55,6 +55,9 @@ export interface CreateMaterialOrderBody {
   deliveryAddress: string;
   lat: number;
   lng: number;
+  locationConfirmed: true;
+  locationSource?: 'VIETMAP_PLACE' | 'GPS' | 'MANUAL_PIN';
+  providerRefId?: string;
   customerNote?: string;
   items: Array<{ materialId: string; quantity: number }>;
 }

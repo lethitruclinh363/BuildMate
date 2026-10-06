@@ -88,6 +88,12 @@ export function mergeServiceStatus(localItems: ContractorServicePick[], serverIt
   });
 }
 
+export function registeredServiceId(item: { serviceId?: string | null; category?: string; name?: string }) {
+  if (item.serviceId) return item.serviceId;
+  if (item.category && item.name) return `${item.category}::${item.name}`;
+  return item.name || '';
+}
+
 export function catalogPickLabel(
   item: { name: string; label?: string; labelKey?: string; type?: string },
   translate: (key: string) => string

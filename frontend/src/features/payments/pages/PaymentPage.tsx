@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ConfirmModal } from '@/components/feedback/ConfirmModal';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
+import { BackButton } from '@/components/navigation/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useOrderDetail } from '@/features/orders/hooks/useOrderDetail';
@@ -58,9 +59,7 @@ export function PaymentPage() {
 
   return (
     <PageTransition>
-      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link to={`/customer/orders/${order.id}`}>{t('common.back')}</Link>
-      </Button>
+      <BackButton fallback={`/customer/orders/${order.id}`} />
       <PageHeader eyebrow={t('pay.eyebrow')} title={t('pay.title')} description={t('pay.desc')} />
       <div className="space-y-6">
         <PaymentSummaryCard

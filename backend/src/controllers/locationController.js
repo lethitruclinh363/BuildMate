@@ -1,7 +1,8 @@
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const locationService = require('../services/locationService');
-const geocodingService = require('../services/geocoding.service');
+const vietmapService = require('../services/vietmap.service');
+const locationCorrection = require('../services/locationCorrection.service');
 
 const nearbyStores = asyncHandler(async (req, res) => {
   const { lat, lng, radius, category, minRating, storeType } = req.query;
@@ -29,14 +30,28 @@ const nearbyContractors = asyncHandler(async (req, res) => {
   return success(res, data, 'Nearby contractors retrieved');
 });
 
-const geocode = asyncHandler(async (req, res) => {
-  const data = await geocodingService.geocodeAddress(req.query.q);
+const autocomplete = asyncHandler(async (req, res) => {
+  const data = await vietmapService.autocomplete(req.query.q, {
+    lat: req.query.focusLat,
+    lng: req.query.focusLng,
+  });
   return success(res, data, 'Addresses retrieved');
 });
 
+const place = asyncHandler(async (req, res) => {
+  const hit = await vietmapService.place(req.query.refId);
+  let data = hit;
+  try {
+    data = await locationCorrection.prefer(hit);
+  } catch (err) {
+    console.error('[LocationCorrection] status=lookup message=unavailable');
+  }
+  return success(res, data, 'Place retrieved');
+});
+
 const reverse = asyncHandler(async (req, res) => {
-  const data = await geocodingService.reverseGeocode(req.query.lat, req.query.lng);
+  const data = await vietmapService.reverse(req.query.lat, req.query.lng);
   return success(res, data, 'Address retrieved');
 });
 
-module.exports = { nearbyStores, nearbyContractors, geocode, reverse };
+module.exports = { nearbyStores, nearbyContractors, autocomplete, place, reverse };

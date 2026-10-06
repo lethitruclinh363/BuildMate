@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { DataPanel, itemListClass, ListRow } from '@/components/ui/surfaces';
 import { mediaUrl, vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useMaterialCartStore } from '@/features/material-cart/material-cart.store';
@@ -21,18 +21,19 @@ export function MaterialCartPage() {
         <p className="text-xs uppercase tracking-[0.22em] text-copper-500">{t('cart.eyebrow')}</p>
         <h1 className="mt-2 font-display text-3xl text-navy-800">{t('cart.title')}</h1>
         {!items.length ? (
-          <Card hover={false} className="mt-6">
+          <div className="mt-8">
             <p className="text-sm text-ink-600">{t('cart.empty')}</p>
             <Button asChild className="mt-4">
               <Link to="/explore">{t('cart.browse')}</Link>
             </Button>
-          </Card>
+          </div>
         ) : (
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-navy-800">{storeName}</p>
+          <div className="mt-6 grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
+            <div>
+              <p className="mb-3 text-sm font-semibold text-navy-800">{storeName}</p>
+              <div className={itemListClass}>
               {items.map((item) => (
-                <Card key={item.materialId} hover={false} className="flex gap-3">
+                <ListRow key={item.materialId} className="flex gap-3">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-paper-100">
                     {item.image ? <img src={mediaUrl(item.image)} alt="" className="h-full w-full object-cover" /> : null}
                   </div>
@@ -71,17 +72,18 @@ export function MaterialCartPage() {
                       <p className="font-display text-lg text-navy-800">{vnd(item.price * item.quantity)}</p>
                     </div>
                   </div>
-                </Card>
+                </ListRow>
               ))}
+              </div>
             </div>
-            <Card hover={false} className="h-fit">
+            <DataPanel className="h-fit">
               <p className="text-sm text-ink-500">{t('cart.subtotal')}</p>
-              <p className="mt-1 font-display text-3xl text-navy-800">{vnd(subtotal)}</p>
+              <p className="mt-1 text-2xl font-semibold text-navy-800">{vnd(subtotal)}</p>
               <p className="mt-2 text-xs leading-5 text-ink-400">{t('cart.priceNote')}</p>
               <Button asChild className="mt-4 w-full">
                 <Link to="/material-checkout">{t('cart.checkout')}</Link>
               </Button>
-            </Card>
+            </DataPanel>
           </div>
         )}
       </div>

@@ -13,6 +13,7 @@ function contractorStore(status, extra = {}) {
     openingHours: '07:00 – 18:00',
     phone: '0901234567',
     location: place,
+    locationConfirmed: true,
     status,
     ...extra,
   };
@@ -28,6 +29,7 @@ function storefront(status, extra = {}) {
     openingHours: '07:00 – 18:00',
     phone: '0901234567',
     location: place,
+    locationConfirmed: true,
     status,
     ...extra,
   };
@@ -158,6 +160,18 @@ describe('activation visibility', () => {
     });
     assert.equal(saved.checks.find((item) => item.key === 'location').ok, true);
     assert.equal(saved.ready, true);
+
+    const moved = evaluateReadiness({
+      kind: 'CONTRACTOR',
+      profile: approved,
+      store: contractorStore('INACTIVE', {
+        location: { type: 'Point', coordinates: [105.762, 10.022] },
+        locationConfirmed: false,
+      }),
+      user: active,
+      serviceCount: 1,
+    });
+    assert.equal(moved.checks.find((item) => item.key === 'location').ok, false);
   });
 
   it('does not let a live store satisfy a contractor checklist', () => {

@@ -7,6 +7,7 @@ import { DataTable } from '@/components/DataTable';
 import { GlassCard } from '@/components/GlassCard';
 import { PageHeader } from '@/components/PageHeader';
 import { POLICY_STATUSES, POLICY_TYPES, policyApi, type PolicyRecord, type PolicyStatus } from '@/policies/policy.api';
+import { useReturnState } from '@/lib/navigation';
 
 function statusTone(status: PolicyStatus) {
   if (status === 'ACTIVE') return 'success' as const;
@@ -17,6 +18,7 @@ function statusTone(status: PolicyStatus) {
 export function PolicyListPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const back = useReturnState();
   const [rows, setRows] = useState<PolicyRecord[]>([]);
   const [search, setSearch] = useState('');
   const [type, setType] = useState('');
@@ -48,7 +50,7 @@ export function PolicyListPage() {
         eyebrow={t('policy.eyebrow')}
         title={t('policy.title')}
         description={t('policy.description')}
-        actions={<Button onClick={() => navigate('/policies/new')}>{t('policy.create')}</Button>}
+        actions={<Button onClick={() => navigate('/policies/new', { state: back })}>{t('policy.create')}</Button>}
       />
       <GlassCard className="mb-4">
         <div className="grid gap-3 md:grid-cols-4">
@@ -75,7 +77,7 @@ export function PolicyListPage() {
             row.version,
             <Badge key="status" tone={statusTone(row.status)}>{t(`policy.statuses.${row.status}`)}</Badge>,
             new Date(row.updatedAt).toLocaleDateString(i18n.language),
-            <Link key="view" to={`/policies/${row.id}`} className="text-copper-300">{t('policy.view')}</Link>,
+            <Link key="view" to={`/policies/${row.id}`} state={back} className="text-copper-300">{t('policy.view')}</Link>,
           ])}
         />
       </GlassCard>

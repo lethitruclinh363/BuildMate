@@ -11,6 +11,7 @@ export function PartnerLocationSection({
   lng,
   label,
   ready,
+  locationSource,
   saving,
   onSave,
 }: {
@@ -20,20 +21,33 @@ export function PartnerLocationSection({
   lng?: number | null;
   label?: string;
   ready?: boolean;
+  locationSource?: MapOrigin['source'];
   saving?: boolean;
   onSave: (origin: MapOrigin) => void;
 }) {
   const { t } = useI18n();
   const [origin, setOrigin] = useState<MapOrigin>(() =>
     Number.isFinite(lat) && Number.isFinite(lng)
-      ? { lat: Number(lat), lng: Number(lng), label }
+      ? {
+          lat: Number(lat),
+          lng: Number(lng),
+          label,
+          locationConfirmed: ready === true,
+          source: ready ? locationSource || 'MANUAL_PIN' : undefined,
+        }
       : { ...CAN_THO, label }
   );
 
   useEffect(() => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    setOrigin({ lat: Number(lat), lng: Number(lng), label: label || undefined });
-  }, [lat, lng, label]);
+    setOrigin({
+      lat: Number(lat),
+      lng: Number(lng),
+      label: label || undefined,
+      locationConfirmed: ready === true,
+      source: ready ? locationSource || 'MANUAL_PIN' : undefined,
+    });
+  }, [lat, lng, label, ready, locationSource]);
 
   return (
     <div id="location" className="section-anchor">

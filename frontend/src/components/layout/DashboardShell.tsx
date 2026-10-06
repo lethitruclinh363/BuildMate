@@ -2,7 +2,6 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  MapPin,
   Menu,
   X,
 } from 'lucide-react';
@@ -48,22 +47,20 @@ function navItemActive(to: string, end: boolean | undefined, pathname: string, s
 
 const variantTheme: Record<
   DashboardVariant,
-  { aside: string; activeNav: string; header: string; main: string; showSearch: boolean; dense: boolean }
+  { aside: string; activeNav: string; header: string; main: string; dense: boolean }
 > = {
   customer: {
     aside: 'bg-navy-800',
-    activeNav: 'bg-white/10 text-white ring-1 ring-copper-400/40',
+    activeNav: 'bg-white/10 font-semibold text-white ring-1 ring-copper-400/40',
     header: 'bg-paper-50/90',
     main: 'bg-mist-100',
-    showSearch: true,
     dense: false,
   },
   contractor: {
     aside: 'bg-[#071f33]',
-    activeNav: 'bg-copper-500/20 text-white ring-1 ring-copper-400/50',
+    activeNav: 'bg-copper-500/20 font-semibold text-white ring-1 ring-copper-400/50',
     header: 'bg-paper-50/95',
     main: 'bg-[#f3f5f8]',
-    showSearch: true,
     dense: true,
   },
 };
@@ -115,7 +112,7 @@ export function DashboardShell({
           return (
             <div key={`${item.to}-${item.label}`}>
               {showSection ? (
-                <p className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">{item.section}</p>
+                <p className="px-3 pb-1 pt-4 text-xs font-semibold uppercase text-white/45">{item.section}</p>
               ) : null}
               <NavLink
                 to={item.to}
@@ -192,20 +189,6 @@ export function DashboardShell({
           >
             <Menu className="h-4 w-4" />
           </button>
-          {theme.showSearch ? (
-            <label className="relative hidden max-w-md flex-1 md:block">
-              <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-              <input
-                placeholder={t('header.searchPlaceholder')}
-                className="h-10 w-full rounded-full border border-navy-800/10 bg-white pl-10 pr-4 text-sm outline-none focus:ring-4 focus:ring-navy-500/10"
-                readOnly
-                onFocus={(e) => e.currentTarget.blur()}
-                aria-label={t('header.searchPlaceholder')}
-              />
-            </label>
-          ) : (
-            <p className="hidden text-sm font-medium text-navy-800 md:block">{t('header.fieldOps')}</p>
-          )}
           <div className="ml-auto flex items-center gap-2">
             <LanguageSwitcher variant="light" placement="dashboard" />
             <NotificationBell />

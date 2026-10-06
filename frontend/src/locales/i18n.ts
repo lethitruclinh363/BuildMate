@@ -11,6 +11,7 @@ import chatVi from '@/locales/vi/chat.json';
 import quotationVi from '@/locales/vi/quotation.json';
 import ordersVi from '@/locales/vi/orders.json';
 import financeVi from '@/locales/vi/finance.json';
+import ekycVi from '@/locales/vi/ekyc.json';
 
 import commonEn from '@/locales/en/common.json';
 import authEn from '@/locales/en/auth.json';
@@ -20,6 +21,7 @@ import chatEn from '@/locales/en/chat.json';
 import quotationEn from '@/locales/en/quotation.json';
 import ordersEn from '@/locales/en/orders.json';
 import financeEn from '@/locales/en/finance.json';
+import ekycEn from '@/locales/en/ekyc.json';
 
 type Vars = Record<string, string | number>;
 
@@ -36,6 +38,7 @@ void i18n.use(initReactI18next).init({
       quotation: quotationVi,
       orders: ordersVi,
       finance: financeVi,
+      ekyc: ekycVi,
     },
     en: {
       common: commonEn,
@@ -46,6 +49,7 @@ void i18n.use(initReactI18next).init({
       quotation: quotationEn,
       orders: ordersEn,
       finance: financeEn,
+      ekyc: ekycEn,
     },
   },
   lng: initial,

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ConfirmModal } from '@/components/feedback/ConfirmModal';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
+import { BackButton } from '@/components/navigation/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SiteLocationCard } from '@/features/map/components/SiteLocationCard';
@@ -79,6 +80,7 @@ export function MaterialOrderDetailPage() {
   return (
     <PageTransition>
       <div className="mx-auto max-w-3xl">
+        <BackButton fallback="/customer/material-orders" />
         <p className="text-xs uppercase tracking-[0.22em] text-copper-500">{t('materialOrder.eyebrow')}</p>
         <h1 className="mt-2 font-display text-3xl text-navy-800">{order.orderCode}</h1>
         <p className="mt-2 text-sm font-semibold text-navy-800">{t(`materialOrder.status.${order.status}`)}</p>
@@ -199,9 +201,6 @@ export function MaterialOrderDetailPage() {
                 {t('materialOrder.receive')}
               </Button>
             ) : null}
-            <Button asChild variant="outline">
-              <Link to="/customer/material-orders">{t('common.back')}</Link>
-            </Button>
           </div>
         </Card>
         <Card hover={false} className="mt-4">

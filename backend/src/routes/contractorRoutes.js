@@ -8,7 +8,7 @@ const {
   loadStore,
   requireStore,
 } = require('../middleware/contractorMiddleware');
-const { verificationUpload } = require('../middleware/uploadMiddleware');
+const { verificationUpload, ekycMemoryUpload } = require('../middleware/uploadMiddleware');
 const { validate } = require('../utils/validator');
 const {
   profileSchema,
@@ -17,6 +17,8 @@ const {
   documentTypeSchema,
   portfolioSlotSchema,
   portfolioRemoveSchema,
+  portfolioProjectSchema,
+  projectImageRemoveSchema,
   submitSchema,
   storeSchema,
   registerServiceSchema,
@@ -25,6 +27,7 @@ const {
   catalogCreateSchema,
 } = require('../validators/partner.validator');
 const contractorController = require('../controllers/contractorController');
+const contractorEkycController = require('../controllers/contractorEkycController');
 const storeController = require('../controllers/storeController');
 const serviceController = require('../controllers/serviceController');
 const paymentController = require('../controllers/paymentController');
@@ -54,6 +57,26 @@ router.post(
   contractorController.uploadPortfolio
 );
 router.delete('/portfolio', ...contractorOnly, validate(portfolioRemoveSchema), contractorController.removePortfolio);
+router.post('/portfolio/projects', ...contractorOnly, contractorController.createPortfolioProject);
+router.patch(
+  '/portfolio/projects/:projectId',
+  ...contractorOnly,
+  validate(portfolioProjectSchema),
+  contractorController.updatePortfolioProject
+);
+router.delete('/portfolio/projects/:projectId', ...contractorOnly, contractorController.deletePortfolioProject);
+router.post(
+  '/portfolio/projects/:projectId/images',
+  ...contractorOnly,
+  verificationUpload.single('file'),
+  contractorController.uploadProjectImage
+);
+router.delete(
+  '/portfolio/projects/:projectId/images',
+  ...contractorOnly,
+  validate(projectImageRemoveSchema),
+  contractorController.removeProjectImage
+);
 router.post(
   '/verification/documents',
   ...contractorOnly,
@@ -69,6 +92,44 @@ router.post(
   validate(verificationChangeSchema),
   contractorController.requestVerificationChange
 );
+
+router.get('/ekyc', ...contractorOnly, contractorEkycController.current);
+router.post(
+  '/ekyc/documents',
+  ...contractorOnly,
+  ekycMemoryUpload.single('file'),
+  contractorEkycController.saveDocument
+);
+router.post(
+  '/ekyc/face/readiness',
+  ...contractorOnly,
+  ekycMemoryUpload.single('selfie_image'),
+  contractorEkycController.readiness
+);
+router.post(
+  '/ekyc/face/validate-frame',
+  ...contractorOnly,
+  ekycMemoryUpload.fields([
+    { name: 'frame_image', maxCount: 1 },
+    { name: 'reference_image', maxCount: 1 },
+    { name: 'opposite_image', maxCount: 1 },
+  ]),
+  contractorEkycController.validateFrame
+);
+router.post(
+  '/ekyc/process',
+  ...contractorOnly,
+  ekycMemoryUpload.fields([
+    { name: 'selfie_image', maxCount: 1 },
+    { name: 'left_image', maxCount: 1 },
+    { name: 'right_image', maxCount: 1 },
+    { name: 'up_image', maxCount: 1 },
+    { name: 'down_image', maxCount: 1 },
+  ]),
+  contractorEkycController.processVerification
+);
+router.post('/ekyc/submit', ...contractorOnly, contractorEkycController.submit);
+router.get('/ekyc/files/:kind', ...contractorOnly, contractorEkycController.file);
 
 router.get('/store', ...storeWrite, loadStore, storeController.getStore);
 router.post('/store', ...storeWrite, validate(storeSchema), storeController.createStore);

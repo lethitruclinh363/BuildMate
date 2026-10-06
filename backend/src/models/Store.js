@@ -72,6 +72,11 @@ const storeSchema = new mongoose.Schema(
       coordinates: { type: [Number], default: [105.787, 10.045] },
     },
     locationConfirmed: { type: Boolean, default: false },
+    locationSource: {
+      type: String,
+      enum: ['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN'],
+    },
+    locationConfirmedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -121,6 +126,8 @@ storeSchema.methods.toPublic = function toPublic() {
     status: this.status,
     location: this.location,
     locationConfirmed: Boolean(this.locationConfirmed),
+    locationSource: this.locationSource || '',
+    locationConfirmedAt: this.locationConfirmedAt || null,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

@@ -65,18 +65,18 @@ export default function StoreDashboard() {
   const approved = Boolean(workspace?.approved);
 
   return (
-    <div className="rounded-[28px] border border-navy-800/8 bg-white p-8 shadow-card">
-      <p className="text-xs uppercase tracking-[0.24em] text-copper-500">{t('role.MATERIAL_STORE_OWNER')}</p>
-      <h1 className="mt-2 font-display text-3xl text-navy-800">{store?.name || t('verify.storeTitle')}</h1>
+    <div>
+      <p className="text-xs font-semibold uppercase text-copper-500">{t('role.MATERIAL_STORE_OWNER')}</p>
+      <h1 className="mt-2 text-3xl font-semibold text-navy-800">{store?.name || t('verify.storeTitle')}</h1>
       {approved ? <ActivationPanel activation={workspace?.activation} onChanged={load} /> : (
       <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-600">{t('verify.storeDescription')}</p>
       )}
       <div className="mt-6 flex flex-wrap gap-3">
-        <Link to={approved ? '/store/profile/edit' : '/store/verification'} className="rounded-full bg-navy-800 px-5 py-2.5 text-sm font-semibold text-white">
+        <Link to={approved ? '/store/profile/edit' : '/store/verification'} className="inline-flex h-10 items-center rounded-lg bg-navy-800 px-4 text-sm font-medium text-white">
           {approved ? t('nav.store.publicProfile') : t('nav.store.verification')}
         </Link>
         {approved ? (
-          <Link to="/store/materials" className="rounded-full border border-navy-800/15 px-5 py-2.5 text-sm font-semibold text-navy-800">
+          <Link to="/store/materials" className="inline-flex h-10 items-center rounded-lg border border-navy-800/15 bg-white px-4 text-sm font-medium text-navy-800">
             {t('nav.store.catalog')}
           </Link>
         ) : null}

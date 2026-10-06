@@ -15,11 +15,13 @@ import { Spinner } from '@/components/Spinner';
 import { StatCard } from '@/components/StatCard';
 import { TextArea } from '@/components/Input';
 import { formatDate, paymentStatusLabel, vnd } from '@/lib/utils';
+import { useReturnState } from '@/lib/navigation';
 import { getApiErrorMessage } from '@/services/api';
 import { useToastStore } from '@/stores/toast.store';
 
 export function PaymentsPage() {
   const { t } = useTranslation();
+  const back = useReturnState();
   const { data, loading, error, reload } = useAsync(loadAdminDirectory, []);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -65,7 +67,7 @@ export function PaymentsPage() {
           <Badge key={`${row.id}-s`} tone={row.status === 'PAID' ? 'success' : row.status === 'REFUNDED' ? 'warn' : 'navy'}>
             {paymentStatusLabel(row.status)}
           </Badge>,
-          <Link key={`${row.id}-o`} to={`/orders/${row.orderId}`} className="text-copper-300">
+          <Link key={`${row.id}-o`} to={`/orders/${row.orderId}`} state={back} className="text-copper-300">
             {t('pages.openOrder')}
           </Link>,
           formatDate(row.paidAt),

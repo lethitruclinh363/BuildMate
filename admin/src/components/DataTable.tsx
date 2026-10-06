@@ -15,7 +15,7 @@ export function DataTable({
     <div className="overflow-x-auto">
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead>
-          <tr className="border-b border-white/8 text-[11px] uppercase tracking-[0.16em] text-white/40">
+          <tr className="border-b border-white/8 text-sm text-white/55">
             {columns.map((col) => (
               <th key={col} className="px-3 py-3 font-semibold">
                 {col}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { AdminBackButton } from '@/components/AdminBackButton';
 import { Badge } from '@/components/Badge';
 import { GlassCard } from '@/components/GlassCard';
 import { PageHeader } from '@/components/PageHeader';
@@ -19,10 +20,10 @@ export function PolicyHistoryPage() {
 
   return (
     <div>
+      <AdminBackButton fallback={`/policies/${id || ''}`} label={t('policy.detail')} />
       <PageHeader
         eyebrow={t('policy.eyebrow')}
         title={t('policy.history')}
-        actions={<Link to={`/policies/${id}`} className="text-sm text-copper-300">{t('policy.detail')}</Link>}
       />
       {error ? <p className="mb-3 text-sm text-red-300">{error}</p> : null}
       {!error && !rows.length ? <p className="text-sm text-white/50">{t('policy.noHistory')}</p> : null}

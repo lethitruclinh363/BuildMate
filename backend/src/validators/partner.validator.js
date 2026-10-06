@@ -113,6 +113,15 @@ const portfolioRemoveSchema = portfolioSlotSchema.extend({
   url: z.string().trim().min(1).max(500),
 });
 
+const portfolioProjectSchema = z.object({
+  serviceId: z.string().trim().max(120).optional(),
+  description: z.string().trim().max(500).optional(),
+});
+
+const projectImageRemoveSchema = z.object({
+  url: z.string().trim().min(1).max(500),
+});
+
 const documentTypeSchema = z.object({
   type: z.enum(['BUSINESS_LICENSE', 'CERTIFICATE', 'CCCD_FRONT', 'CCCD_BACK', 'ID_CARD', 'STORE_IMAGE', 'PORTFOLIO']),
 });
@@ -183,6 +192,9 @@ const storeSchema = z.object({
   status: z.enum(['DRAFT', 'INACTIVE', 'LIVE', 'PAUSED']).optional(),
   lng: z.coerce.number().optional(),
   lat: z.coerce.number().optional(),
+  locationConfirmed: z.boolean().optional(),
+  locationSource: z.enum(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']).optional(),
+  providerRefId: z.string().trim().max(2000).optional(),
 });
 
 const catalogCheckSchema = z.object({
@@ -246,6 +258,14 @@ const catalogReviewSchema = z.object({
   decision: z.enum(['approve', 'reject']),
 });
 
+const serviceSuggestionSchema = z.object({
+  description: z.string().trim().min(8, 'Please describe the service you would like to suggest.').max(500),
+});
+
+const suggestionRejectSchema = z.object({
+  adminNote: z.string().trim().max(500).optional().or(z.literal('')),
+});
+
 const rejectSchema = z.object({
   reason: z.string().trim().min(8, 'Provide a clear rejection reason').max(500),
 });
@@ -255,6 +275,8 @@ module.exports = {
   documentTypeSchema,
   portfolioSlotSchema,
   portfolioRemoveSchema,
+  portfolioProjectSchema,
+  projectImageRemoveSchema,
   publicProfileSchema,
   storePublicProfileSchema,
   verificationChangeSchema,
@@ -269,6 +291,8 @@ module.exports = {
   materialCategoryNameSchema,
   materialSchema,
   rejectSchema,
+  serviceSuggestionSchema,
+  suggestionRejectSchema,
   submitSchema,
   SERVICE_CATEGORIES,
   MATERIAL_CATEGORIES,

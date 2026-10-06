@@ -1,0 +1,79 @@
+"""
+Cấu hình ứng dụng – đọc từ biến môi trường hoặc file .env
+"""
+
+from typing import List, Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    # ── Thông tin ứng dụng ──────────────────────────────────────────────────
+    APP_NAME: str = "eKYC AI Service"
+    APP_VERSION: str = "1.0.0"
+
+    # ── Server ──────────────────────────────────────────────────────────────
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    APP_DEBUG: bool = False
+
+    # ── CORS ────────────────────────────────────────────────────────────────
+    ALLOWED_ORIGINS: List[str] = ["*"]
+
+    # ── DeepFace ────────────────────────────────────────────────────────────
+    # Model hỗ trợ 512-dim: "Facenet512", "ArcFace", "DeepFace"
+    DEEPFACE_MODEL: str = "Facenet512"
+    DEEPFACE_DETECTOR: str = "opencv"       # opencv | retinaface | mtcnn
+    DEEPFACE_DISTANCE: str = "cosine"       # cosine | euclidean | euclidean_l2
+    # Prototype/đồ án: hai ngưỡng cosine dưới đây là cấu hình kỹ thuật.
+    # Cần calibration lại trước khi dùng cho production.
+    FACE_MATCH_THRESHOLD: float = 0.30      # <= ngưỡng này: MATCH
+    FACE_MATCH_REVIEW_THRESHOLD: float = 0.42  # trong khoảng (match, review]: REVIEW_REQUIRED; cao hơn: NOT_MATCH
+    EKYC_INTERNAL_TOKEN: Optional[str] = None
+    FACE_ENROLLMENT_CONSISTENCY_THRESHOLD: float = 0.48
+    FACE_RECOGNITION_DETECTOR: str = "retinaface"
+    LIVENESS_MIN_SCORE: float = 0.80        # độ tin cậy tối thiểu của anti-spoofing
+    ACTIVE_LIVENESS_CENTER_MAX_YAW: float = 0.08
+    ACTIVE_LIVENESS_SIDE_MIN_YAW: float = 0.20
+    ACTIVE_LIVENESS_MIN_YAW_RANGE: float = 0.42
+    ACTIVE_LIVENESS_VERTICAL_MIN_DELTA: float = 0.08
+    ACTIVE_LIVENESS_MIN_PITCH_RANGE: float = 0.18
+    EXPRESS_LIVENESS_CENTER_MAX_YAW: float = 0.12
+    EXPRESS_LIVENESS_SIDE_MIN_YAW: float = 0.12
+    EXPRESS_LIVENESS_MIN_YAW_DELTA: float = 0.10
+    FACE_READINESS_MIN_SIZE: int = 96
+
+    # ── CCCD field detection (YOLOv11 on Hugging Face) ─────────────────────
+    HF_TOKEN: Optional[str] = None
+    HF_REPO_ID: str = "phamminhanh2004/hotel-cccd-ocr-v11"
+    HF_ONNX_MODEL_FILE: str = "best.onnx"
+    HF_MODEL_FILE: str = "best.pt"
+    HF_REVISION: Optional[str] = None
+    OCR_REVISION: Optional[str] = None
+    TROCR_REVISION: Optional[str] = None
+    CCCD_YOLO_IMAGE_SIZE: int = 640
+    CCCD_YOLO_CONFIDENCE: float = 0.15
+    CCCD_YOLO_IOU: float = 0.50
+    CCCD_YOLO_AGNOSTIC_NMS: bool = True
+
+    # ── VietOCR ─────────────────────────────────────────────────────────────
+    VIETOCR_REPO_ID: Optional[str] = None
+    VIETOCR_WEIGHTS_FILE: str = "vgg_transformer.pth"
+    VIETOCR_REVISION: Optional[str] = None
+    VIETOCR_CONFIG: str = "vgg_transformer"
+    VIETOCR_CONFIG_PATH: str = "config/vietocr-vgg-transformer.yml"
+    VIETOCR_WEIGHTS_URL: Optional[str] = None
+    OCR_DEVICE: str = "auto"                # auto | cpu | cuda | cuda:0
+    OCR_CROP_HEIGHT: int = 80
+    OCR_PADDING_PIXELS: int = 6
+
+    # ── HTTP request ────────────────────────────────────────────────────────
+    REQUEST_TIMEOUT: int = 15               # giây
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
+
+
+settings = Settings()

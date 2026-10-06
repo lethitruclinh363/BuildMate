@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AxiosError } from 'axios';
 import { Check, Search } from 'lucide-react';
 import {
   catalogPickLabel,
-  collapseServiceName,
   CONTRACTOR_SERVICE_CATEGORIES,
   normalizeServiceName,
   servicePickKey,
@@ -11,16 +9,13 @@ import {
   type ContractorServicePick,
 } from '@/data/contractor-services';
 import { getApiErrorMessage } from '@/lib/api';
+import { FormLabel } from '@/components/ui/FormLabel';
 import { cn } from '@/lib/cn';
+import { useToastStore } from '@/store/toast.store';
 import { contractorApi } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 
 const MAX_SERVICES = 40;
-
-type LiveCheck =
-  | { code: 'IDLE' | 'CHECKING' | 'ERROR' | 'INVALID' | 'DUPLICATE_OWN' | 'AVAILABLE' }
-  | { code: 'DUPLICATE_SYSTEM_SERVICE' | 'DUPLICATE_CUSTOM_SERVICE'; service: ContractorServicePick | null }
-  | { code: 'SIMILAR_SERVICE'; similar: ContractorServicePick[] };
 
 function domId(item: ContractorServicePick) {
   if (item.type === 'CUSTOM') return `selected-${servicePickKey(item)}`;
@@ -35,16 +30,15 @@ export function ContractorServiceSelector({
   onChange: (next: ContractorServicePick[]) => void;
 }) {
   const { t } = useI18n();
+  const pushToast = useToastStore((state) => state.push);
   const [query, setQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<ContractorServiceCategory | ''>('');
   const [catalog, setCatalog] = useState<ContractorServicePick[]>([]);
-  const [customDescription, setCustomDescription] = useState('');
   const [customOpen, setCustomOpen] = useState(false);
-  const [customName, setCustomName] = useState('');
-  const [customCategory, setCustomCategory] = useState<ContractorServiceCategory | ''>('');
-  const [customError, setCustomError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [check, setCheck] = useState<LiveCheck>({ code: 'IDLE' });
+  const [suggestion, setSuggestion] = useState('');
+  const [suggestionError, setSuggestionError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [suggestionSent, setSuggestionSent] = useState(false);
 
   const selectedKeys = useMemo(() => new Set(selected.map((item) => servicePickKey(item))), [selected]);
 
@@ -83,84 +77,10 @@ export function ContractorServiceSelector({
       });
   }, [catalog, filterCategory, query, t]);
 
-  useEffect(() => {
-    if (!customOpen) return undefined;
-    const display = collapseServiceName(customName);
-    if (!display) {
-      setCheck({ code: 'IDLE' });
-      return undefined;
-    }
-    if (display.length > 80) {
-      setCheck({ code: 'INVALID' });
-      return undefined;
-    }
-    const normalized = normalizeServiceName(display);
-    const owned = selected.some((item) => {
-      if (item.type === 'CUSTOM') return normalizeServiceName(item.name) === normalized;
-      return [item.name, t(`serviceCatalog.${item.name}`)].some((label) => normalizeServiceName(label) === normalized);
-    });
-    if (owned) {
-      setCheck({ code: 'DUPLICATE_OWN' });
-      return undefined;
-    }
-    const system = catalog.find((item) =>
-      [item.name, item.labelKey || '', t(`serviceCatalog.${item.labelKey || item.name}`)].some(
-        (label) => normalizeServiceName(label) === normalized
-      )
-    );
-    if (system) {
-      setCheck({
-        code: 'DUPLICATE_SYSTEM_SERVICE',
-        service: {
-          category: system.category,
-          name: system.labelKey || system.name,
-          label: system.name,
-          type: 'SYSTEM',
-          serviceId: system.catalogKey || system.serviceId,
-          status: 'APPROVED',
-        },
-      });
-      return undefined;
-    }
-    setCheck({ code: 'CHECKING' });
-    let ignore = false;
-    const timer = window.setTimeout(() => {
-      contractorApi
-        .checkServiceCatalog(display)
-        .then((res) => {
-          if (ignore) return;
-          const data = res.data.data;
-          if (data.code === 'DUPLICATE_SYSTEM_SERVICE' || data.code === 'DUPLICATE_CUSTOM_SERVICE') {
-            setCheck({ code: data.code, service: data.service });
-            return;
-          }
-          if (data.code === 'SIMILAR_SERVICE') {
-            setCheck({ code: 'SIMILAR_SERVICE', similar: data.similar || (data.service ? [data.service] : []) });
-            return;
-          }
-          if (data.code === 'INVALID') {
-            setCheck({ code: 'INVALID' });
-            return;
-          }
-          setCheck({ code: 'AVAILABLE' });
-        })
-        .catch(() => {
-          if (!ignore) setCheck({ code: 'ERROR' });
-        });
-    }, 400);
-    return () => {
-      ignore = true;
-      window.clearTimeout(timer);
-    };
-  }, [catalog, customName, customOpen, selected, t]);
-
   function closeCustom() {
     setCustomOpen(false);
-    setCustomName('');
-    setCustomCategory('');
-    setCustomDescription('');
-    setCustomError('');
-    setCheck({ code: 'IDLE' });
+    setSuggestion('');
+    setSuggestionError('');
   }
 
   function removeCustom(name: string) {
@@ -178,69 +98,26 @@ export function ContractorServiceSelector({
     onChange([...selected, item]);
   }
 
-  function selectExisting(service: ContractorServicePick) {
-    const key = servicePickKey(service);
-    if (!selectedKeys.has(key) && selected.length < MAX_SERVICES) {
-      onChange([...selected, service]);
-    }
-    setFilterCategory('');
-    setQuery('');
-    closeCustom();
-    const target = service.type === 'SYSTEM' ? domId(service) : `selected-${servicePickKey(service)}`;
-    window.setTimeout(() => {
-      document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 40);
-  }
-
-  async function saveCustom() {
-    const display = collapseServiceName(customName);
-    if (!display || display.length > 80) {
-      setCustomError(t('auth.onboardCustomRequired'));
+  async function sendSuggestion() {
+    const text = suggestion.replace(/\s+/g, ' ').trim();
+    if (text.length < 8) {
+      setSuggestionError(t('auth.suggestRequired'));
       return;
     }
-    if (!customCategory) {
-      setCustomError(t('auth.onboardCustomCategoryRequired'));
-      return;
-    }
-    if (check.code !== 'AVAILABLE' || selected.length >= MAX_SERVICES) return;
-    setSaving(true);
-    setCustomError('');
+    setSending(true);
+    setSuggestionError('');
     try {
-      const { data } = await contractorApi.createCustomService({
-        name: display,
-        category: customCategory,
-        description: collapseServiceName(customDescription),
-      });
-      const created = data.data;
-      onChange([
-        ...selected,
-        {
-          category: created.category,
-          name: created.name,
-          type: 'CUSTOM',
-          serviceId: created.serviceId,
-          status: created.status || 'PENDING_APPROVAL',
-        },
-      ]);
-      closeCustom();
+      await contractorApi.createServiceSuggestion(text);
+      setSuggestion('');
+      setCustomOpen(false);
+      setSuggestionSent(true);
+      pushToast({ kind: 'success', title: t('auth.suggestSent') });
     } catch (err) {
-      const details = (err as AxiosError<{ details?: { code?: LiveCheck['code']; service?: ContractorServicePick | null } }>).response?.data
-        ?.details;
-      if (details?.code === 'DUPLICATE_SYSTEM_SERVICE' || details?.code === 'DUPLICATE_CUSTOM_SERVICE') {
-        setCheck({ code: details.code, service: details.service || null });
-      } else {
-        setCustomError(getApiErrorMessage(err));
-      }
+      setSuggestionError(getApiErrorMessage(err));
     } finally {
-      setSaving(false);
+      setSending(false);
     }
   }
-
-  const displayName = collapseServiceName(customName);
-  const canSave = Boolean(displayName) && displayName.length <= 80 && Boolean(customCategory) && check.code === 'AVAILABLE' && !saving;
-  const duplicateService = check.code === 'DUPLICATE_SYSTEM_SERVICE' || check.code === 'DUPLICATE_CUSTOM_SERVICE' ? check.service : null;
-  const similarServices = check.code === 'SIMILAR_SERVICE' ? check.similar : [];
-  const canPickExisting = Boolean(duplicateService && duplicateService.status !== 'REJECTED');
 
   return (
     <div className="mt-5 space-y-4">
@@ -292,8 +169,8 @@ export function ContractorServiceSelector({
         )}
       </div>
 
-      <label className="block text-sm font-medium text-navy-800">
-        {t('auth.onboardServiceSearch')}
+      <label className="block">
+        <FormLabel optional={t('auth.onboardOptionalMark')}>{t('auth.onboardServiceSearch')}</FormLabel>
         <span className="relative mt-1.5 block">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" aria-hidden />
           <input
@@ -372,139 +249,50 @@ export function ContractorServiceSelector({
         type="button"
         onClick={() => {
           setCustomOpen(true);
-          setCustomError('');
-          setCustomCategory(filterCategory);
+          setSuggestionError('');
         }}
-        className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-navy-800/20 bg-white px-3 py-3 text-left text-sm font-semibold text-navy-800"
+        className="text-sm font-semibold text-navy-800"
       >
         + {t('auth.onboardOtherService')}
       </button>
 
+      {suggestionSent ? <p className="text-sm text-ink-500">{t('auth.suggestPending')}</p> : null}
+
       {customOpen ? (
-        <div className="rounded-2xl border border-navy-800/10 bg-paper-50 p-4">
-          <p className="text-sm font-semibold text-navy-800">{t('auth.onboardCustomService')}</p>
-          <label className="mt-3 block text-sm font-medium text-navy-800">
-            {t('auth.onboardCustomName')}
-            <input
-              value={customName}
-              maxLength={80}
-              placeholder={t('auth.onboardCustomPlaceholder')}
-              onChange={(event) => {
-                setCustomName(event.target.value);
-                if (customError) setCustomError('');
-              }}
-              className="mt-1.5 w-full rounded-2xl border border-navy-800/12 bg-white px-4 py-3 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20"
-            />
-          </label>
-          <label className="mt-3 block text-sm font-medium text-navy-800">
-            {t('auth.onboardCustomCategory')}
-            <select
-              value={customCategory}
-              onChange={(event) => {
-                setCustomCategory(event.target.value as ContractorServiceCategory | '');
-                if (customError) setCustomError('');
-              }}
-              className="mt-1.5 w-full rounded-2xl border border-navy-800/12 bg-white px-4 py-3 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20"
-            >
-              <option value="">{t('auth.onboardCustomCategoryPlaceholder')}</option>
-              {CONTRACTOR_SERVICE_CATEGORIES.map((item) => (
-                <option key={item} value={item}>
-                  {t(`category.${item}`)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="mt-3 block text-sm font-medium text-navy-800">
-            {t('auth.onboardCustomDescription')}
+        <div className="border-t border-navy-800/10 pt-4">
+          <p className="text-sm font-semibold text-navy-800">{t('auth.suggestTitle')}</p>
+          <p className="mt-1 text-sm text-ink-500">{t('auth.suggestLead')}</p>
+          <p className="mt-2 text-xs text-ink-400">{t('auth.onboardRequiredNote')}</p>
+          <label className="mt-3 block">
+            <FormLabel required>{t('auth.suggestDescription')}</FormLabel>
             <textarea
-              value={customDescription}
+              value={suggestion}
               maxLength={500}
               rows={3}
-              onChange={(event) => setCustomDescription(event.target.value)}
-              className="mt-1.5 w-full rounded-2xl border border-navy-800/12 bg-white px-4 py-3 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20"
+              placeholder={t('auth.suggestPlaceholder')}
+              onChange={(event) => {
+                setSuggestion(event.target.value);
+                if (suggestionError) setSuggestionError('');
+              }}
+              className={cn(
+                'mt-1.5 w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-navy-800 outline-none',
+                suggestionError ? 'border-red-500' : 'border-navy-800/15'
+              )}
             />
+            <p className="mt-1 text-xs text-ink-400">{t('auth.suggestExample')}</p>
+            {suggestionError ? <p className="mt-1 text-xs text-red-600">{suggestionError}</p> : null}
           </label>
-
-          <div className="mt-3 text-sm" role="status">
-            {check.code === 'CHECKING' ? <p className="text-ink-400">{t('auth.onboardCustomChecking')}</p> : null}
-            {check.code === 'AVAILABLE' ? (
-              <div className="text-emerald-700">
-                <p className="font-semibold">✓ {t('auth.onboardCustomAvailableTitle')}</p>
-                <p>{t('auth.onboardCustomAvailable')}</p>
-                <p className="mt-1 text-emerald-800/80">{t('auth.onboardCustomAvailableNote')}</p>
-              </div>
-            ) : null}
-            {check.code === 'DUPLICATE_OWN' ? <p className="font-medium text-red-600">{t('auth.onboardCustomDuplicate')}</p> : null}
-            {check.code === 'SIMILAR_SERVICE' ? (
-              <div className="text-amber-700">
-                <p className="font-semibold">{t('auth.onboardCustomSimilarTitle')}</p>
-                <p>{t('auth.onboardCustomSimilarIntro')}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {similarServices.map((item) => (
-                    <button
-                      key={servicePickKey(item)}
-                      type="button"
-                      className="rounded-full border border-amber-700/30 px-3 py-1 text-xs font-semibold"
-                      onClick={() =>
-                        selectExisting({
-                          ...item,
-                          name: item.labelKey || item.name,
-                          label: item.name,
-                          type: 'SYSTEM',
-                          serviceId: item.catalogKey || item.serviceId,
-                          status: 'APPROVED',
-                        })
-                      }
-                    >
-                      {t('auth.onboardCustomPickExisting')}: {catalogPickLabel(item, t)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {check.code === 'INVALID' ? <p className="text-red-600">{t('auth.onboardCustomRequired')}</p> : null}
-            {check.code === 'ERROR' ? <p className="text-red-600">{t('auth.onboardCustomCheckFailed')}</p> : null}
-            {duplicateService ? (
-              <div className="text-red-600">
-                <p className="font-semibold">❌ {t('auth.onboardCustomExistsTitle')}</p>
-                {duplicateService.status === 'REJECTED' ? (
-                  <p>{t('auth.onboardCustomRejected')}</p>
-                ) : (
-                  <>
-                    <p>{t('auth.onboardCustomExistsIntro')}</p>
-                    <p className="mt-1">
-                      {t('auth.onboardCustomExistsNamed', {
-                        name: catalogPickLabel(duplicateService, t),
-                        category: t(`category.${duplicateService.category}`),
-                      })}
-                    </p>
-                    <p className="mt-1">{t('auth.onboardCustomExistsHint')}</p>
-                  </>
-                )}
-              </div>
-            ) : null}
-          </div>
-          {customError ? <p className="mt-2 text-xs text-red-600">{customError}</p> : null}
-          {canPickExisting && duplicateService ? (
-            <button
-              type="button"
-              className="mt-3 h-11 rounded-full border border-navy-800/15 px-5 text-sm font-semibold text-navy-800"
-              onClick={() => selectExisting(duplicateService)}
-            >
-              {t('auth.onboardCustomPickExisting')}
-            </button>
-          ) : null}
-          <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" className="h-11 rounded-full border border-navy-800/15 px-5 text-sm font-semibold text-navy-800" onClick={closeCustom}>
+          <div className="mt-3 flex justify-end gap-2">
+            <button type="button" className="h-10 rounded-lg border border-navy-800/15 px-4 text-sm font-medium text-navy-800" onClick={closeCustom}>
               {t('auth.onboardCancelCustom')}
             </button>
             <button
               type="button"
-              disabled={!canSave}
-              className="h-11 rounded-full bg-navy-800 px-5 text-sm font-semibold text-paper-50 disabled:cursor-not-allowed disabled:opacity-40"
-              onClick={saveCustom}
+              disabled={sending}
+              className="h-10 rounded-lg bg-navy-800 px-4 text-sm font-medium text-paper-50 disabled:opacity-60"
+              onClick={() => void sendSuggestion()}
             >
-              {t('auth.onboardAddService')}
+              {t('auth.suggestSubmit')}
             </button>
           </div>
         </div>

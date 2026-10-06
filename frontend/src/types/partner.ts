@@ -18,6 +18,14 @@ export interface VerificationDocument {
   uploadedAt: string;
 }
 
+export interface PortfolioProject {
+  id: string;
+  serviceId: string;
+  serviceNameSnapshot: string;
+  description: string;
+  images: string[];
+}
+
 export interface ContractorProfile {
   id: string;
   userId: string;
@@ -51,6 +59,7 @@ export interface ContractorProfile {
     workshop: string;
     construction: string[];
     certificates: string[];
+    projects?: PortfolioProject[];
   };
   completedSteps?: boolean[];
   verificationStatus: VerificationStatus;

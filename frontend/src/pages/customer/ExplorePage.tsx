@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { HardHat, MapPin, Store } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -13,7 +13,9 @@ import { MaterialStoreCard } from '@/features/map/components/MaterialStoreCard';
 import { RadiusSelector } from '@/features/map/components/RadiusSelector';
 import { FilterDrawer, type MarketplaceFilters } from '@/features/map/components/FilterDrawer';
 import { useCurrentLocation } from '@/features/map/hooks/useCurrentLocation';
+import { readExplore, rememberExplore } from '@/features/map/lib/explore-memory';
 import { locationApi } from '@/features/map/services/location.api';
+import { originFromPlace, reverseGeocode } from '@/features/map/services/geocoding';
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api';
@@ -23,21 +25,27 @@ import { SEARCH_CHIPS, type NearbyPlace, type PublicMaterial, type PublicService
 
 export function ExplorePage() {
   const { t, te } = useI18n();
-  const { origin, setOrigin, locate, status } = useCurrentLocation();
-  const [filters, setFilters] = useState<MarketplaceFilters>({
-    category: '',
-    radius: 5,
-    minRating: 0,
-    storeType: '',
-  });
+  const saved = useMemo(() => readExplore(), []);
+  const { origin, setOrigin, locate, status, reverseFailed } = useCurrentLocation(saved?.origin);
+  const [filters, setFilters] = useState<MarketplaceFilters>(
+    saved?.filters || {
+      category: '',
+      radius: 5,
+      minRating: 0,
+      storeType: '',
+    }
+  );
   const [contractors, setContractors] = useState<NearbyPlace[]>([]);
   const [stores, setStores] = useState<NearbyPlace[]>([]);
   const [services, setServices] = useState<PublicService[]>([]);
   const [materials, setMaterials] = useState<PublicMaterial[]>([]);
   const [pick, setPick] = useState<{ id: string; kind: 'contractor' | 'store'; token: number } | null>(null);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(saved?.mapCenter || null);
   const [groups, setGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pinFailed, setPinFailed] = useState(false);
+  const pinTimer = useRef<number>(0);
 
   const extra = {
     category: filters.category || undefined,
@@ -89,6 +97,26 @@ export function ExplorePage() {
     setPick({ id, kind, token: Date.now() });
   }
 
+  useEffect(() => {
+    rememberExplore({ origin, filters, mapCenter });
+  }, [origin, filters, mapCenter]);
+
+  useEffect(() => () => window.clearTimeout(pinTimer.current), []);
+
+  function pinFromMap(lat: number, lng: number) {
+    setPinFailed(false);
+    setOrigin((current) => ({ ...current, lat, lng, source: 'MAP_PIN' }));
+    window.clearTimeout(pinTimer.current);
+    pinTimer.current = window.setTimeout(() => {
+      reverseGeocode(lat, lng)
+        .then((hit) => {
+          const next = originFromPlace({ ...hit, lat, lng }, 'MAP_PIN');
+          setOrigin(next.label ? next : { lat, lng, source: 'MAP_PIN' });
+        })
+        .catch(() => setPinFailed(true));
+    }, 400);
+  }
+
   const selected = pick
     ? (pick.kind === 'store' ? stores : contractors).find((place) => place.id === pick.id) || null
     : null;
@@ -108,7 +136,6 @@ export function ExplorePage() {
   return (
     <PageTransition>
       <PageHeader
-        eyebrow={t('explore.eyebrow')}
         title={t('explore.title')}
         description={t('explore.description')}
         actions={
@@ -136,11 +163,12 @@ export function ExplorePage() {
         ))}
       </div>
 
-      <LocationPicker origin={origin} gpsStatus={status} onGps={locate} onPick={setOrigin} />
+      <LocationPicker origin={origin} gpsStatus={status} mapCenter={mapCenter} onGps={locate} onPick={setOrigin} />
 
       {status === 'denied' || status === 'unavailable' ? (
         <p className="mt-3 text-sm text-red-700">{status === 'denied' ? t('map.gpsDenied') : t('map.gpsUnavailable')}</p>
       ) : null}
+      {reverseFailed || pinFailed ? <p className="mt-3 text-sm text-red-700">{t('map.reverseFailed')}</p> : null}
 
       <div className="mt-5 overflow-hidden rounded-[22px] border border-navy-800/8 shadow-card">
         <MapView
@@ -156,7 +184,8 @@ export function ExplorePage() {
           onGps={locate}
           gpsAsking={status === 'asking'}
           onSelect={choose}
-          onPick={(lat, lng) => setOrigin({ lat, lng, label: 'Map pin' })}
+          onPick={pinFromMap}
+          onViewChange={setMapCenter}
           overlay={
             selected && pick ? (
               <ExplorePopup place={selected} kind={pick.kind} onClose={() => setPick(null)} />

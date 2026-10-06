@@ -37,8 +37,7 @@ export function AdminLoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-navy-950 bg-admin-glow">
-      <div className="pointer-events-none absolute inset-0 bg-admin-grid bg-[size:42px_42px] opacity-40" />
+    <div className="relative min-h-screen overflow-hidden bg-navy-950">
       <div className="relative grid min-h-screen place-items-center p-6">
         <form onSubmit={onSubmit} className="glass-card w-full max-w-md p-8">
           <div className="mb-8 flex items-center gap-3">

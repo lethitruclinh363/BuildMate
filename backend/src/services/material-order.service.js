@@ -3,6 +3,7 @@ const { User } = require('../models/User');
 const { Store } = require('../models/Store');
 const { ApiError } = require('../utils/ApiError');
 const { requirePlace } = require('../utils/geo');
+const locationCorrection = require('./locationCorrection.service');
 const checkoutService = require('./material-checkout.service');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { emitToUser } = require('./socketService');
@@ -58,6 +59,10 @@ async function create(user, body) {
     { addressMax: 240, labelMax: 240 }
   );
   if (!delivery) throw new ApiError(422, 'Coordinates are invalid');
+  if (!locationCorrection.confirmedFlag(body.locationConfirmed)) {
+    throw new ApiError(422, 'Confirm the delivery location');
+  }
+  const confirmedAt = new Date();
 
   const order = await MaterialOrder.create({
     customerId: user.id,
@@ -74,6 +79,9 @@ async function create(user, body) {
     })),
     deliveryAddress: delivery.address,
     deliveryLocation: delivery.point,
+    locationConfirmed: true,
+    locationSource: locationCorrection.locationSourceOf(body.locationSource),
+    locationConfirmedAt: confirmedAt,
     distanceKm: prepared.summary.distanceKm,
     materialSubtotal: priced.materialSubtotal,
     shippingFee: priced.shippingFee,
@@ -96,6 +104,13 @@ async function create(user, body) {
       },
     ],
   });
+
+  await locationCorrection.record({
+    address: delivery.address,
+    lat: body.lat,
+    lng: body.lng,
+    refId: body.providerRefId,
+  }).catch(() => null);
 
   return order.toPublic();
 }

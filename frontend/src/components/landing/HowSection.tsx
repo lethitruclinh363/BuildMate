@@ -10,14 +10,14 @@ export function HowSection() {
   ];
 
   return (
-    <section id="how" className="bg-navy-800 py-24 text-white">
+    <section id="how" className="bg-navy-800 py-10 text-white md:py-12">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <p className="text-xs uppercase tracking-[0.28em] text-copper-300">{t('landing.howEyebrow')}</p>
-        <h2 className="mt-3 max-w-xl font-display text-3xl md:text-5xl">{t('landing.howTitle')}</h2>
+        <h2 className="mt-3 max-w-xl font-display text-3xl md:text-4xl">{t('landing.howTitle')}</h2>
         <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {steps.map((step) => (
-            <article key={step.n} className="rounded-[22px] border border-white/10 bg-white/5 p-6">
-              <p className="font-display text-3xl text-copper-300">{step.n}</p>
+            <article key={step.n} className="border-t border-white/15 pt-4">
+              <p className="text-sm font-semibold text-copper-300">{step.n}</p>
               <h3 className="mt-4 font-display text-xl">{step.title}</h3>
               <p className="mt-2 text-sm leading-6 text-white/65">{step.body}</p>
             </article>

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
-import { Button } from '@/components/ui/Button';
+import { BackButton } from '@/components/navigation/BackButton';
 import { Card } from '@/components/ui/Card';
 import { useOrderDetail } from '@/features/orders/hooks/useOrderDetail';
 import { getApiErrorMessage } from '@/lib/api';
@@ -86,9 +86,7 @@ export function CustomerReviewPage() {
 
   return (
     <PageTransition>
-      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link to={`/customer/orders/${order.id}`}>{t('common.back')}</Link>
-      </Button>
+      <BackButton fallback={`/customer/orders/${order.id}`} />
       <PageHeader eyebrow={t('review.eyebrow')} title={order.title} description={order.orderCode} />
       {!completed ? (
         <Card hover={false}>{t('review.locked')}</Card>

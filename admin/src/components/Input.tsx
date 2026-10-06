@@ -9,7 +9,7 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
 export function Input({ label, error, className, id, ...props }: FieldProps) {
   return (
     <label className="block space-y-1.5" htmlFor={id}>
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/50">{label}</span>
+      <span className="text-sm font-medium text-white/70">{label}</span>
       <input
         id={id}
         className={cn(
@@ -18,7 +18,7 @@ export function Input({ label, error, className, id, ...props }: FieldProps) {
         )}
         {...props}
       />
-      {error ? <span className="text-xs text-red-300">{error}</span> : null}
+      {error ? <span className="text-sm text-red-300">{error}</span> : null}
     </label>
   );
 }
@@ -36,7 +36,7 @@ export function TextArea({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/50">{label}</span>
+      <span className="text-sm font-medium text-white/70">{label}</span>
       <textarea
         rows={rows}
         value={value}

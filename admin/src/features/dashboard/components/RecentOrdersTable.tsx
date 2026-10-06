@@ -5,6 +5,7 @@ import { Badge } from '@/components/Badge';
 import { GlassCard } from '@/components/GlassCard';
 import { relativeTime } from '@/features/dashboard/lib/format';
 import { orderStatusLabel, vnd } from '@/lib/utils';
+import { useReturnState } from '@/lib/navigation';
 import type { RecentOrderRow } from '@/features/dashboard/types/dashboard.types';
 
 function statusTone(status: string): 'navy' | 'warn' | 'success' | 'danger' | 'copper' {
@@ -16,6 +17,7 @@ function statusTone(status: string): 'navy' | 'warn' | 'success' | 'danger' | 'c
 }
 
 export const RecentOrdersTable = memo(function RecentOrdersTable({ rows }: { rows: RecentOrderRow[] }) {
+  const back = useReturnState();
   const { t } = useTranslation();
   return (
     <GlassCard>
@@ -23,7 +25,7 @@ export const RecentOrdersTable = memo(function RecentOrdersTable({ rows }: { row
       <h3 className="mb-4 font-display text-lg text-white">{t('dash.recent')}</h3>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="text-[11px] uppercase tracking-[0.14em] text-white/35">
+          <thead className="text-sm text-white/55">
             <tr>
               <th className="pb-3">{t('dash.orderCode')}</th>
               <th className="pb-3">{t('dash.customer')}</th>
@@ -37,7 +39,7 @@ export const RecentOrdersTable = memo(function RecentOrdersTable({ rows }: { row
             {rows.map((row) => (
               <tr key={row.id} className="border-t border-white/6">
                 <td className="py-3">
-                  <Link to={`/orders/${row.id}`} className="text-copper-300">
+                  <Link to={`/orders/${row.id}`} state={back} className="text-copper-300">
                     {row.orderCode}
                   </Link>
                 </td>
