@@ -1,6 +1,7 @@
-const { Quotation, QUOTE_ITEM_TYPE, QUOTATION_STATUS } = require('../models/Quotation');
-const { RepairRequest, REQUEST_STATUS } = require('../models/RepairRequest');
-const { ChatRoom } = require('../models/ChatRoom');
+const { QUOTE_ITEM_TYPE, QUOTATION_STATUS } = require('../models/Quotation');
+const { REQUEST_STATUS } = require('../models/RepairRequest');
+const { Quotation, RepairRequest, ChatRoom } = require('../repositories/conversationAccess');
+const { runInTransaction, postgres } = require('../repositories/commerceAccess');
 const { ApiError } = require('../utils/ApiError');
 const { sendMessage, MESSAGE_TYPE } = require('./chatService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
@@ -152,22 +153,38 @@ async function customerAction(id, customerId, action, modificationNote = '') {
   if (action === 'accept') {
     quotation.status = QUOTATION_STATUS.ACCEPTED;
     if (request) request.status = REQUEST_STATUS.ACCEPTED;
-    await Quotation.updateMany(
-      {
-        requestId: quotation.requestId,
-        _id: { $ne: quotation._id },
-        status: QUOTATION_STATUS.SENT,
-      },
-      { status: QUOTATION_STATUS.REJECTED }
-    );
-    await notify({
-      userId: quotation.contractorId,
-      title: 'Quotation accepted',
-      message: request?.title || 'The customer accepted your quote',
-      type: NOTIFICATION_TYPE.QUOTATION_ACCEPTED,
-      link: room ? `/contractor/chat/${room}` : '/contractor/requests',
-      meta: { quotationId: String(quotation._id) },
+    const bundle = await runInTransaction(async (tx) => {
+      await Quotation.updateMany(
+        {
+          requestId: quotation.requestId,
+          _id: { $ne: quotation._id },
+          status: QUOTATION_STATUS.SENT,
+        },
+        { status: QUOTATION_STATUS.REJECTED },
+        postgres ? tx : undefined
+      );
+      await quotation.save(postgres ? tx : undefined);
+      if (request) await request.save(postgres ? tx : undefined);
+      await notify({
+        userId: quotation.contractorId,
+        title: 'Quotation accepted',
+        message: request?.title || 'The customer accepted your quote',
+        type: NOTIFICATION_TYPE.QUOTATION_ACCEPTED,
+        link: room ? `/contractor/chat/${room}` : '/contractor/requests',
+        meta: { quotationId: String(quotation._id) },
+      });
+      await writeAudit({
+        actorId: customerId,
+        actorRole: 'CUSTOMER',
+        action: AUDIT_ACTION.QUOTATION_ACCEPTED,
+        entityType: 'Quotation',
+        entityId: quotation._id,
+        meta: { action, status: quotation.status },
+      });
+      return orderService.createFromQuotation(quotation, request, customerId, tx);
     });
+    if (bundle._emit && !bundle.duplicated) bundle._emit();
+    return packAccept(quotation, bundle);
   } else if (action === 'reject') {
     quotation.status = QUOTATION_STATUS.REJECTED;
     await notify({
@@ -196,7 +213,6 @@ async function customerAction(id, customerId, action, modificationNote = '') {
   await quotation.save();
   if (request) await request.save();
   const actionMap = {
-    accept: AUDIT_ACTION.QUOTATION_ACCEPTED,
     reject: AUDIT_ACTION.QUOTATION_REJECTED,
     modify: AUDIT_ACTION.QUOTATION_MODIFY,
   };
@@ -208,11 +224,6 @@ async function customerAction(id, customerId, action, modificationNote = '') {
     entityId: quotation._id,
     meta: { action, status: quotation.status },
   });
-
-  if (action === 'accept') {
-    const bundle = await orderService.createFromQuotation(quotation, request, customerId);
-    return packAccept(quotation, bundle);
-  }
 
   return quotation.toPublic();
 }

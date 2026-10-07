@@ -1,10 +1,13 @@
-const mongoose = require('mongoose');
 
 const MATERIAL_COMMISSION_STATUS = Object.freeze({
   POSTED: 'POSTED',
   REVERSED: 'REVERSED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const materialCommissionSchema = new mongoose.Schema(
   {
     materialOrderPaymentId: {
@@ -53,5 +56,11 @@ materialCommissionSchema.methods.toPublic = function toPublic() {
 };
 
 const MaterialCommission = mongoose.model('MaterialCommission', materialCommissionSchema);
+  built = { MaterialCommission };
+  return built;
+}
 
-module.exports = { MaterialCommission, MATERIAL_COMMISSION_STATUS };
+module.exports = {
+  MATERIAL_COMMISSION_STATUS,
+  get MaterialCommission() { return build().MaterialCommission; },
+};

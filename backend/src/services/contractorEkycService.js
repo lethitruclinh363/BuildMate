@@ -1,5 +1,6 @@
-const { ContractorProfile, VERIFICATION_STATUS, DOCUMENT_TYPE } = require('../models/ContractorProfile');
-const { ContractorEkycVerification } = require('../models/ContractorEkycVerification');
+const { VERIFICATION_STATUS, DOCUMENT_TYPE } = require('../models/ContractorProfile');
+const { ContractorProfile } = require('../repositories/partnerAccess');
+const { ContractorEkycVerification } = require('../repositories/ekycAccess');
 const { ApiError } = require('../utils/ApiError');
 const { env } = require('../config/env');
 const { ekycAiClient } = require('./ekycAiClient');

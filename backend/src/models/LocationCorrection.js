@@ -1,5 +1,9 @@
-const mongoose = require('mongoose');
 
+
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const locationCorrectionSchema = new mongoose.Schema(
   {
     normalizedAddress: { type: String, required: true, unique: true, index: true },
@@ -17,5 +21,10 @@ const locationCorrectionSchema = new mongoose.Schema(
 locationCorrectionSchema.index({ location: '2dsphere' });
 
 const LocationCorrection = mongoose.model('LocationCorrection', locationCorrectionSchema);
+  built = { LocationCorrection };
+  return built;
+}
 
-module.exports = { LocationCorrection };
+module.exports = {
+  get LocationCorrection() { return build().LocationCorrection; },
+};

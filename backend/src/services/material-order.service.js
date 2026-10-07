@@ -1,6 +1,5 @@
-const { MaterialOrder } = require('../models/MaterialOrder');
-const { User } = require('../models/User');
-const { Store } = require('../models/Store');
+const { MaterialOrder } = require('../repositories/materialOrderAccess');
+const { Store, findUsersByIds } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const { requirePlace } = require('../utils/geo');
 const locationCorrection = require('./locationCorrection.service');
@@ -119,7 +118,7 @@ async function attachParties(rows) {
   const customerIds = [...new Set(rows.map((row) => String(row.customerId)))];
   const storeIds = [...new Set(rows.map((row) => String(row.storeId)))];
   const [users, stores] = await Promise.all([
-    User.find({ _id: { $in: customerIds } }).select('name'),
+    findUsersByIds(customerIds),
     Store.find({ _id: { $in: storeIds } }).select('name'),
   ]);
   const names = new Map(users.map((user) => [String(user._id), user.name || '']));

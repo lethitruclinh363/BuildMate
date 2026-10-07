@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const NOTIFICATION_TYPE = Object.freeze({
   REQUEST: 'REQUEST',
@@ -23,6 +22,10 @@ const NOTIFICATION_TYPE = Object.freeze({
   COMPLAINT_UPDATED: 'COMPLAINT_UPDATED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const notificationSchema = new mongoose.Schema(
   {
     userId: {
@@ -62,5 +65,11 @@ notificationSchema.methods.toPublic = function toPublic() {
 };
 
 const Notification = mongoose.model('Notification', notificationSchema);
+  built = { Notification };
+  return built;
+}
 
-module.exports = { Notification, NOTIFICATION_TYPE };
+module.exports = {
+  NOTIFICATION_TYPE,
+  get Notification() { return build().Notification; },
+};

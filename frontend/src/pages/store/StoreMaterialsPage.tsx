@@ -18,7 +18,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { TextArea } from '@/components/ui/TextArea';
 import { materialStoreApi, vnd } from '@/lib/partner-api';
-import { useI18n } from '@/locales';
+import { t as translate, useI18n } from '@/locales';
 import type { ApiResponse } from '@/types/user';
 import { categoryDisplayLabel, type MaterialCategoryPick } from '@/data/material-categories';
 import { type CatalogMaterial, type Storefront } from '@/types/partner';
@@ -56,15 +56,10 @@ export function StoreMaterialsPage() {
 
   const load = async () => {
     const workspace = await materialStoreApi.workspace();
-    setApproved(workspace.data.data.approved);
-    if (!workspace.data.data.approved) {
-      setStore(workspace.data.data.store);
-      setItems([]);
-      return;
-    }
-    const storeRes = await materialStoreApi.getStore();
-    setStore(storeRes.data.data);
-    if (!storeRes.data.data) {
+    const data = workspace.data.data;
+    setApproved(data.approved);
+    setStore(data.store);
+    if (!data.approved || !data.store) {
       setItems([]);
       return;
     }
@@ -72,15 +67,23 @@ export function StoreMaterialsPage() {
       materialStoreApi.listMaterials(),
       materialStoreApi.listMaterialCategories(),
     ]);
-    setItems(res.data.data);
+    setItems(res.data.data || []);
     setCategories([...(categoryRes.data.data?.system || []), ...(categoryRes.data.data?.custom || [])]);
   };
 
   useEffect(() => {
+    let cancelled = false;
     void load()
-      .catch(() => setError(t('servicePage.needStoreFirst')))
-      .finally(() => setLoading(false));
-  }, [t]);
+      .catch(() => {
+        if (!cancelled) setError(translate('servicePage.needStoreFirst'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (loading) return <DashboardSkeleton />;
   if (!approved) {

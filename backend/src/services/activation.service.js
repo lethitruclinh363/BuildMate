@@ -1,8 +1,8 @@
-const { Store, STORE_STATUS, STORE_TYPE } = require('../models/Store');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { User, USER_STATUS, ROLES } = require('../models/User');
-const { Service } = require('../models/Service');
-const { Material } = require('../models/Material');
+const { STORE_STATUS, STORE_TYPE } = require('../models/Store');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { USER_STATUS, ROLES } = require('../models/User');
+const { ContractorProfile, Store, loadUser } = require('../repositories/partnerAccess');
+const { Service, Material } = require('../repositories/offeringAccess');
 const { ApiError } = require('../utils/ApiError');
 // const { publicPricedServiceMatch } = require('../constants/contractor-services');
 const { publicPricedServiceMatch } = require('../constants/contractorServices');
@@ -98,19 +98,29 @@ function evaluateReadiness({ kind, profile, store, user, serviceCount = 0, produ
   };
 }
 
-async function getActivationReadiness(userId) {
+async function materialStock(store) {
+  if (typeof Material.countReadiness === 'function') return Material.countReadiness(store._id);
+  const [productCount, priceCount] = await Promise.all([
+    Material.countDocuments({ storeId: store._id, isActive: true }),
+    Material.countDocuments({ storeId: store._id, isActive: true, price: { $gt: 0 } }),
+  ]);
+  return { productCount, priceCount };
+}
+
+async function getActivationReadiness(userId, loaded = {}) {
   const [user, profile, store] = await Promise.all([
-    User.findById(userId).select('status role'),
-    ContractorProfile.findOne({ userId }),
-    Store.findOne({ contractorId: userId }),
+    loadUser(userId),
+    loaded.profile || ContractorProfile.findOne({ userId }),
+    loaded.store !== undefined ? loaded.store : Store.findOne({ contractorId: userId }),
   ]);
   const kind = partnerKind(user, store);
-  const [serviceCount, productCount, priceCount, categories] = await Promise.all([
-    store ? Service.countDocuments({ storeId: store._id, ...publicPricedServiceMatch() }) : 0,
-    store ? Material.countDocuments({ storeId: store._id, isActive: true }) : 0,
-    store ? Material.countDocuments({ storeId: store._id, isActive: true, price: { $gt: 0 } }) : 0,
+  const [serviceCount, stock, categories] = await Promise.all([
+    kind !== 'STORE' && store ? Service.countDocuments({ storeId: store._id, ...publicPricedServiceMatch() }) : 0,
+    kind === 'STORE' && store ? materialStock(store) : { productCount: 0, priceCount: 0 },
     kind === 'STORE' && profile ? materialCategoryService.categoriesForProfile(profile) : [],
   ]);
+  const productCount = stock.productCount;
+  const priceCount = stock.priceCount;
   const result = evaluateReadiness({
     kind,
     profile,
@@ -122,6 +132,67 @@ async function getActivationReadiness(userId) {
     categoryCount: categories.length,
   });
   return result;
+}
+
+async function countedServices(storeIds) {
+  if (!storeIds.length) return new Map();
+  if (typeof Service.countPublicByStores === 'function') return Service.countPublicByStores(storeIds);
+  const rows = await Service.find({ storeId: { $in: storeIds }, ...publicPricedServiceMatch() }).select('storeId');
+  const counts = new Map();
+  for (const row of rows) {
+    const key = String(row.storeId || '');
+    if (key) counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return counts;
+}
+
+async function countedMaterials(storeIds) {
+  if (!storeIds.length) return new Map();
+  if (typeof Material.countStockByStores === 'function') return Material.countStockByStores(storeIds);
+  const rows = await Material.find({ storeId: { $in: storeIds }, isActive: true }).select('storeId price');
+  const counts = new Map();
+  for (const row of rows) {
+    const key = String(row.storeId || '');
+    if (!key) continue;
+    const current = counts.get(key) || { productCount: 0, priceCount: 0 };
+    current.productCount += 1;
+    if (Number(row.price) > 0) current.priceCount += 1;
+    counts.set(key, current);
+  }
+  return counts;
+}
+
+async function readinessForLoaded(entries, categoriesByProfile = new Map()) {
+  const serviceStoreIds = [];
+  const materialStoreIds = [];
+  for (const entry of entries) {
+    entry.kind = partnerKind(entry.user, entry.store);
+    if (!entry.store?._id) continue;
+    const storeId = String(entry.store._id);
+    if (entry.kind === 'STORE') materialStoreIds.push(storeId);
+    else serviceStoreIds.push(storeId);
+  }
+  const [serviceCounts, materialCounts] = await Promise.all([
+    countedServices(serviceStoreIds),
+    countedMaterials(materialStoreIds),
+  ]);
+  const map = new Map();
+  for (const entry of entries) {
+    const storeId = entry.store?._id ? String(entry.store._id) : '';
+    const stock = materialCounts.get(storeId) || { productCount: 0, priceCount: 0 };
+    const categories = entry.profile ? categoriesByProfile.get(String(entry.profile._id)) : null;
+    map.set(String(entry.userId), evaluateReadiness({
+      kind: entry.kind,
+      profile: entry.profile,
+      store: entry.store,
+      user: entry.user,
+      serviceCount: entry.kind === 'STORE' ? 0 : serviceCounts.get(storeId) || 0,
+      productCount: entry.kind === 'STORE' ? stock.productCount : 0,
+      priceCount: entry.kind === 'STORE' ? stock.priceCount : 0,
+      categoryCount: entry.kind === 'STORE' && categories ? categories.length : 0,
+    }));
+  }
+  return map;
 }
 
 function cardIsPublic(card, catalog) {
@@ -205,6 +276,7 @@ module.exports = {
   isPartnerPubliclyVisible,
   evaluateReadiness,
   getActivationReadiness,
+  readinessForLoaded,
   cardIsPublic,
   rowIsPublic,
   activate,

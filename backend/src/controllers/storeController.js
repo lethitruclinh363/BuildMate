@@ -8,7 +8,7 @@ function lockedType(req) {
 }
 
 const getStore = asyncHandler(async (req, res) => {
-  const data = await storeService.enforceStoreType(req.user.id, lockedType(req));
+  const data = await storeService.getStore(req.user.id);
   return success(res, data, 'Storefront retrieved');
 });
 

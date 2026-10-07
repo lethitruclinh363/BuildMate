@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const AUDIT_ACTION = Object.freeze({
   ADMIN_APPROVE: 'ADMIN_APPROVE',
@@ -26,6 +25,10 @@ const AUDIT_ACTION = Object.freeze({
   POLICY_UPDATED: 'POLICY_UPDATED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const auditLogSchema = new mongoose.Schema(
   {
     actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
@@ -57,5 +60,11 @@ auditLogSchema.methods.toPublic = function toPublic() {
 };
 
 const AuditLog = mongoose.model('AuditLog', auditLogSchema);
+  built = { AuditLog };
+  return built;
+}
 
-module.exports = { AuditLog, AUDIT_ACTION };
+module.exports = {
+  AUDIT_ACTION,
+  get AuditLog() { return build().AuditLog; },
+};

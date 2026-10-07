@@ -1,7 +1,8 @@
-const { Service } = require('../models/Service');
-const { Store, STORE_TYPE } = require('../models/Store');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { CatalogService, CATALOG_STATUS, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
+const { Service, CatalogService } = require('../repositories/offeringAccess');
+const { STORE_TYPE } = require('../models/Store');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { Store, ContractorProfile } = require('../repositories/partnerAccess');
+const { CATALOG_STATUS, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
 const { ApiError } = require('../utils/ApiError');
 const catalogService = require('./catalogService');
 const {

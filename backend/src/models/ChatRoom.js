@@ -1,5 +1,9 @@
-const mongoose = require('mongoose');
 
+
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const chatRoomSchema = new mongoose.Schema(
   {
     customerId: {
@@ -43,5 +47,10 @@ chatRoomSchema.methods.toPublic = function toPublic() {
 };
 
 const ChatRoom = mongoose.model('ChatRoom', chatRoomSchema);
+  built = { ChatRoom };
+  return built;
+}
 
-module.exports = { ChatRoom };
+module.exports = {
+  get ChatRoom() { return build().ChatRoom; },
+};

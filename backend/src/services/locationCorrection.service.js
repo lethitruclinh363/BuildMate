@@ -1,4 +1,4 @@
-const { LocationCorrection } = require('../models/LocationCorrection');
+const { LocationCorrection } = require('../repositories/systemAccess');
 const { toGeoPoint } = require('../utils/geo');
 
 const SOURCES = new Set(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']);

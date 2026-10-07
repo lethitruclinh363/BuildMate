@@ -9,7 +9,7 @@ import { vnd } from '@/lib/utils';
 import type { SearchHit } from '@/features/dashboard/types/dashboard.types';
 
 export function GlobalSearch() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const open = useUiStore((s) => s.searchOpen);
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
   const navigate = useNavigate();
@@ -65,7 +65,7 @@ export function GlobalSearch() {
       ];
       setHits(next);
     });
-  }, [open, i18n.language, t]);
+  }, [open]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

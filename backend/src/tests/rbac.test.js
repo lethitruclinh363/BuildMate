@@ -1,9 +1,8 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureMongo, mongoSkip } = require('./helpers/mongo');
 const { startTestServer, api } = require('./helpers/http');
-const { createParty, cleanupParty } = require('./helpers/party');
-const { User, ROLES, USER_STATUS } = require('../models/User');
+const { createParty, cleanupParty, createUser, deleteFixtureUsers, ROLES } = require('./helpers/party');
+const { testDatabaseReady } = require('./helpers/pg-cleanup');
 const { signToken } = require('../services/authService');
 
 describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
@@ -14,33 +13,30 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
   let admin;
 
   before(async () => {
-    dbReady = await ensureMongo();
+    dbReady = testDatabaseReady();
     if (!dbReady) return;
     server = await startTestServer();
     party = await createParty(`rbac-${Date.now()}`);
     const { customerAction } = require('../services/quotationService');
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
     orderId = accepted.order.id;
-    admin = await User.create({
+    admin = await createUser({
       name: 'E2E Admin',
       email: `e2e.admin.${Date.now()}@buildmate.test`,
       password: 'Admin@1234',
       role: ROLES.ADMIN,
-      status: USER_STATUS.ACTIVE,
     });
   });
 
   after(async () => {
     if (server) await server.close();
     await cleanupParty(party);
-    if (admin) await User.deleteOne({ _id: admin._id });
-    const { stopMongo } = require('./helpers/mongo');
-    await stopMongo();
+    if (admin) await deleteFixtureUsers([admin._id]);
   });
 
   it('enforces customer / contractor / admin permissions over HTTP', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
 
@@ -77,12 +73,11 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
     });
     assert.equal(contractorProgress.status, 201);
 
-    const otherContractor = await User.create({
+    const otherContractor = await createUser({
       name: 'Other Co',
       email: `e2e.otherco.${Date.now()}@buildmate.test`,
       password: 'Demo@1234',
       role: ROLES.CONTRACTOR,
-      status: USER_STATUS.ACTIVE,
     });
     const otherToken = signToken(otherContractor);
     const otherSees = await api(origin, { path: `/api/orders/${orderId}`, token: otherToken });
@@ -98,12 +93,11 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
     const adminVerify = await api(origin, { path: '/api/admin/verifications', token: adminToken });
     assert.equal(adminVerify.status, 200);
 
-    const storeOwner = await User.create({
+    const storeOwner = await createUser({
       name: 'E2E Store',
       email: `e2e.store.${Date.now()}@buildmate.test`,
       password: 'Demo@1234',
       role: ROLES.MATERIAL_STORE_OWNER,
-      status: USER_STATUS.ACTIVE,
     });
     const customers = await api(origin, { path: '/api/admin/customers', token: adminToken });
     assert.equal(customers.status, 200);
@@ -134,7 +128,6 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
     });
     assert.equal(storeDetail.status, 404);
 
-    await User.deleteOne({ _id: storeOwner._id });
-    await User.deleteOne({ _id: otherContractor._id });
+    await deleteFixtureUsers([storeOwner._id, otherContractor._id]);
   });
 });

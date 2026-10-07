@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const STORE_TYPE = Object.freeze({
   SERVICES: 'SERVICES',
@@ -13,6 +12,10 @@ const STORE_STATUS = Object.freeze({
   PAUSED: 'PAUSED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const storeSchema = new mongoose.Schema(
   {
     contractorId: {
@@ -134,5 +137,12 @@ storeSchema.methods.toPublic = function toPublic() {
 };
 
 const Store = mongoose.model('Store', storeSchema);
+  built = { Store };
+  return built;
+}
 
-module.exports = { Store, STORE_TYPE, STORE_STATUS };
+module.exports = {
+  STORE_TYPE,
+  STORE_STATUS,
+  get Store() { return build().Store; },
+};

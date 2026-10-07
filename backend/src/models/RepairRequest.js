@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const { describePlace } = require('../utils/geo');
 
 const REPAIR_CATEGORY = Object.freeze({
@@ -17,6 +16,10 @@ const REQUEST_STATUS = Object.freeze({
   CANCELLED: 'CANCELLED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const repairRequestSchema = new mongoose.Schema(
   {
     customerId: {
@@ -99,5 +102,12 @@ repairRequestSchema.methods.toPublic = function toPublic() {
 };
 
 const RepairRequest = mongoose.model('RepairRequest', repairRequestSchema);
+  built = { RepairRequest };
+  return built;
+}
 
-module.exports = { RepairRequest, REPAIR_CATEGORY, REQUEST_STATUS };
+module.exports = {
+  REPAIR_CATEGORY,
+  REQUEST_STATUS,
+  get RepairRequest() { return build().RepairRequest; },
+};

@@ -1,5 +1,6 @@
-const { Order, ORDER_STATUS } = require('../models/Order');
-const { ProgressUpdate, PROGRESS_STATUS } = require('../models/ProgressUpdate');
+const { ORDER_STATUS } = require('../models/Order');
+const { PROGRESS_STATUS } = require('../models/ProgressUpdate');
+const { Order, ProgressUpdate, runInTransaction } = require('../repositories/commerceAccess');
 const { ApiError } = require('../utils/ApiError');
 const { isValidProgressTransition, orderStatusAfterProgress } = require('../utils/order.rules');
 const { contractorJobNotice } = require('../utils/contractor-notice');
@@ -50,15 +51,17 @@ async function addProgress(orderId, user, payload) {
     doc.location = { type: 'Point', coordinates: [Number(payload.lng), Number(payload.lat)] };
   }
 
-  const progress = await ProgressUpdate.create(doc);
   const previousStatus = order.status;
   const notice = contractorJobNotice(previousStatus, nextStatus);
-
   const next = orderStatusAfterProgress(previousStatus, nextStatus);
-  if (next !== order.status) {
-    order.status = next;
-    await order.save();
-  }
+  const progress = await runInTransaction(async (tx) => {
+    const created = await ProgressUpdate.create(doc, tx);
+    if (next !== order.status) {
+      order.status = next;
+      await order.save(tx);
+    }
+    return created;
+  });
 
   const notification = await notify({
     userId: order.customerId,

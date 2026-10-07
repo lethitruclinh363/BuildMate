@@ -190,16 +190,14 @@ function otpEmailHtml({ name, otp, purpose = 'verify' }) {
     : 'Xác thực email';
 
   const intro = isReset
-    ? 'Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới. Mã có hiệu lực <strong>5 phút</strong> và chỉ dùng một lần.'
-    : 'Cảm ơn bạn đã đăng ký tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới để xác thực email. Mã có hiệu lực <strong>5 phút</strong> và chỉ dùng một lần.';
+    ? 'Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới. Mã có hiệu lực <strong>5 phút</strong> và chỉ sử dụng một lần.'
+    : 'Cảm ơn bạn đã đăng ký tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới để xác thực email. Mã có hiệu lực <strong>5 phút</strong> và chỉ sử dụng một lần.';
 
   const label = isReset
     ? 'MÃ ĐẶT LẠI MẬT KHẨU'
     : 'MÃ XÁC THỰC';
 
-  const note = isReset
-    ? 'Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.'
-    : 'Nếu bạn không đăng ký BuildMate, hãy bỏ qua email này.';
+  const note = 'Vì an toàn cho tài khoản, tuyệt đối không cung cấp mã này với bất kì ai';
 
   const safeOtp = escapeHtml(otp);
 

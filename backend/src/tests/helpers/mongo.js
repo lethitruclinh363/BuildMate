@@ -1,25 +1,29 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 
-let connectDatabase;
 let mongoose;
 let skipReason = '';
 
 try {
-  ({ connectDatabase } = require('../../config/database'));
   mongoose = require('mongoose');
 } catch (err) {
   skipReason = err.message;
 }
 
 async function ensureMongo() {
-  if (!connectDatabase) return false;
+  if (!mongoose) return false;
   try {
     if (mongoose.connection.readyState === 1) return true;
-    await connectDatabase();
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      skipReason = 'MONGODB_URI is not set';
+      return false;
+    }
+    mongoose.set('strictQuery', true);
+    await mongoose.connect(uri, { autoIndex: false, serverSelectionTimeoutMS: 4000 });
     return true;
   } catch (err) {
-    skipReason = err.message;
+    skipReason = 'MongoDB is not available';
     return false;
   }
 }

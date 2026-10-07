@@ -19,21 +19,31 @@ export function NotificationsPage() {
   const { setNotifications } = useSocket();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [more, setMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () => {
-    setLoading(true);
+  const load = (nextPage = 1) => {
+    if (nextPage === 1) setLoading(true);
+    else setMore(true);
     setError(null);
     notificationApi
-      .list()
+      .list(nextPage)
       .then((res) => {
-        setItems(res.data.data.items);
-        setUnread(res.data.data.unread);
-        setNotifications(res.data.data.items, res.data.data.unread);
+        const data = res.data.data;
+        setItems((prev) => (nextPage === 1 ? data.items : [...prev, ...data.items]));
+        setUnread(data.unread);
+        setTotal(data.total || data.items.length);
+        setPage(data.page || nextPage);
+        if (nextPage === 1) setNotifications(data.items, data.unread);
       })
       .catch((err) => setError(te(getApiErrorMessage(err))))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setMore(false);
+      });
   };
 
   useEffect(() => {
@@ -74,7 +84,7 @@ export function NotificationsPage() {
         emptyTitle={t('notify.empty')}
         emptyBody={t('notify.pageDesc')}
         emptyIcon={<Bell className="h-5 w-5" />}
-        onRetry={load}
+        onRetry={() => load(1)}
       >
         <ul className="divide-y divide-navy-800/8 overflow-hidden rounded-[22px] border border-navy-800/8 bg-white">
           {items.map((n) => (
@@ -98,6 +108,11 @@ export function NotificationsPage() {
             </li>
           ))}
         </ul>
+        {items.length < total ? (
+          <Button className="mt-4" variant="outline" loading={more} onClick={() => load(page + 1)}>
+            {t('notify.more')}
+          </Button>
+        ) : null}
       </QueryState>
     </PageTransition>
   );

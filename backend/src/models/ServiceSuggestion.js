@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const SUGGESTION_STATUS = Object.freeze({
   PENDING: 'PENDING',
@@ -7,6 +6,10 @@ const SUGGESTION_STATUS = Object.freeze({
   CONVERTED: 'CONVERTED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const serviceSuggestionSchema = new mongoose.Schema(
   {
     requesterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -43,5 +46,11 @@ serviceSuggestionSchema.methods.toPublic = function toPublic() {
 };
 
 const ServiceSuggestion = mongoose.models.ServiceSuggestion || mongoose.model('ServiceSuggestion', serviceSuggestionSchema);
+  built = { ServiceSuggestion };
+  return built;
+}
 
-module.exports = { ServiceSuggestion, SUGGESTION_STATUS };
+module.exports = {
+  SUGGESTION_STATUS,
+  get ServiceSuggestion() { return build().ServiceSuggestion; },
+};

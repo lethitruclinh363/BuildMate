@@ -8,7 +8,7 @@ describe('BuildMate email layout', () => {
     assert.match(html, /BuildMate/);
     assert.match(html, /HỆ ĐIỀU HÀNH XÂY DỰNG/);
     assert.match(html, /background:#1b2a4a/);
-    assert.match(html, />BM</);
+    assert.match(html, />\s*BM\s*</);
     assert.match(html, /MÃ XÁC THỰC/);
     assert.match(html, /123456/);
     assert.equal(html.includes('Congratulations'), false);

@@ -1,6 +1,9 @@
-const mongoose = require('mongoose');
 const { PROGRESS_STATUS } = require('../utils/order.rules');
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const progressUpdateSchema = new mongoose.Schema(
   {
     orderId: {
@@ -41,5 +44,11 @@ progressUpdateSchema.methods.toPublic = function toPublic() {
 };
 
 const ProgressUpdate = mongoose.model('ProgressUpdate', progressUpdateSchema);
+  built = { ProgressUpdate };
+  return built;
+}
 
-module.exports = { ProgressUpdate, PROGRESS_STATUS };
+module.exports = {
+  PROGRESS_STATUS,
+  get ProgressUpdate() { return build().ProgressUpdate; },
+};

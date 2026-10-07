@@ -15,7 +15,8 @@ export const repairApi = {
 export const chatApi = {
   rooms: () => api.get<ApiResponse<ChatRoom[]>>('/chat/rooms'),
   room: (id: string) => api.get<ApiResponse<ChatRoom>>(`/chat/rooms/${id}`),
-  messages: (id: string) => api.get<ApiResponse<ChatMessage[]>>(`/chat/rooms/${id}/messages`),
+  messages: (id: string, limit = 50) =>
+    api.get<ApiResponse<ChatMessage[]>>(`/chat/rooms/${id}/messages`, { params: { limit } }),
   send: (id: string, content: string) =>
     api.post<ApiResponse<ChatMessage>>(`/chat/rooms/${id}/messages`, { type: 'TEXT', content }),
   sendLocation: (id: string, location: { lat: number; lng: number; address: string; label: string }) =>
@@ -44,8 +45,22 @@ export const quotationApi = {
     api.patch<ApiResponse<Quotation>>(`/quotations/${id}/request-modification`, { note }),
 };
 
+type NotificationPage = ApiResponse<{ items: AppNotification[]; unread: number; total: number; page: number }>;
+const notificationLoads = new Map<string, Promise<import('axios').AxiosResponse<NotificationPage>>>();
+
 export const notificationApi = {
-  list: () => api.get<ApiResponse<{ items: AppNotification[]; unread: number }>>('/notifications'),
+  list: (page = 1, limit = 40) => {
+    const key = `${page}:${limit}`;
+    const current = notificationLoads.get(key);
+    if (current) return current;
+    const request = api
+      .get<NotificationPage>('/notifications', { params: { page, limit } })
+      .finally(() => {
+        notificationLoads.delete(key);
+      });
+    notificationLoads.set(key, request);
+    return request;
+  },
   read: (id: string) => api.patch(`/notifications/${id}/read`),
   readAll: () => api.patch('/notifications/read-all'),
 };

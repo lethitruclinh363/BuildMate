@@ -1,7 +1,8 @@
 const { after, before, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureMongo, mongoSkip, stopMongo } = require('./helpers/mongo');
-const { User, ROLES, USER_STATUS } = require('../models/user.model');
+const { ROLES, USER_STATUS } = require('../models/user.model');
+const { userRepository } = require('../repositories/userRepository');
+const { deleteFixtureUsers, testDatabaseReady } = require('./helpers/pg-cleanup');
 
 const deliveredVerificationCodes = [];
 const deliveredResetCodes = [];
@@ -18,27 +19,33 @@ emailProvider.sendResetPasswordEmail = async ({ otp }) => {
 const authService = require('../services/authService');
 
 let dbReady = false;
-const testEmails = [];
+const createdIds = [];
 
 before(async () => {
-  dbReady = await ensureMongo();
+  dbReady = testDatabaseReady();
+  emailProvider.sendVerificationEmail = async ({ otp }) => {
+    deliveredVerificationCodes.push(otp);
+    return { sent: true, skipped: false };
+  };
+  emailProvider.sendResetPasswordEmail = async ({ otp }) => {
+    deliveredResetCodes.push(otp);
+    return { sent: true, skipped: false };
+  };
 });
 
 after(async () => {
-  if (testEmails.length) await User.deleteMany({ email: { $in: testEmails } });
-  await stopMongo();
+  await deleteFixtureUsers(createdIds);
 });
 
-function skipIfMongoUnavailable(t) {
+function skipIfDatabaseUnavailable(t) {
   if (dbReady) return false;
-  t.skip(mongoSkip());
+  t.skip('PostgreSQL test database is not available');
   return true;
 }
 
 async function createPendingUser(label) {
   const email = `otp-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}@buildmate.test`;
-  testEmails.push(email);
-  return User.create({
+  const user = await userRepository.create({
     name: 'OTP Test User',
     email,
     password: 'BuildMate123!',
@@ -46,16 +53,18 @@ async function createPendingUser(label) {
     status: USER_STATUS.PENDING_EMAIL,
     emailVerified: false,
   });
+  createdIds.push(user._id);
+  return user;
 }
 
 describe('OTP protections', () => {
   it('hashes email codes, throttles resend, and locks after five incorrect attempts', async (t) => {
-    if (skipIfMongoUnavailable(t)) return;
+    if (skipIfDatabaseUnavailable(t)) return;
     deliveredVerificationCodes.length = 0;
     const user = await createPendingUser('verify');
 
     await authService.resendCode({ email: user.email });
-    const saved = await User.findById(user._id).select('+verificationCode +verificationAttempts');
+    const saved = await userRepository.findById(user._id);
     const deliveredCode = deliveredVerificationCodes[0];
     const wrongCode = deliveredCode === '000000' ? '000001' : '000000';
 
@@ -73,12 +82,12 @@ describe('OTP protections', () => {
   });
 
   it('hashes reset codes, hides cooldown responses, and consumes a valid code once', async (t) => {
-    if (skipIfMongoUnavailable(t)) return;
+    if (skipIfDatabaseUnavailable(t)) return;
     deliveredResetCodes.length = 0;
     const user = await createPendingUser('reset');
 
     await authService.forgotPassword({ email: user.email });
-    const saved = await User.findById(user._id).select('+resetPasswordToken +resetPasswordAttempts');
+    const saved = await userRepository.findById(user._id);
     const deliveredCode = deliveredResetCodes[0];
     const wrongCode = deliveredCode === '000000' ? '000001' : '000000';
     assert.equal(deliveredResetCodes.length, 1);
@@ -99,7 +108,7 @@ describe('OTP protections', () => {
   });
 
   it('allows a valid reset code once and rejects its reuse', async (t) => {
-    if (skipIfMongoUnavailable(t)) return;
+    if (skipIfDatabaseUnavailable(t)) return;
     deliveredResetCodes.length = 0;
     const user = await createPendingUser('consume');
     await authService.forgotPassword({ email: user.email });
@@ -110,7 +119,7 @@ describe('OTP protections', () => {
       authService.resetPassword({ email: user.email, code: deliveredCode, newPassword: 'AnotherPass123!' }),
       /No reset code/
     );
-    const updated = await User.findById(user._id).select('+password');
+    const updated = await userRepository.findById(user._id);
     assert.equal(await updated.comparePassword('ChangedPass123!'), true);
   });
 });

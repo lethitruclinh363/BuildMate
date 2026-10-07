@@ -9,6 +9,7 @@ const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { mongoSanitize } = require('./middleware/sanitizeMiddleware');
 const { apiLimiter, authLimiter, otpRequestLimiter } = require('./middleware/rateLimitMiddleware');
+const { requestTiming } = require('./middleware/requestTiming');
 // const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 // const { mongoSanitize } = require('./middleware/sanitizeMiddleware');
 // const { apiLimiter, authLimiter, otpRequestLimiter } = require('./middleware/rateLimitMiddleware');
@@ -55,6 +56,7 @@ function createApp() {
     })
   );
   app.use(morgan(env.isProd ? 'combined' : 'dev'));
+  app.use(requestTiming);
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());

@@ -1,9 +1,9 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureMongo, mongoSkip } = require('./helpers/mongo');
 const { startTestServer, api } = require('./helpers/http');
-const { createParty, cleanupParty } = require('./helpers/party');
-const { User, ROLES, USER_STATUS } = require('../models/User');
+const { createParty, cleanupParty, createUser, deleteFixtureUsers } = require('./helpers/party');
+const { testDatabaseReady } = require('./helpers/pg-cleanup');
+const { ROLES } = require('../models/user.model');
 const { signToken } = require('../services/authService');
 const dashboardService = require('../services/contractorDashboard.service');
 
@@ -14,30 +14,27 @@ describe('Phase 3 contractor dashboard-stats', { timeout: 90000 }, () => {
   let otherContractor;
 
   before(async () => {
-    dbReady = await ensureMongo();
+    dbReady = testDatabaseReady();
     if (!dbReady) return;
     server = await startTestServer();
     party = await createParty(`dash-${Date.now()}`);
-    otherContractor = await User.create({
+    otherContractor = await createUser({
       name: 'Other Dash Co',
       email: `dash.other.${Date.now()}@buildmate.test`,
       password: 'Demo@1234',
       role: ROLES.CONTRACTOR,
-      status: USER_STATUS.ACTIVE,
     });
   });
 
   after(async () => {
     if (server) await server.close();
     await cleanupParty(party);
-    if (otherContractor) await User.deleteOne({ _id: otherContractor._id });
-    const { stopMongo } = require('./helpers/mongo');
-    await stopMongo();
+    if (otherContractor) await deleteFixtureUsers([otherContractor._id]);
   });
 
   it('returns scoped empty-safe stats and never leaks another contractor', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
 

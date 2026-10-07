@@ -1,9 +1,8 @@
-const { ChatRoom } = require('../models/ChatRoom');
-const { Message, MESSAGE_TYPE } = require('../models/Message');
-const { User } = require('../models/User');
-const { RepairRequest } = require('../models/RepairRequest');
-const { Quotation } = require('../models/Quotation');
+const { MESSAGE_TYPE } = require('../models/Message');
+const { ChatRoom, Message, RepairRequest, Quotation } = require('../repositories/conversationAccess');
+const { loadUser, findUsersByIds } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
+const { sanitizeChatLocation } = require('../utils/chat-location');
 const { emitToRoom, isOnline } = require('./socketService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 
@@ -51,7 +50,7 @@ async function listRooms(userId, role) {
   const filter = PARTNER_ROLES.has(role) ? { contractorId: userId } : { customerId: userId };
   const rooms = await ChatRoom.find(filter).sort({ lastMessageAt: -1 }).limit(50);
   const [users, requests] = await Promise.all([
-    User.find({ _id: { $in: rooms.flatMap((r) => [r.customerId, r.contractorId]) } }),
+    findUsersByIds(rooms.flatMap((room) => [room.customerId, room.contractorId])),
     RepairRequest.find({ _id: { $in: rooms.map((r) => r.requestId) } }),
   ]);
   const userMap = Object.fromEntries(users.map((u) => [String(u._id), u.toPublic()]));
@@ -71,8 +70,8 @@ async function listRooms(userId, role) {
 async function getRoom(roomId, userId) {
   const room = await assertMember(roomId, userId);
   const [customer, contractor, request] = await Promise.all([
-    User.findById(room.customerId),
-    User.findById(room.contractorId),
+    loadUser(room.customerId),
+    loadUser(room.contractorId),
     RepairRequest.findById(room.requestId),
   ]);
   return {
@@ -131,7 +130,7 @@ async function sendMessage({ roomId, senderId, type = MESSAGE_TYPE.TEXT, content
 
   const otherId =
     String(room.customerId) === String(senderId) ? room.contractorId : room.customerId;
-  const [sender, recipient] = await Promise.all([User.findById(senderId), User.findById(otherId)]);
+  const [sender, recipient] = await Promise.all([loadUser(senderId), loadUser(otherId)]);
   const chatLink = chatPathFor(recipient, room._id);
 
   if (type !== MESSAGE_TYPE.QUOTATION) {

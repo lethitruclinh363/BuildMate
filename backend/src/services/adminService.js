@@ -1,10 +1,10 @@
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { User, USER_STATUS, ROLES } = require('../models/User');
-const { Store, STORE_TYPE, STORE_STATUS } = require('../models/Store');
-const { Order } = require('../models/Order');
-const { Review } = require('../models/Review');
-const { Complaint } = require('../models/Complaint');
-const { RepairRequest } = require('../models/RepairRequest');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { ContractorProfile, Store, loadUser, updateUser, findUsersByIds } = require('../repositories/partnerAccess');
+const { USER_STATUS, ROLES } = require('../models/User');
+const { userRepository } = require('../repositories/userRepository');
+const { STORE_TYPE, STORE_STATUS } = require('../models/Store');
+const { Order, Review, Complaint } = require('../repositories/commerceAccess');
+const { RepairRequest } = require('../repositories/conversationAccess');
 const { ApiError } = require('../utils/ApiError');
 const { writeAudit, listAudit, AUDIT_ACTION } = require('./auditService');
 const analyticsService = require('./analyticsService');
@@ -37,13 +37,13 @@ async function customerLocations(userIds) {
 }
 
 async function listCustomers() {
-  const users = await User.find({ role: ROLES.CUSTOMER }).sort({ createdAt: -1 });
+  const users = await userRepository.listByRole(ROLES.CUSTOMER);
   const locations = await customerLocations(users.map((user) => user._id));
   return users.map((user) => customerPublic(user, locations.get(String(user._id))));
 }
 
 async function getCustomer(id) {
-  const user = await User.findById(id);
+  const user = await userRepository.findById(id);
   if (!user || user.role !== ROLES.CUSTOMER) {
     throw new ApiError(404, 'Customer not found');
   }
@@ -65,28 +65,64 @@ async function listVerifications(status) {
   const filter = {};
   if (status) filter.verificationStatus = status;
 
-  const profiles = await ContractorProfile.find(filter)
-    .sort({ submittedAt: -1, updatedAt: -1 })
-    .populate('userId', 'name email phone avatar status role');
-  const categoriesByProfile = await materialCategoryService.selectionsForProfiles(profiles);
-  const snapshots = await publicSnapshots(profiles.map((profile) => profile.userId?._id || profile.userId));
-  const ekycByUser = await contractorEkycService.publicByUserIds(
-    profiles.map((profile) => profile.userId?._id || profile.userId)
-  );
-
-  return Promise.all(profiles.map(async (profile) => {
-    const published = profile.toPublic();
-    const categories = categoriesByProfile.get(String(profile._id));
-    if (categories) published.materialCategories = categories;
+  const profiles = await ContractorProfile.find(filter).sort({ submittedAt: -1, updatedAt: -1 });
+  const ownerIds = profiles.map((profile) => String(profile.userId || '')).filter(Boolean);
+  const [users, stores, ekycByUser] = await Promise.all([
+    findUsersByIds(ownerIds),
+    ownerIds.length ? Store.find({ contractorId: { $in: ownerIds } }) : [],
+    contractorEkycService.publicByUserIds(ownerIds),
+  ]);
+  const userById = new Map(users.map((user) => [String(user._id), user]));
+  for (const profile of profiles) {
+    const user = userById.get(String(profile.userId || ''));
+    if (!user) continue;
+    profile.userId = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      avatar: user.avatar,
+      status: user.status,
+      role: user.role,
+    };
+  }
+  const storeByOwner = new Map(stores.map((store) => [String(store.contractorId), store]));
+  const categoryProfiles = profiles.filter((profile) => {
     const ownerId = String(profile.userId?._id || profile.userId || '');
+    const store = storeByOwner.get(ownerId);
+    return profile.userId?.role === ROLES.MATERIAL_STORE_OWNER || store?.storeType === STORE_TYPE.MATERIALS;
+  });
+  const categoriesByProfile = categoryProfiles.length
+    ? await materialCategoryService.selectionsForProfiles(categoryProfiles, { includeAll: true })
+    : new Map();
+  const entries = profiles.map((profile) => {
+    const ownerId = String(profile.userId?._id || profile.userId || '');
+    return {
+      userId: ownerId,
+      profile,
+      user: profile.userId?._id ? profile.userId : null,
+      store: storeByOwner.get(ownerId) || null,
+    };
+  });
+  const [snapshots, readiness] = await Promise.all([
+    publicSnapshots(ownerIds, stores),
+    activationService.readinessForLoaded(entries, categoriesByProfile),
+  ]);
+
+  return profiles.map((profile) => {
+    const published = profile.toPublic();
+    const ownerId = String(profile.userId?._id || profile.userId || '');
+    if (profile.userId?.role === ROLES.MATERIAL_STORE_OWNER) {
+      const categories = categoriesByProfile.get(String(profile._id));
+      if (categories) published.materialCategories = categories;
+    }
     const snapshot = snapshots.get(ownerId);
     if (snapshot) published.publicProfile = snapshot;
-    const activation = ownerId ? await activationService.getActivationReadiness(ownerId) : null;
     return {
       ...published,
-      activation,
+      activation: ownerId ? readiness.get(ownerId) || null : null,
       ekyc: ekycByUser.get(ownerId) || null,
-      user: profile.userId
+      user: profile.userId?._id
         ? {
             id: profile.userId._id,
             name: profile.userId.name,
@@ -98,7 +134,7 @@ async function listVerifications(status) {
           }
         : null,
     };
-  }));
+  });
 }
 
 async function getVerification(id) {
@@ -107,7 +143,7 @@ async function getVerification(id) {
     'name email phone avatar status role'
   );
   if (!profile) throw new ApiError(404, 'Partner application not found');
-  const { Service } = require('../models/Service');
+  const { Service } = require('../repositories/offeringAccess');
   const userId = profile.userId?._id || profile.userId;
   const offerings = userId ? await Service.find({ contractorId: userId }).select('catalogKey name completionStatus') : [];
   const completionByKey = new Map();
@@ -165,11 +201,10 @@ async function approve(id, adminId) {
     console.error('[ekyc] admin decision was not recorded');
   }
 
-  const user = await User.findByIdAndUpdate(
-    profile.userId,
-    { status: USER_STATUS.ACTIVE, profileStatus: 'APPROVED' },
-    { new: true }
-  );
+  const user = await updateUser(profile.userId, {
+    status: USER_STATUS.ACTIVE,
+    profileStatus: 'APPROVED',
+  });
   const storeType = user?.role === ROLES.MATERIAL_STORE_OWNER ? STORE_TYPE.MATERIALS : STORE_TYPE.SERVICES;
   const existing = await Store.findOne({ contractorId: profile.userId });
   if (!existing) {
@@ -241,7 +276,7 @@ async function reject(id, adminId, reason) {
     console.error('[ekyc] admin decision was not recorded');
   }
 
-  await User.findByIdAndUpdate(profile.userId, {
+  await updateUser(profile.userId, {
     status: USER_STATUS.PENDING_VERIFICATION,
     profileStatus: 'REJECTED',
   });

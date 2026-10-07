@@ -187,9 +187,11 @@ export function App() {
                   <Route path="/store/dashboard" element={<StoreDashboard />} />
                   <Route path="/store/profile/edit" element={<StorePublicProfilePage />} />
                   <Route path="/store/verification" element={<StoreVerificationPage />} />
-                  <Route path="/store/materials" element={<StoreMaterialsPage />} />
-                  <Route path="/store/products" element={<StoreMaterialsPage />} />
-                  <Route path="/store/prices" element={<StoreMaterialsPage />} />
+                  <Route element={<StoreMaterialsPage />}>
+                    <Route path="/store/materials" />
+                    <Route path="/store/products" />
+                    <Route path="/store/prices" />
+                  </Route>
                   <Route path="/store/delivery" element={<StoreDeliveryPage />} />
                   <Route path="/store/orders" element={<StoreOrdersPage />} />
                   <Route path="/store/orders/:id" element={<StoreOrderDetailPage />} />

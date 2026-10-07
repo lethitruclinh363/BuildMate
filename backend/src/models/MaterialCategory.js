@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const CATEGORY_RECORD_STATUS = Object.freeze({
   PENDING_APPROVAL: 'PENDING_APPROVAL',
@@ -6,6 +5,10 @@ const CATEGORY_RECORD_STATUS = Object.freeze({
   REJECTED: 'REJECTED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const materialCategorySchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 80 },
@@ -40,5 +43,11 @@ materialCategorySchema.index({ ownerId: 1, foldedName: 1 }, { unique: true });
 materialCategorySchema.index({ foldedName: 1 }, { unique: true, partialFilterExpression: { type: 'SYSTEM' } });
 
 const MaterialCategory = mongoose.models.MaterialCategory || mongoose.model('MaterialCategory', materialCategorySchema);
+  built = { MaterialCategory };
+  return built;
+}
 
-module.exports = { MaterialCategory, CATEGORY_RECORD_STATUS };
+module.exports = {
+  CATEGORY_RECORD_STATUS,
+  get MaterialCategory() { return build().MaterialCategory; },
+};

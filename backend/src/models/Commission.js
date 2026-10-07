@@ -1,10 +1,13 @@
-const mongoose = require('mongoose');
 
 const COMMISSION_STATUS = Object.freeze({
   POSTED: 'POSTED',
   REVERSED: 'REVERSED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const commissionSchema = new mongoose.Schema(
   {
     paymentId: {
@@ -59,5 +62,11 @@ commissionSchema.methods.toPublic = function toPublic() {
 };
 
 const Commission = mongoose.model('Commission', commissionSchema);
+  built = { Commission };
+  return built;
+}
 
-module.exports = { Commission, COMMISSION_STATUS };
+module.exports = {
+  COMMISSION_STATUS,
+  get Commission() { return build().Commission; },
+};

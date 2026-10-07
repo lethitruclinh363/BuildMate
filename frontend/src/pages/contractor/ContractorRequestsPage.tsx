@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Inbox } from 'lucide-react';
 import { EmptyState } from '@/components/dashboard/EmptyState';
@@ -22,13 +22,17 @@ export function ContractorRequestsPage() {
   const [rows, setRows] = useState<RepairRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const filled = useRef(false);
 
   const load = () => {
-    setLoading(true);
-    setError(null);
+    if (!filled.current) setLoading(true);
     return repairApi
       .received()
-      .then((res) => setRows(res.data.data))
+      .then((res) => {
+        filled.current = true;
+        setRows(res.data.data || []);
+        setError(null);
+      })
       .catch((err) => setError(te(getApiErrorMessage(err))))
       .finally(() => setLoading(false));
   };
@@ -37,8 +41,8 @@ export function ContractorRequestsPage() {
     void load();
   }, []);
 
-  if (loading) return <DashboardSkeleton />;
-  if (error) return <ErrorState body={error} onRetry={() => void load()} />;
+  if (loading && rows.length === 0) return <DashboardSkeleton />;
+  if (error && rows.length === 0) return <ErrorState body={error} onRetry={() => void load()} />;
 
   return (
     <PageTransition>
@@ -71,8 +75,8 @@ export function ContractorRequestsPage() {
                   </p>
                   <p className="mt-2 text-sm leading-6 text-ink-600">{item.description}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {item.images.map((src) => (
-                      <img key={src} src={mediaUrl(src)} alt="" className="h-16 w-16 rounded-xl object-cover" />
+                    {(item.images || []).map((src) => (
+                      <img key={src} src={mediaUrl(src)} alt="" width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 rounded-xl object-cover" />
                     ))}
                   </div>
                 </div>

@@ -1,9 +1,11 @@
-const { Store, STORE_TYPE } = require('../models/Store');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { Service } = require('../models/Service');
-const { Order, ORDER_STATUS } = require('../models/Order');
-const { RepairRequest } = require('../models/RepairRequest');
-const { Quotation, QUOTATION_STATUS } = require('../models/Quotation');
+const { STORE_TYPE } = require('../models/Store');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { ContractorProfile, Store } = require('../repositories/partnerAccess');
+const { Service } = require('../repositories/offeringAccess');
+const { ORDER_STATUS } = require('../models/Order');
+const { Order } = require('../repositories/commerceAccess');
+const { QUOTATION_STATUS } = require('../models/Quotation');
+const { RepairRequest, Quotation } = require('../repositories/conversationAccess');
 const { ApiError } = require('../utils/ApiError');
 const { publicPricedServiceMatch } = require('../constants/contractorServices');
 const { assertDeliveryPolicy } = require('../utils/delivery-policy');
@@ -245,7 +247,7 @@ async function registeredCategories(profile) {
 
 async function getMaterialPublicProfile(userId) {
   const { profile, store } = await loadApprovedMaterialStore(userId);
-  const { Material } = require('../models/Material');
+  const { Material } = require('../repositories/offeringAccess');
   const [materials, reviews] = await Promise.all([
     Material.find({ storeId: store._id, isActive: true }).sort({ name: 1 }),
     reviewService.listForUser(userId, 'MATERIAL_STORE'),
@@ -308,10 +310,13 @@ async function updateMaterialPublicProfile(userId, body) {
   return presentMaterialPublic(store);
 }
 
-async function publicSnapshots(userIds) {
-  const ids = (userIds || []).filter(Boolean);
+async function publicSnapshots(userIds, preloadedStores) {
+  const ids = (userIds || []).filter(Boolean).map(String);
   if (!ids.length) return new Map();
-  const stores = await Store.find({ contractorId: { $in: ids } });
+  const wanted = new Set(ids);
+  const stores = preloadedStores
+    ? preloadedStores.filter((store) => wanted.has(String(store.contractorId)))
+    : await Store.find({ contractorId: { $in: ids } });
   const map = new Map();
   for (const store of stores) {
     map.set(String(store.contractorId), {

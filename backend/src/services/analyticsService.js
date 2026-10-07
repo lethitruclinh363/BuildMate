@@ -1,9 +1,10 @@
-const { User, ROLES } = require('../models/User');
-const { Order, ORDER_STATUS } = require('../models/Order');
-const { Payment, PAYMENT_STATUS } = require('../models/Payment');
-const { Commission, COMMISSION_STATUS } = require('../models/Commission');
-const { Review } = require('../models/Review');
-const { Complaint, COMPLAINT_STATUS } = require('../models/Complaint');
+const { ROLES } = require('../models/User');
+const { userRepository } = require('../repositories/userRepository');
+const { ORDER_STATUS } = require('../models/Order');
+const { PAYMENT_STATUS } = require('../models/Payment');
+const { COMMISSION_STATUS } = require('../models/Commission');
+const { COMPLAINT_STATUS } = require('../models/Complaint');
+const { Order, Payment, Commission, Review, Complaint } = require('../repositories/commerceAccess');
 
 const TTL_MS = 60 * 1000;
 let cache = { at: 0, data: null };
@@ -30,10 +31,10 @@ async function computeAnalytics() {
     complaintsRejected,
     complaintsTotal,
   ] = await Promise.all([
-    User.countDocuments(),
-    User.countDocuments({ role: ROLES.CUSTOMER }),
-    User.countDocuments({ role: ROLES.CONTRACTOR }),
-    User.countDocuments({ role: ROLES.ADMIN }),
+    userRepository.countAll(),
+    userRepository.countByRole(ROLES.CUSTOMER),
+    userRepository.countByRole(ROLES.CONTRACTOR),
+    userRepository.countByRole(ROLES.ADMIN),
     Order.countDocuments(),
     Order.countDocuments({ status: ORDER_STATUS.CUSTOMER_ACCEPTED }),
     Order.countDocuments({ status: ORDER_STATUS.CANCELLED }),

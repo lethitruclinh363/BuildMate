@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const { describePlace } = require('../utils/geo');
 const {
   MATERIAL_ORDER_STATUS,
@@ -7,6 +6,10 @@ const {
   generateMaterialOrderCode,
 } = require('../utils/material-order.rules');
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const itemSchema = new mongoose.Schema(
   {
     materialId: { type: mongoose.Schema.Types.ObjectId, ref: 'Material', required: true },
@@ -135,5 +138,12 @@ materialOrderSchema.methods.toPublic = function toPublic() {
 };
 
 const MaterialOrder = mongoose.model('MaterialOrder', materialOrderSchema);
+  built = { MaterialOrder };
+  return built;
+}
 
-module.exports = { MaterialOrder, MATERIAL_ORDER_STATUS, MATERIAL_PAYMENT_STATUS };
+module.exports = {
+  MATERIAL_ORDER_STATUS,
+  MATERIAL_PAYMENT_STATUS,
+  get MaterialOrder() { return build().MaterialOrder; },
+};

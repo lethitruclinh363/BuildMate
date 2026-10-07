@@ -1,5 +1,6 @@
-const { Store, STORE_STATUS } = require('../models/Store');
+const { STORE_STATUS } = require('../models/Store');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { env } = require('../config/env');
 const { categoriesFromLegacyAreas } = require('../constants/material-categories');
 const { seedPublicProfile } = require('./publicProfileService');
 const { cardIsPublic } = require('./activation.service');
@@ -106,7 +107,189 @@ function catalogLookup(catalog) {
   };
 }
 
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const toRad = (value) => (Number(value) * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+async function geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog }) {
+  const { prisma } = require('../config/prisma');
+  const stores = await prisma.stores.findMany({
+    where: {
+      status: STORE_STATUS.LIVE,
+      ...(storeTypes?.length ? { store_type: { in: storeTypes } } : {}),
+    },
+    include: {
+      locations: true,
+      users: { select: { id: true, legacy_mongo_id: true, account_status: true } },
+      store_media: true,
+      store_service_areas: true,
+    },
+  });
+  const maxMeters = Number(radiusKm) * 1000;
+  const near = stores
+    .map((store) => {
+      const latitude = store.locations?.latitude;
+      const longitude = store.locations?.longitude;
+      if (latitude == null || longitude == null) return null;
+      if (['BLOCKED', 'BANNED'].includes(store.users?.account_status)) return null;
+      const meters = distanceMeters(lat, lng, latitude, longitude);
+      return meters <= maxMeters ? { store, meters } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.meters - b.meters);
+  const ownerIds = near.map((item) => item.store.owner_user_id);
+  const profiles = ownerIds.length
+    ? await prisma.contractor_profiles.findMany({
+      where: { user_id: { in: ownerIds }, verification_status: VERIFICATION_STATUS.APPROVED },
+      include: {
+        contractor_service_areas: true,
+        contractor_material_categories: { include: { material_categories: true } },
+      },
+    })
+    : [];
+  const profileByUser = new Map(profiles.map((profile) => [String(profile.user_id), profile]));
+  const kept = near.filter((item) => profileByUser.has(String(item.store.owner_user_id)));
+  const storeIds = kept.map((item) => item.store.id);
+  const shelf = !storeIds.length
+    ? []
+    : catalog === 'materials'
+    ? await prisma.materials.findMany({
+      where: { store_id: { in: storeIds }, is_active: true },
+      include: { material_categories: true },
+      orderBy: { id: 'asc' },
+    })
+    : await prisma.services.findMany({
+      where: {
+        store_id: { in: storeIds },
+        is_active: true,
+        base_price: { gt: 0 },
+        completion_status: { not: 'INCOMPLETE' },
+      },
+      include: { service_categories: true },
+      orderBy: { id: 'asc' },
+    });
+  const byStore = new Map();
+  for (const item of shelf) {
+    const list = byStore.get(String(item.store_id)) || [];
+    if (list.length < 8) list.push(item);
+    byStore.set(String(item.store_id), list);
+  }
+  const targetType = catalog === 'materials' ? 'MATERIAL_STORE' : 'CONTRACTOR';
+  const reviewRows = ownerIds.length
+    ? await prisma.reviews.groupBy({
+      by: ['target_user_id'],
+      where: { target_user_id: { in: ownerIds }, target_type: targetType },
+      _avg: { rating: true },
+      _count: { _all: true },
+    })
+    : [];
+  const orderRows = ownerIds.length
+    ? await prisma.service_orders.groupBy({
+      by: ['contractor_user_id'],
+      where: {
+        contractor_user_id: { in: ownerIds },
+        status: { in: ['COMPLETED', 'CUSTOMER_ACCEPTED'] },
+      },
+      _count: { _all: true },
+    })
+    : [];
+  const reviewByUser = new Map(reviewRows.map((row) => [String(row.target_user_id), row]));
+  const ordersByUser = new Map(orderRows.map((row) => [String(row.contractor_user_id), row._count._all]));
+
+  const cards = [];
+  for (const item of kept) {
+    const store = item.store;
+    const profileRow = profileByUser.get(String(store.owner_user_id));
+    const gallery = (store.store_media || []).filter((media) => media.media_type === 'GALLERY');
+    const shelfRows = byStore.get(String(store.id)) || [];
+    const review = reviewByUser.get(String(store.owner_user_id));
+    const doc = {
+      _id: store.legacy_mongo_id,
+      contractorId: store.users?.legacy_mongo_id || '',
+      name: store.name,
+      slogan: store.slogan || '',
+      description: store.description || '',
+      address: store.locations?.formatted_address || '',
+      city: store.locations?.city || '',
+      phone: store.phone || '',
+      storeType: store.store_type,
+      category: store.category,
+      avatar: store.avatar_url || '',
+      logo: store.logo_url || '',
+      coverImage: store.cover_image_url || '',
+      openingHours: store.opening_hours,
+      gallery: gallery.map((media) => media.file_url),
+      owner: { status: store.users?.account_status || '' },
+      profile: {
+        verificationStatus: profileRow.verification_status,
+        serviceAreas: (profileRow.contractor_service_areas || []).map((area) => area.area_name),
+        materialCategories: (profileRow.contractor_material_categories || []).map((entry) => ({
+          name: entry.material_categories?.name || '',
+          type: entry.material_categories?.category_type === 'CUSTOM' ? 'CUSTOM' : 'SYSTEM',
+        })),
+      },
+      reviewStats: review ? [{ count: review._count._all, avg: Number(review._avg.rating || 0) }] : [],
+      completedStats: [{ count: ordersByUser.get(String(store.owner_user_id)) || 0 }],
+      services: catalog === 'services'
+        ? shelfRows.map((row) => ({
+          _id: row.legacy_mongo_id,
+          name: row.name,
+          category: row.service_categories?.name || '',
+          basePrice: Number(row.base_price || 0),
+        }))
+        : [],
+      products: catalog === 'materials'
+        ? shelfRows.map((row) => ({
+          _id: row.legacy_mongo_id,
+          name: row.name,
+          category: row.material_categories?.name || '',
+          price: Number(row.price || 0),
+          unit: row.unit,
+        }))
+        : [],
+      publicSeeded: store.public_seeded,
+      distanceMeters: item.meters,
+      serviceRadiusKm: Number(store.service_radius_km || 0),
+      deliveryEnabled: store.delivery_enabled,
+      baseDeliveryFee: Number(store.base_delivery_fee || 0),
+      location: {
+        type: 'Point',
+        coordinates: [Number(store.locations.longitude), Number(store.locations.latitude)],
+      },
+      locationConfirmed: store.locations?.is_confirmed === true,
+    };
+    if (catalog === 'services' && doc.profile && !doc.publicSeeded && doc.storeType !== 'MATERIALS') {
+      try {
+        const seeded = await seedPublicProfile(doc._id, doc.profile);
+        if (seeded) {
+          doc.name = seeded.name;
+          doc.slogan = seeded.slogan;
+          doc.description = seeded.description;
+          doc.phone = seeded.phone;
+          doc.coverImage = seeded.coverImage;
+          doc.avatar = seeded.avatar;
+          doc.logo = seeded.logo;
+          doc.publicSeeded = true;
+        }
+      } catch {
+        // A missing public copy must not hide the crew from the map.
+      }
+    }
+    cards.push(toCard(doc, catalog));
+  }
+  return cards.filter((card) => cardIsPublic(card, catalog));
+}
+
 async function geoNearby({ lat, lng, radiusKm, storeTypes, catalog }) {
+  if (env.databaseProvider === 'postgres') {
+    return geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog });
+  }
+  const { Store } = require('../models/Store');
   const query = { status: STORE_STATUS.LIVE };
   if (storeTypes?.length) query.storeType = { $in: storeTypes };
   const shelf = catalogLookup(catalog);

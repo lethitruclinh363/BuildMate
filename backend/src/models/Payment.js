@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const { PAYMENT_STATUS } = require('./Order');
 
 const PAYMENT_TYPE = Object.freeze({
@@ -13,6 +12,10 @@ const PAYMENT_PROVIDER = Object.freeze({
   BANK_TRANSFER: 'bank_transfer',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const paymentSchema = new mongoose.Schema(
   {
     orderId: {
@@ -95,11 +98,14 @@ async function ensurePaymentIndexes() {
 }
 
 const Payment = mongoose.model('Payment', paymentSchema);
+  built = { Payment, ensurePaymentIndexes };
+  return built;
+}
 
 module.exports = {
-  Payment,
   PAYMENT_STATUS,
   PAYMENT_TYPE,
   PAYMENT_PROVIDER,
-  ensurePaymentIndexes,
+  get Payment() { return build().Payment; },
+  get ensurePaymentIndexes() { return build().ensurePaymentIndexes; },
 };

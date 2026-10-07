@@ -1,5 +1,5 @@
-const { Policy, POLICY_STATUS, POLICY_TYPES } = require('../models/Policy');
-const { PolicyRevision } = require('../models/PolicyRevision');
+const { POLICY_STATUS, POLICY_TYPES } = require('../models/Policy');
+const { Policy, PolicyRevision } = require('../repositories/systemAccess');
 const { defaultPolicies } = require('./policyDefaults');
 const { ApiError } = require('../utils/ApiError');
 const { fromRequest } = require('./auditService');

@@ -76,9 +76,10 @@ export function ContractorServicesPage() {
     setApprovedCustoms(catalog.data.data || []);
   };
 
+  const storeId = data?.store?.id;
   useEffect(() => {
-    if (approved && data?.store) void load().catch(() => setError(t('servicePage.needStoreFirst')));
-  }, [approved, data?.store]);
+    if (approved && storeId) void load().catch(() => setError(t('servicePage.needStoreFirst')));
+  }, [approved, storeId]);
 
   const titleOf = (item: { name: string; catalogType?: string }) =>
     item.catalogType === 'CUSTOM' ? item.name : catalogServiceLabel(item.name, t);
@@ -325,7 +326,7 @@ export function ContractorServicesPage() {
                 }}
               />
             </label>
-            {image ? <img src={mediaUrl(image)} alt="" className="h-28 w-full rounded-2xl object-cover" /> : null}
+            {image ? <img src={mediaUrl(image)} alt="" width={320} height={112} loading="lazy" decoding="async" className="h-28 w-full rounded-2xl object-cover" /> : null}
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             <Button type="submit" loading={busy}>{t('servicePage.saveDetails')}</Button>
           </form>

@@ -1,4 +1,5 @@
-const { Notification, NOTIFICATION_TYPE } = require('../models/Notification');
+const { NOTIFICATION_TYPE } = require('../models/Notification');
+const { Notification } = require('../repositories/systemAccess');
 const { emitToUser } = require('./socketService');
 
 async function notify({ userId, title, message, type, link = '', meta = {} }) {
