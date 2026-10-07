@@ -1,5 +1,9 @@
-const mongoose = require('mongoose');
 
+
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const commissionRuleSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 80 },
@@ -21,5 +25,10 @@ commissionRuleSchema.methods.toPublic = function toPublic() {
 };
 
 const CommissionRule = mongoose.model('CommissionRule', commissionRuleSchema);
+  built = { CommissionRule };
+  return built;
+}
 
-module.exports = { CommissionRule };
+module.exports = {
+  get CommissionRule() { return build().CommissionRule; },
+};

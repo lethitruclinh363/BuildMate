@@ -1,8 +1,9 @@
-const mongoose = require('mongoose');
-const { Order, ORDER_STATUS } = require('../models/Order');
-const { RepairRequest, REQUEST_STATUS } = require('../models/RepairRequest');
-const { Commission, COMMISSION_STATUS } = require('../models/Commission');
-const { Review, REVIEW_TARGET } = require('../models/Review');
+const { ORDER_STATUS } = require('../models/Order');
+const { REQUEST_STATUS } = require('../models/RepairRequest');
+const { RepairRequest } = require('../repositories/conversationAccess');
+const { COMMISSION_STATUS } = require('../models/Commission');
+const { REVIEW_TARGET } = require('../models/Review');
+const { Order, Commission, Review } = require('../repositories/commerceAccess');
 const { OPEN_ORDER_STATUSES } = require('../utils/order.rules');
 
 const RECENT_LIMIT = 5;
@@ -39,7 +40,7 @@ function startOfCurrentMonth() {
  * Uses counts + limited lists — never returns unbounded collections.
  */
 async function getDashboardStats(contractorId) {
-  const oid = new mongoose.Types.ObjectId(String(contractorId));
+  const oid = String(contractorId);
   const months = buildMonthBuckets();
   const monthStart = startOfCurrentMonth();
   const windowStart = new Date(`${months[0]}-01T00:00:00.000Z`);

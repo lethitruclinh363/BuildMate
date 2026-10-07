@@ -1,14 +1,10 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureMongo, mongoSkip, stopMongo } = require('./helpers/mongo');
 const { startTestServer, api } = require('./helpers/http');
-const { createParty, cleanupParty } = require('./helpers/party');
-const { User, ROLES, USER_STATUS } = require('../models/User');
-const { Order, ORDER_STATUS } = require('../models/Order');
-const { Payment } = require('../models/Payment');
-const { Commission } = require('../models/Commission');
-const { Review } = require('../models/Review');
-const { Complaint } = require('../models/Complaint');
+const { createParty, cleanupParty, createUser, deleteFixtureUsers, ROLES } = require('./helpers/party');
+const { testDatabaseReady, captureCommissionRules, restoreCommissionRules } = require('./helpers/pg-cleanup');
+const { ORDER_STATUS } = require('../models/Order');
+const { Order, Payment, Commission } = require('../repositories/commerceAccess');
 const { signToken } = require('../services/authService');
 const { customerAction } = require('../services/quotationService');
 const commissionService = require('../services/commissionService');
@@ -20,42 +16,33 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
   const trash = [];
   let admin;
   let adminToken;
+  let commissionSnapshot;
 
   before(async () => {
-    dbReady = await ensureMongo();
+    commissionSnapshot = await captureCommissionRules();
+    dbReady = testDatabaseReady();
     if (!dbReady) return;
     server = await startTestServer();
     await commissionService.getActiveRule();
-    admin = await User.create({
+    admin = await createUser({
       name: 'Sprint61 Admin',
       email: `e2e.admin61.${Date.now()}@buildmate.test`,
       password: 'Admin@1234',
       role: ROLES.ADMIN,
-      status: USER_STATUS.ACTIVE,
     });
     adminToken = signToken(admin);
   });
 
   after(async () => {
-    for (const party of trash) {
-      const order = await Order.findOne({ quotationId: party.quotation._id });
-      if (order) {
-        await Promise.all([
-          Commission.deleteMany({ orderId: order._id }),
-          Review.deleteMany({ orderId: order._id }),
-          Complaint.deleteMany({ orderId: order._id }),
-        ]);
-      }
-      await cleanupParty(party);
-    }
-    if (admin) await User.deleteOne({ _id: admin._id });
+    await restoreCommissionRules(commissionSnapshot);
+    for (const party of trash) await cleanupParty(party);
+    if (admin) await deleteFixtureUsers([admin._id]);
     if (server) await server.close();
-    await stopMongo();
   });
 
   it('1. customer checkout own order → PENDING → PAID + commission 5%', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     await commissionService.setActivePercentage(5, 'Test 5%');
@@ -90,7 +77,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
 
   it('2. checkout twice does not duplicate PAID or commission', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`duppay-${Date.now()}`);
@@ -129,7 +116,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
 
   it('3. customer cannot checkout another customer payment (403)', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`idors-${Date.now()}`);
@@ -146,7 +133,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
 
   it('commission snapshot stays 5 after fee changes to 8', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     await commissionService.setActivePercentage(5, 'Snap 5');
@@ -187,7 +174,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
 
   it('review completed order once; unfinished and duplicate are 409', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`rev-${Date.now()}`);
@@ -242,7 +229,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
 
   it('complaint: party allowed, stranger 403, older than 7 days 409', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`cmp-${Date.now()}`);
@@ -298,7 +285,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
 
   it('analytics: admin 200, customer 403', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     invalidateAnalyticsCache();

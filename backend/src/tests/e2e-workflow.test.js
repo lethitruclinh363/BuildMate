@@ -1,37 +1,35 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureMongo, mongoSkip } = require('./helpers/mongo');
 const { createParty, cleanupParty } = require('./helpers/party');
+const { testDatabaseReady } = require('./helpers/pg-cleanup');
 
 describe('Sprint 5.3 E2E journeys A/B/C', { timeout: 90000 }, () => {
   let dbReady = false;
   let party;
 
   before(async () => {
-    dbReady = await ensureMongo();
+    dbReady = testDatabaseReady();
   });
 
   after(async () => {
     await cleanupParty(party);
-    const { stopMongo } = require('./helpers/mongo');
-    await stopMongo();
   });
 
   it('runs customer → contractor progress → handover without duplicating the order', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
 
     const { customerAction } = require('../services/quotationService');
     const progressService = require('../services/progressService');
     const orderService = require('../services/orderService');
-    const { Quotation, QUOTATION_STATUS } = require('../models/Quotation');
-    const { Order } = require('../models/Order');
-    const { Payment } = require('../models/Payment');
-    const { ProgressUpdate } = require('../models/ProgressUpdate');
-    const { Notification, NOTIFICATION_TYPE } = require('../models/Notification');
-    const { RepairRequest, REQUEST_STATUS } = require('../models/RepairRequest');
+    const { QUOTATION_STATUS } = require('../models/Quotation');
+    const { NOTIFICATION_TYPE } = require('../models/Notification');
+    const { REQUEST_STATUS } = require('../models/RepairRequest');
+    const { Quotation, RepairRequest } = require('../repositories/conversationAccess');
+    const { Order, Payment, ProgressUpdate } = require('../repositories/commerceAccess');
+    const { Notification } = require('../repositories/systemAccess');
 
     party = await createParty();
 

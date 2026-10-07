@@ -1,14 +1,11 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureMongo, mongoSkip } = require('./helpers/mongo');
 const { startTestServer, api } = require('./helpers/http');
-const { createParty, cleanupParty } = require('./helpers/party');
-const { User, ROLES, USER_STATUS } = require('../models/User');
-const { RepairRequest, REPAIR_CATEGORY, REQUEST_STATUS } = require('../models/RepairRequest');
-const { Quotation, QUOTE_ITEM_TYPE, QUOTATION_STATUS } = require('../models/Quotation');
-const { Order } = require('../models/Order');
-const { Payment } = require('../models/Payment');
-const { Notification, NOTIFICATION_TYPE } = require('../models/Notification');
+const { createParty, cleanupParty, createUser, deleteFixtureUsers, ROLES } = require('./helpers/party');
+const { testDatabaseReady } = require('./helpers/pg-cleanup');
+const { NOTIFICATION_TYPE } = require('../models/Notification');
+const { Order, Payment } = require('../repositories/commerceAccess');
+const { Notification } = require('../repositories/systemAccess');
 const { signToken } = require('../services/authService');
 
 describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
@@ -17,7 +14,7 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
   const trash = [];
 
   before(async () => {
-    dbReady = await ensureMongo();
+    dbReady = testDatabaseReady();
     if (!dbReady) return;
     server = await startTestServer();
   });
@@ -25,13 +22,11 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
   after(async () => {
     if (server) await server.close();
     for (const party of trash) await cleanupParty(party);
-    const { stopMongo } = require('./helpers/mongo');
-    await stopMongo();
   });
 
   it('1. accept quotation twice → one order, one payment, one ORDER_CREATED notification', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const { customerAction } = require('../services/quotationService');
@@ -54,7 +49,7 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
 
   it('2. second contractor cannot update progress on another contractor order', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const { customerAction } = require('../services/quotationService');
@@ -63,12 +58,11 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
     trash.push(party);
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
 
-    const other = await User.create({
+    const other = await createUser({
       name: 'Rival Co',
       email: `e2e.rival.${Date.now()}@buildmate.test`,
       password: 'Demo@1234',
       role: ROLES.CONTRACTOR,
-      status: USER_STATUS.ACTIVE,
     });
     let denied = null;
     try {
@@ -80,12 +74,12 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
       denied = err;
     }
     assert.equal(denied?.statusCode, 403);
-    await User.deleteOne({ _id: other._id });
+    await deleteFixtureUsers([other._id]);
   });
 
   it('3. contractor cannot update a completed order', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const { customerAction } = require('../services/quotationService');
@@ -137,7 +131,7 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
 
   it('4. customer cannot accept before the job is COMPLETED', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const { customerAction } = require('../services/quotationService');
@@ -156,7 +150,7 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
 
   it('5. unauthorized user gets 403 on order detail', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const { customerAction } = require('../services/quotationService');

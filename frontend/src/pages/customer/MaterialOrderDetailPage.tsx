@@ -53,11 +53,6 @@ export function MaterialOrderDetailPage() {
     void load(true);
   }, [tick, load]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => void load(true), 15000);
-    return () => window.clearInterval(timer);
-  }, [load]);
-
   async function run(action: () => Promise<{ data: { data: MaterialOrder } }>, title: string) {
     setBusy(true);
     try {
@@ -108,7 +103,7 @@ export function MaterialOrderDetailPage() {
               <li key={String(item.materialId)} className="flex items-center justify-between gap-3 py-3 text-sm">
                 <span className="flex items-center gap-3">
                   {item.imageSnapshot ? (
-                    <img src={mediaUrl(item.imageSnapshot)} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                    <img src={mediaUrl(item.imageSnapshot)} alt="" width={48} height={48} loading="lazy" decoding="async" className="h-12 w-12 rounded-xl object-cover" />
                   ) : null}
                   <span>
                     <span className="font-medium text-navy-800">{item.nameSnapshot}</span>

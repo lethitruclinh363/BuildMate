@@ -4,7 +4,7 @@ const {
   offeringIdentity,
   matchesCatalogName,
   publicPricedServiceMatch,
-} = require('../constants/contractor-services');
+} = require('../constants/contractorServices');
 
 describe('contractor service identity', () => {
   it('maps a Vietnamese catalog name to the shared system service', () => {

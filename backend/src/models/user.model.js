@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 // Platform actors. ADMIN is seed-only.
@@ -32,6 +31,10 @@ const PROFILE_STATUS = Object.freeze({
   REJECTED: 'REJECTED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema(
   {
     // Display name. Older code used `name`; both fields stay in sync (see hooks).
@@ -254,5 +257,13 @@ userSchema.methods.toPublic = function toPublic() {
 };
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
+  built = { User };
+  return built;
+}
 
-module.exports = { User, ROLES, USER_STATUS, PROFILE_STATUS };
+module.exports = {
+  ROLES,
+  USER_STATUS,
+  PROFILE_STATUS,
+  get User() { return build().User; },
+};

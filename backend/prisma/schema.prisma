@@ -1,0 +1,1135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model audit_logs {
+  id              BigInt   @id @default(autoincrement())
+  legacy_mongo_id String?  @unique @db.VarChar(24)
+  actor_user_id   BigInt?
+  actor_role      String   @default("") @db.VarChar(50)
+  action          String   @db.VarChar(50)
+  entity_type     String   @db.VarChar(100)
+  entity_id       String   @default("") @db.VarChar(100)
+  meta            Json     @default("{}")
+  ip              String   @default("") @db.VarChar(100)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  users           users?   @relation(fields: [actor_user_id], references: [id], onUpdate: NoAction, map: "fk_audit_logs_actor")
+
+  @@index([action, created_at(sort: Desc)], map: "idx_audit_logs_action_created")
+  @@index([actor_user_id], map: "idx_audit_logs_actor")
+  @@index([created_at(sort: Desc)], map: "idx_audit_logs_created")
+  @@index([entity_type, entity_id], map: "idx_audit_logs_entity")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model catalog_services {
+  id                                        BigInt                          @id @default(autoincrement())
+  legacy_mongo_id                           String?                         @unique @db.VarChar(24)
+  service_category_id                       BigInt
+  name                                      String                          @db.VarChar(80)
+  normalized_name                           String                          @unique(map: "uq_catalog_services_normalized_name") @db.VarChar(120)
+  folded_name                               String                          @default("") @db.VarChar(120)
+  code                                      String?                         @db.VarChar(160)
+  description                               String                          @default("") @db.VarChar(500)
+  catalog_type                              String                          @default("CUSTOM") @db.VarChar(20)
+  status                                    String                          @default("PENDING_APPROVAL") @db.VarChar(30)
+  proposed_by                               BigInt?
+  reviewed_by                               BigInt?
+  reviewed_at                               DateTime?                       @db.Timestamptz(6)
+  created_at                                DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                                DateTime                        @default(now()) @db.Timestamptz(6)
+  service_categories                        service_categories              @relation(fields: [service_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_catalog_services_category")
+  users_catalog_services_proposed_byTousers users?                          @relation("catalog_services_proposed_byTousers", fields: [proposed_by], references: [id], onUpdate: NoAction, map: "fk_catalog_services_proposed_by")
+  users_catalog_services_reviewed_byTousers users?                          @relation("catalog_services_reviewed_byTousers", fields: [reviewed_by], references: [id], onUpdate: NoAction, map: "fk_catalog_services_reviewed_by")
+  contractor_portfolio_projects             contractor_portfolio_projects[]
+  contractor_profile_services               contractor_profile_services[]
+  repair_requests                           repair_requests[]
+  service_suggestions                       service_suggestions[]
+  services                                  services[]
+
+  @@index([service_category_id], map: "idx_catalog_services_category")
+  @@index([status], map: "idx_catalog_services_status")
+}
+
+model chat_rooms {
+  id                                         BigInt          @id @default(autoincrement())
+  legacy_mongo_id                            String?         @unique @db.VarChar(24)
+  customer_user_id                           BigInt
+  contractor_user_id                         BigInt
+  repair_request_id                          BigInt          @unique
+  last_message                               String          @default("")
+  last_message_at                            DateTime        @default(now()) @db.Timestamptz(6)
+  created_at                                 DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime        @default(now()) @db.Timestamptz(6)
+  users_chat_rooms_contractor_user_idTousers users           @relation("chat_rooms_contractor_user_idTousers", fields: [contractor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_chat_rooms_contractor")
+  users_chat_rooms_customer_user_idTousers   users           @relation("chat_rooms_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_chat_rooms_customer")
+  repair_requests                            repair_requests @relation(fields: [repair_request_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_chat_rooms_request")
+  messages                                   messages[]
+  quotations                                 quotations[]
+
+  @@index([contractor_user_id, last_message_at(sort: Desc)], map: "idx_chat_rooms_contractor_last")
+  @@index([customer_user_id, last_message_at(sort: Desc)], map: "idx_chat_rooms_customer_last")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model commission_rules {
+  id              BigInt   @id @default(autoincrement())
+  legacy_mongo_id String?  @unique @db.VarChar(24)
+  name            String   @db.VarChar(80)
+  percentage      Decimal  @db.Decimal(5, 2)
+  is_active       Boolean  @default(false)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model commissions {
+  id                 BigInt         @id @default(autoincrement())
+  legacy_mongo_id    String?        @unique @db.VarChar(24)
+  payment_id         BigInt         @unique
+  service_order_id   BigInt
+  contractor_user_id BigInt
+  rate_snapshot      Decimal        @db.Decimal(5, 2)
+  platform_amount    Decimal        @db.Decimal(14, 2)
+  contractor_amount  Decimal        @db.Decimal(14, 2)
+  status             String         @default("POSTED") @db.VarChar(20)
+  created_at         DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime       @default(now()) @db.Timestamptz(6)
+  users              users          @relation(fields: [contractor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_commissions_contractor")
+  service_orders     service_orders @relation(fields: [service_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_commissions_order")
+  payments           payments       @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_commissions_payment")
+
+  @@index([contractor_user_id, status, created_at(sort: Desc)], map: "idx_commissions_contractor_status_created")
+}
+
+model complaint_attachments {
+  id           BigInt     @id @default(autoincrement())
+  complaint_id BigInt
+  file_url     String
+  sort_order   Int        @default(0)
+  complaints   complaints @relation(fields: [complaint_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_complaint_attachments_complaint")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model complaints {
+  id                                         BigInt                  @id @default(autoincrement())
+  legacy_mongo_id                            String?                 @unique @db.VarChar(24)
+  service_order_id                           BigInt
+  created_by_user_id                         BigInt
+  against_user_id                            BigInt
+  reason                                     String                  @db.VarChar(80)
+  description                                String                  @db.VarChar(2000)
+  status                                     String                  @default("OPEN") @db.VarChar(20)
+  admin_note                                 String                  @default("") @db.VarChar(2000)
+  admin_user_id                              BigInt?
+  created_at                                 DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime                @default(now()) @db.Timestamptz(6)
+  complaint_attachments                      complaint_attachments[]
+  users_complaints_admin_user_idTousers      users?                  @relation("complaints_admin_user_idTousers", fields: [admin_user_id], references: [id], onUpdate: NoAction, map: "fk_complaints_admin")
+  users_complaints_against_user_idTousers    users                   @relation("complaints_against_user_idTousers", fields: [against_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_complaints_against")
+  users_complaints_created_by_user_idTousers users                   @relation("complaints_created_by_user_idTousers", fields: [created_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_complaints_created_by")
+  service_orders                             service_orders          @relation(fields: [service_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_complaints_order")
+
+  @@index([created_by_user_id, created_at(sort: Desc)], map: "idx_complaints_created_by_created")
+  @@index([service_order_id, created_at(sort: Desc)], map: "idx_complaints_order_created")
+  @@index([status, created_at(sort: Desc)], map: "idx_complaints_status_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contractor_documents {
+  id                    BigInt              @id @default(autoincrement())
+  legacy_mongo_sub_id   String?             @db.VarChar(24)
+  contractor_profile_id BigInt
+  document_type         String              @db.VarChar(30)
+  file_url              String
+  original_name         String              @default("")
+  mime_type             String              @default("") @db.VarChar(150)
+  file_size             BigInt              @default(0)
+  uploaded_at           DateTime            @default(now()) @db.Timestamptz(6)
+  contractor_profiles   contractor_profiles @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_documents_profile")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contractor_ekyc_verifications {
+  id                                                           BigInt                 @id @default(autoincrement())
+  legacy_mongo_id                                              String?                @unique @db.VarChar(24)
+  contractor_profile_id                                        BigInt                 @unique(map: "uq_ekyc_profile")
+  user_id                                                      BigInt                 @unique
+  reference_code                                               String                 @default("") @db.VarChar(150)
+  status                                                       String                 @default("NOT_STARTED") @db.VarChar(30)
+  legacy_front_document_id                                     String?                @db.VarChar(24)
+  legacy_back_document_id                                      String?                @db.VarChar(24)
+  card_front_url                                               String                 @default("")
+  card_back_url                                                String                 @default("")
+  ocr_id_number                                                String                 @default("") @db.VarChar(100)
+  ocr_full_name                                                String                 @default("") @db.VarChar(255)
+  ocr_date_of_birth                                            String                 @default("") @db.VarChar(50)
+  ocr_gender                                                   String                 @default("") @db.VarChar(50)
+  ocr_hometown                                                 String                 @default("")
+  ocr_passed                                                   Boolean                @default(false)
+  liveness_passed                                              Boolean                @default(false)
+  face_decision                                                String?                @db.VarChar(30)
+  face_matched                                                 Boolean                @default(false)
+  face_distance                                                Decimal?               @db.Decimal(18, 8)
+  face_threshold                                               Decimal?               @db.Decimal(18, 8)
+  face_template                                                Json?
+  submitted_at                                                 DateTime?              @db.Timestamptz(6)
+  processed_at                                                 DateTime?              @db.Timestamptz(6)
+  retake_reason                                                String                 @default("")
+  admin_reviewed_by                                            BigInt?
+  admin_reviewed_at                                            DateTime?              @db.Timestamptz(6)
+  admin_decision                                               String                 @default("") @db.VarChar(100)
+  admin_note                                                   String                 @default("")
+  created_at                                                   DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                                                   DateTime               @default(now()) @db.Timestamptz(6)
+  users_contractor_ekyc_verifications_admin_reviewed_byTousers users?                 @relation("contractor_ekyc_verifications_admin_reviewed_byTousers", fields: [admin_reviewed_by], references: [id], onUpdate: NoAction, map: "fk_ekyc_admin")
+  contractor_profiles                                          contractor_profiles    @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ekyc_profile")
+  users_contractor_ekyc_verifications_user_idTousers           users                  @relation("contractor_ekyc_verifications_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ekyc_user")
+  ekyc_attempts                                                ekyc_attempts[]
+  ekyc_liveness_frames                                         ekyc_liveness_frames[]
+  ekyc_ocr_issues                                              ekyc_ocr_issues[]
+
+  @@index([status], map: "idx_ekyc_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contractor_material_categories {
+  contractor_profile_id BigInt
+  material_category_id  BigInt
+  selection_status      String              @default("APPROVED") @db.VarChar(30)
+  created_at            DateTime            @default(now()) @db.Timestamptz(6)
+  material_categories   material_categories @relation(fields: [material_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_contractor_material_categories_category")
+  contractor_profiles   contractor_profiles @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_material_categories_profile")
+
+  @@id([contractor_profile_id, material_category_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contractor_portfolio_media {
+  id                    BigInt              @id @default(autoincrement())
+  contractor_profile_id BigInt
+  media_type            String              @db.VarChar(30)
+  file_url              String
+  sort_order            Int                 @default(0)
+  created_at            DateTime            @default(now()) @db.Timestamptz(6)
+  contractor_profiles   contractor_profiles @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_portfolio_media_profile")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contractor_portfolio_project_images {
+  id                            BigInt                        @id @default(autoincrement())
+  portfolio_project_id          BigInt
+  file_url                      String
+  sort_order                    Int                           @default(0)
+  contractor_portfolio_projects contractor_portfolio_projects @relation(fields: [portfolio_project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_project_images_project")
+}
+
+model contractor_portfolio_projects {
+  id                                  BigInt                                @id @default(autoincrement())
+  legacy_mongo_sub_id                 String?                               @db.VarChar(24)
+  contractor_profile_id               BigInt
+  catalog_service_id                  BigInt?
+  legacy_service_key                  String                                @default("") @db.VarChar(120)
+  service_name_snapshot               String                                @default("") @db.VarChar(80)
+  description                         String                                @default("") @db.VarChar(500)
+  created_at                          DateTime                              @default(now()) @db.Timestamptz(6)
+  contractor_portfolio_project_images contractor_portfolio_project_images[]
+  catalog_services                    catalog_services?                     @relation(fields: [catalog_service_id], references: [id], onUpdate: NoAction, map: "fk_contractor_portfolio_projects_catalog_service")
+  contractor_profiles                 contractor_profiles                   @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_portfolio_projects_profile")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contractor_profile_services {
+  contractor_profile_id BigInt
+  catalog_service_id    BigInt
+  selection_status      String              @default("APPROVED") @db.VarChar(30)
+  created_at            DateTime            @default(now()) @db.Timestamptz(6)
+  catalog_services      catalog_services    @relation(fields: [catalog_service_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_contractor_profile_services_catalog")
+  contractor_profiles   contractor_profiles @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_profile_services_profile")
+
+  @@id([contractor_profile_id, catalog_service_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contractor_profile_steps {
+  contractor_profile_id BigInt
+  step_no               Int                 @db.SmallInt
+  is_completed          Boolean             @default(false)
+  contractor_profiles   contractor_profiles @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_profile_steps_profile")
+
+  @@id([contractor_profile_id, step_no])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contractor_profiles {
+  id                                           BigInt                           @id @default(autoincrement())
+  legacy_mongo_id                              String?                          @unique @db.VarChar(24)
+  user_id                                      BigInt                           @unique
+  location_id                                  BigInt?
+  business_name                                String                           @default("") @db.VarChar(150)
+  representative_name                          String                           @default("") @db.VarChar(150)
+  contact_phone                                String                           @default("") @db.VarChar(30)
+  contact_email                                String                           @default("") @db.VarChar(255)
+  worker_count                                 Int                              @default(0)
+  tax_code                                     String                           @default("") @db.VarChar(100)
+  description                                  String                           @default("") @db.VarChar(1200)
+  years_experience                             Int                              @default(0)
+  verification_status                          String                           @default("DRAFT") @db.VarChar(30)
+  portfolio_avatar_url                         String                           @default("")
+  team_logo_url                                String                           @default("")
+  workshop_url                                 String                           @default("")
+  rejection_reason                             String                           @default("")
+  submitted_at                                 DateTime?                        @db.Timestamptz(6)
+  reviewed_at                                  DateTime?                        @db.Timestamptz(6)
+  reviewed_by                                  BigInt?
+  created_at                                   DateTime                         @default(now()) @db.Timestamptz(6)
+  updated_at                                   DateTime                         @default(now()) @db.Timestamptz(6)
+  contractor_documents                         contractor_documents[]
+  contractor_ekyc_verifications                contractor_ekyc_verifications?
+  contractor_material_categories               contractor_material_categories[]
+  contractor_portfolio_media                   contractor_portfolio_media[]
+  contractor_portfolio_projects                contractor_portfolio_projects[]
+  contractor_profile_services                  contractor_profile_services[]
+  contractor_profile_steps                     contractor_profile_steps[]
+  locations                                    locations?                       @relation(fields: [location_id], references: [id], onUpdate: NoAction, map: "fk_contractor_profiles_location_id")
+  users_contractor_profiles_reviewed_byTousers users?                           @relation("contractor_profiles_reviewed_byTousers", fields: [reviewed_by], references: [id], onUpdate: NoAction, map: "fk_contractor_profiles_reviewed_by")
+  users_contractor_profiles_user_idTousers     users                            @relation("contractor_profiles_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_profiles_user_id")
+  contractor_service_areas                     contractor_service_areas[]
+  service_suggestions                          service_suggestions[]
+
+  @@index([verification_status, submitted_at(sort: Desc)], map: "idx_contractor_profiles_verification_submitted")
+}
+
+model contractor_service_areas {
+  contractor_profile_id BigInt
+  area_name             String              @db.VarChar(150)
+  contractor_profiles   contractor_profiles @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_service_areas_profile")
+
+  @@id([contractor_profile_id, area_name])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ekyc_attempt_liveness_frames {
+  id              BigInt        @id @default(autoincrement())
+  ekyc_attempt_id BigInt
+  direction       String        @db.VarChar(20)
+  file_url        String
+  ekyc_attempts   ekyc_attempts @relation(fields: [ekyc_attempt_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ekyc_attempt_liveness_attempt")
+
+  @@unique([ekyc_attempt_id, direction], map: "uq_ekyc_attempt_liveness_direction")
+}
+
+model ekyc_attempt_ocr_issues {
+  id              BigInt        @id @default(autoincrement())
+  ekyc_attempt_id BigInt
+  issue           String
+  sort_order      Int           @default(0)
+  ekyc_attempts   ekyc_attempts @relation(fields: [ekyc_attempt_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ekyc_attempt_ocr_issues_attempt")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ekyc_attempts {
+  id                            BigInt                         @id @default(autoincrement())
+  legacy_mongo_sub_id           String?                        @db.VarChar(24)
+  ekyc_verification_id          BigInt
+  status                        String                         @default("") @db.VarChar(30)
+  ocr_id_number                 String                         @default("") @db.VarChar(100)
+  ocr_full_name                 String                         @default("") @db.VarChar(255)
+  ocr_date_of_birth             String                         @default("") @db.VarChar(50)
+  ocr_gender                    String                         @default("") @db.VarChar(50)
+  ocr_hometown                  String                         @default("")
+  ocr_passed                    Boolean                        @default(false)
+  liveness_passed               Boolean                        @default(false)
+  card_front_url                String                         @default("")
+  card_back_url                 String                         @default("")
+  face_decision                 String?                        @db.VarChar(30)
+  face_matched                  Boolean                        @default(false)
+  face_distance                 Decimal?                       @db.Decimal(18, 8)
+  face_threshold                Decimal?                       @db.Decimal(18, 8)
+  admin_reviewed_by             BigInt?
+  admin_reviewed_at             DateTime?                      @db.Timestamptz(6)
+  admin_decision                String                         @default("") @db.VarChar(100)
+  admin_note                    String                         @default("")
+  submitted_at                  DateTime?                      @db.Timestamptz(6)
+  processed_at                  DateTime?                      @db.Timestamptz(6)
+  archived_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  ekyc_attempt_liveness_frames  ekyc_attempt_liveness_frames[]
+  ekyc_attempt_ocr_issues       ekyc_attempt_ocr_issues[]
+  users                         users?                         @relation(fields: [admin_reviewed_by], references: [id], onUpdate: NoAction, map: "fk_ekyc_attempts_admin")
+  contractor_ekyc_verifications contractor_ekyc_verifications  @relation(fields: [ekyc_verification_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ekyc_attempts_verification")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ekyc_liveness_frames {
+  id                            BigInt                        @id @default(autoincrement())
+  ekyc_verification_id          BigInt
+  direction                     String                        @db.VarChar(20)
+  file_url                      String
+  contractor_ekyc_verifications contractor_ekyc_verifications @relation(fields: [ekyc_verification_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ekyc_liveness_frames_verification")
+
+  @@unique([ekyc_verification_id, direction], map: "uq_ekyc_liveness_frames_direction")
+}
+
+model ekyc_ocr_issues {
+  id                            BigInt                        @id @default(autoincrement())
+  ekyc_verification_id          BigInt
+  issue                         String
+  sort_order                    Int                           @default(0)
+  contractor_ekyc_verifications contractor_ekyc_verifications @relation(fields: [ekyc_verification_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ekyc_ocr_issues_verification")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model location_corrections {
+  id                 BigInt    @id @default(autoincrement())
+  legacy_mongo_id    String?   @unique @db.VarChar(24)
+  normalized_address String    @unique
+  location_id        BigInt
+  provider_ref_id    String    @default("") @db.VarChar(2000)
+  confirmed_count    Int       @default(0)
+  last_confirmed_at  DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+  locations          locations @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_location_corrections_location")
+
+  @@index([provider_ref_id], map: "idx_location_corrections_provider_ref")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model locations {
+  id                   BigInt                 @id @default(autoincrement())
+  formatted_address    String?
+  city                 String?                @db.VarChar(120)
+  latitude             Decimal?               @db.Decimal(10, 7)
+  longitude            Decimal?               @db.Decimal(10, 7)
+  location_source      String?                @db.VarChar(30)
+  is_confirmed         Boolean                @default(false)
+  confirmed_at         DateTime?              @db.Timestamptz(6)
+  provider_ref_id      String?                @db.VarChar(2000)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @default(now()) @db.Timestamptz(6)
+  contractor_profiles  contractor_profiles[]
+  location_corrections location_corrections[]
+  material_orders      material_orders[]
+  messages             messages[]
+  progress_updates     progress_updates[]
+  repair_requests      repair_requests[]
+  service_orders       service_orders[]
+  stores               stores[]
+  users                users[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model material_categories {
+  id                             BigInt                           @id @default(autoincrement())
+  legacy_mongo_id                String?                          @unique @db.VarChar(24)
+  name                           String                           @db.VarChar(80)
+  normalized_name                String                           @db.VarChar(120)
+  folded_name                    String                           @db.VarChar(120)
+  category_type                  String                           @default("CUSTOM") @db.VarChar(20)
+  status                         String                           @default("APPROVED") @db.VarChar(30)
+  owner_user_id                  BigInt?
+  store_id                       BigInt?
+  created_at                     DateTime                         @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime                         @default(now()) @db.Timestamptz(6)
+  contractor_material_categories contractor_material_categories[]
+  users                          users?                           @relation(fields: [owner_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_material_categories_owner")
+  stores                         stores?                          @relation(fields: [store_id], references: [id], onUpdate: NoAction, map: "fk_material_categories_store")
+  materials                      materials[]
+
+  @@index([owner_user_id], map: "idx_material_categories_owner")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model material_commissions {
+  id                        BigInt                  @id @default(autoincrement())
+  legacy_mongo_id           String?                 @unique @db.VarChar(24)
+  material_order_payment_id BigInt                  @unique
+  material_order_id         BigInt
+  store_owner_user_id       BigInt
+  rate_snapshot             Decimal                 @db.Decimal(5, 2)
+  platform_amount           Decimal                 @db.Decimal(14, 2)
+  store_amount              Decimal                 @db.Decimal(14, 2)
+  status                    String                  @default("POSTED") @db.VarChar(20)
+  created_at                DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                @default(now()) @db.Timestamptz(6)
+  material_orders           material_orders         @relation(fields: [material_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_commissions_order")
+  material_order_payments   material_order_payments @relation(fields: [material_order_payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_commissions_payment")
+  users                     users                   @relation(fields: [store_owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_commissions_store_owner")
+
+  @@index([material_order_id], map: "idx_material_commissions_order")
+  @@index([store_owner_user_id], map: "idx_material_commissions_store_owner")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model material_images {
+  id          BigInt    @id @default(autoincrement())
+  material_id BigInt
+  file_url    String
+  sort_order  Int       @default(0)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  materials   materials @relation(fields: [material_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_material_images_material")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model material_order_items {
+  id                BigInt          @id @default(autoincrement())
+  material_order_id BigInt
+  material_id       BigInt
+  name_snapshot     String          @db.VarChar(120)
+  image_snapshot    String          @default("")
+  unit_snapshot     String          @default("") @db.VarChar(50)
+  price_snapshot    Decimal         @db.Decimal(14, 2)
+  quantity          Decimal         @db.Decimal(14, 3)
+  line_total        Decimal         @db.Decimal(14, 2)
+  sort_order        Int             @default(0)
+  materials         materials       @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_order_items_material")
+  material_orders   material_orders @relation(fields: [material_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_material_order_items_order")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model material_order_payments {
+  id                                                       BigInt                @id @default(autoincrement())
+  legacy_mongo_id                                          String?               @unique @db.VarChar(24)
+  material_order_id                                        BigInt                @unique
+  customer_user_id                                         BigInt
+  store_owner_user_id                                      BigInt
+  amount                                                   Decimal               @db.Decimal(14, 2)
+  platform_fee_amount                                      Decimal               @db.Decimal(14, 2)
+  store_deposit_amount                                     Decimal               @db.Decimal(14, 2)
+  status                                                   String                @default("UNPAID") @db.VarChar(20)
+  provider                                                 String                @default("mock") @db.VarChar(50)
+  transaction_code                                         String?               @db.VarChar(255)
+  metadata                                                 Json                  @default("{}")
+  paid_at                                                  DateTime?             @db.Timestamptz(6)
+  created_at                                               DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                                               DateTime              @default(now()) @db.Timestamptz(6)
+  material_commissions                                     material_commissions?
+  users_material_order_payments_customer_user_idTousers    users                 @relation("material_order_payments_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_order_payments_customer")
+  material_orders                                          material_orders       @relation(fields: [material_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_material_order_payments_order")
+  users_material_order_payments_store_owner_user_idTousers users                 @relation("material_order_payments_store_owner_user_idTousers", fields: [store_owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_order_payments_store_owner")
+
+  @@index([customer_user_id], map: "idx_material_order_payments_customer")
+  @@index([status], map: "idx_material_order_payments_status")
+  @@index([store_owner_user_id], map: "idx_material_order_payments_store_owner")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model material_order_status_history {
+  id                BigInt          @id @default(autoincrement())
+  material_order_id BigInt
+  status            String          @db.VarChar(30)
+  actor_user_id     BigInt?
+  actor_role        String          @db.VarChar(20)
+  note              String          @default("") @db.VarChar(500)
+  created_at        DateTime        @default(now()) @db.Timestamptz(6)
+  users             users?          @relation(fields: [actor_user_id], references: [id], onUpdate: NoAction, map: "fk_material_order_history_actor")
+  material_orders   material_orders @relation(fields: [material_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_material_order_history_order")
+
+  @@index([material_order_id, created_at], map: "idx_material_order_history_order_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model material_orders {
+  id                                               BigInt                          @id @default(autoincrement())
+  legacy_mongo_id                                  String?                         @unique @db.VarChar(24)
+  order_code                                       String                          @unique @db.VarChar(80)
+  customer_user_id                                 BigInt
+  store_id                                         BigInt
+  store_owner_user_id                              BigInt
+  delivery_location_id                             BigInt
+  distance_km                                      Decimal                         @db.Decimal(10, 3)
+  material_subtotal                                Decimal                         @db.Decimal(14, 2)
+  shipping_fee                                     Decimal                         @db.Decimal(14, 2)
+  total_amount                                     Decimal                         @db.Decimal(14, 2)
+  deposit_rate_snapshot                            Decimal                         @default(15) @db.Decimal(5, 2)
+  deposit_amount                                   Decimal                         @db.Decimal(14, 2)
+  platform_fee_rate_snapshot                       Decimal                         @default(5) @db.Decimal(5, 2)
+  platform_fee_amount                              Decimal                         @db.Decimal(14, 2)
+  store_deposit_amount                             Decimal                         @db.Decimal(14, 2)
+  remaining_amount                                 Decimal                         @db.Decimal(14, 2)
+  payment_status                                   String                          @default("UNPAID") @db.VarChar(20)
+  status                                           String                          @default("PENDING_PAYMENT") @db.VarChar(30)
+  customer_note                                    String                          @default("") @db.VarChar(500)
+  remaining_settled_offline                        Boolean                         @default(false)
+  remaining_settled_at                             DateTime?                       @db.Timestamptz(6)
+  created_at                                       DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                                       DateTime                        @default(now()) @db.Timestamptz(6)
+  material_commissions                             material_commissions[]
+  material_order_items                             material_order_items[]
+  material_order_payments                          material_order_payments?
+  material_order_status_history                    material_order_status_history[]
+  users_material_orders_customer_user_idTousers    users                           @relation("material_orders_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_orders_customer")
+  locations                                        locations                       @relation(fields: [delivery_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_orders_delivery_location")
+  stores                                           stores                          @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_orders_store")
+  users_material_orders_store_owner_user_idTousers users                           @relation("material_orders_store_owner_user_idTousers", fields: [store_owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_orders_store_owner")
+
+  @@index([customer_user_id, created_at(sort: Desc)], map: "idx_material_orders_customer_created")
+  @@index([status], map: "idx_material_orders_status")
+  @@index([store_id, created_at(sort: Desc)], map: "idx_material_orders_store_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model materials {
+  id                   BigInt                 @id @default(autoincrement())
+  legacy_mongo_id      String?                @unique @db.VarChar(24)
+  store_id             BigInt
+  material_category_id BigInt
+  name                 String                 @db.VarChar(120)
+  sku                  String                 @default("") @db.VarChar(100)
+  unit                 String                 @default("bag") @db.VarChar(50)
+  price                Decimal                @db.Decimal(14, 2)
+  stock                Decimal                @default(0) @db.Decimal(14, 3)
+  min_order_qty        Decimal                @default(1) @db.Decimal(14, 3)
+  primary_image_url    String                 @default("")
+  description          String                 @default("") @db.VarChar(800)
+  is_active            Boolean                @default(true)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @default(now()) @db.Timestamptz(6)
+  material_images      material_images[]
+  material_order_items material_order_items[]
+  material_categories  material_categories    @relation(fields: [material_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_materials_category")
+  stores               stores                 @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_materials_store")
+
+  @@index([material_category_id], map: "idx_materials_category")
+  @@index([store_id, is_active], map: "idx_materials_store_active")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model messages {
+  id              BigInt      @id @default(autoincrement())
+  legacy_mongo_id String?     @unique @db.VarChar(24)
+  chat_room_id    BigInt
+  sender_user_id  BigInt
+  message_type    String      @default("TEXT") @db.VarChar(20)
+  content         String      @default("") @db.VarChar(4000)
+  location_id     BigInt?
+  quotation_id    BigInt?
+  is_read         Boolean     @default(false)
+  created_at      DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime    @default(now()) @db.Timestamptz(6)
+  locations       locations?  @relation(fields: [location_id], references: [id], onUpdate: NoAction, map: "fk_messages_location")
+  quotations      quotations? @relation(fields: [quotation_id], references: [id], onUpdate: NoAction, map: "fk_messages_quotation")
+  chat_rooms      chat_rooms  @relation(fields: [chat_room_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_messages_room")
+  users           users       @relation(fields: [sender_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_messages_sender")
+
+  @@index([chat_room_id, created_at], map: "idx_messages_room_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notifications {
+  id                BigInt   @id @default(autoincrement())
+  legacy_mongo_id   String?  @unique @db.VarChar(24)
+  user_id           BigInt
+  title             String   @db.VarChar(140)
+  message           String   @db.VarChar(400)
+  notification_type String   @db.VarChar(50)
+  is_read           Boolean  @default(false)
+  link              String   @default("")
+  meta              Json     @default("{}")
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+  users             users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notifications_user")
+
+  @@index([user_id, created_at(sort: Desc)], map: "idx_notifications_user_created")
+  @@index([user_id, is_read], map: "idx_notifications_user_read")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payments {
+  id                                       BigInt         @id @default(autoincrement())
+  legacy_mongo_id                          String?        @unique @db.VarChar(24)
+  service_order_id                         BigInt
+  customer_user_id                         BigInt
+  contractor_user_id                       BigInt
+  amount                                   Decimal        @db.Decimal(14, 2)
+  payment_type                             String         @default("FULL_PAYMENT") @db.VarChar(30)
+  status                                   String         @default("UNPAID") @db.VarChar(20)
+  provider                                 String         @default("mock") @db.VarChar(50)
+  transaction_code                         String?        @db.VarChar(255)
+  metadata                                 Json           @default("{}")
+  paid_at                                  DateTime?      @db.Timestamptz(6)
+  refunded_at                              DateTime?      @db.Timestamptz(6)
+  failed_at                                DateTime?      @db.Timestamptz(6)
+  created_at                               DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at                               DateTime       @default(now()) @db.Timestamptz(6)
+  commissions                              commissions?
+  users_payments_contractor_user_idTousers users          @relation("payments_contractor_user_idTousers", fields: [contractor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payments_contractor")
+  users_payments_customer_user_idTousers   users          @relation("payments_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payments_customer")
+  service_orders                           service_orders @relation(fields: [service_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payments_order")
+
+  @@unique([service_order_id, payment_type], map: "uq_payments_order_type")
+  @@index([customer_user_id, status], map: "idx_payments_customer_status")
+  @@index([status, created_at(sort: Desc)], map: "idx_payments_status_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model policies {
+  id               BigInt             @id @default(autoincrement())
+  legacy_mongo_id  String?            @unique @db.VarChar(24)
+  title            String             @db.VarChar(160)
+  policy_type      String             @db.VarChar(40)
+  content          String
+  language         String             @db.VarChar(2)
+  version          String             @db.VarChar(32)
+  status           String             @default("DRAFT") @db.VarChar(20)
+  effective_date   DateTime?          @db.Timestamptz(6)
+  created_by       BigInt?
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
+  users            users?             @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_policies_created_by")
+  policy_revisions policy_revisions[]
+
+  @@index([policy_type, language, status], map: "idx_policies_type_language_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model policy_revisions {
+  id              BigInt    @id @default(autoincrement())
+  legacy_mongo_id String?   @unique @db.VarChar(24)
+  policy_id       BigInt
+  title           String    @db.VarChar(160)
+  policy_type     String    @db.VarChar(40)
+  content         String
+  language        String    @db.VarChar(2)
+  version         String    @db.VarChar(32)
+  status          String    @db.VarChar(20)
+  effective_date  DateTime? @db.Timestamptz(6)
+  edited_by       BigInt?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+  users           users?    @relation(fields: [edited_by], references: [id], onUpdate: NoAction, map: "fk_policy_revisions_edited_by")
+  policies        policies  @relation(fields: [policy_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_policy_revisions_policy")
+
+  @@index([policy_id, created_at(sort: Desc)], map: "idx_policy_revisions_policy_created")
+}
+
+model progress_media {
+  id                 BigInt           @id @default(autoincrement())
+  progress_update_id BigInt
+  file_url           String
+  sort_order         Int              @default(0)
+  progress_updates   progress_updates @relation(fields: [progress_update_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_progress_media_update")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model progress_updates {
+  id               BigInt           @id @default(autoincrement())
+  legacy_mongo_id  String?          @unique @db.VarChar(24)
+  service_order_id BigInt
+  status           String           @db.VarChar(20)
+  description      String           @default("") @db.VarChar(2000)
+  actor_user_id    BigInt?
+  location_id      BigInt?
+  created_at       DateTime         @default(now()) @db.Timestamptz(6)
+  progress_media   progress_media[]
+  users            users?           @relation(fields: [actor_user_id], references: [id], onUpdate: NoAction, map: "fk_progress_updates_actor")
+  locations        locations?       @relation(fields: [location_id], references: [id], onUpdate: NoAction, map: "fk_progress_updates_location")
+  service_orders   service_orders   @relation(fields: [service_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_progress_updates_order")
+
+  @@index([service_order_id, created_at], map: "idx_progress_updates_order_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model quotation_items {
+  id                       BigInt     @id @default(autoincrement())
+  quotation_id             BigInt
+  item_type                String     @db.VarChar(20)
+  name_snapshot            String     @db.VarChar(140)
+  quantity                 Decimal    @default(1) @db.Decimal(14, 3)
+  unit                     String     @default("") @db.VarChar(50)
+  price                    Decimal    @db.Decimal(14, 2)
+  legacy_catalog_reference String?    @db.VarChar(80)
+  sort_order               Int        @default(0)
+  quotations               quotations @relation(fields: [quotation_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_quotation_items_quotation")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model quotations {
+  id                                         BigInt            @id @default(autoincrement())
+  legacy_mongo_id                            String?           @unique @db.VarChar(24)
+  repair_request_id                          BigInt
+  customer_user_id                           BigInt
+  contractor_user_id                         BigInt
+  chat_room_id                               BigInt?
+  material_cost                              Decimal           @default(0) @db.Decimal(14, 2)
+  labor_cost                                 Decimal           @default(0) @db.Decimal(14, 2)
+  transport_cost                             Decimal           @default(0) @db.Decimal(14, 2)
+  total_cost                                 Decimal           @default(0) @db.Decimal(14, 2)
+  estimated_days                             Int               @default(1)
+  note                                       String            @default("") @db.VarChar(1000)
+  modification_note                          String            @default("") @db.VarChar(1000)
+  status                                     String            @default("SENT") @db.VarChar(30)
+  created_at                                 DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime          @default(now()) @db.Timestamptz(6)
+  messages                                   messages[]
+  quotation_items                            quotation_items[]
+  users_quotations_contractor_user_idTousers users             @relation("quotations_contractor_user_idTousers", fields: [contractor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_quotations_contractor")
+  users_quotations_customer_user_idTousers   users             @relation("quotations_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_quotations_customer")
+  repair_requests                            repair_requests   @relation(fields: [repair_request_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_quotations_request")
+  chat_rooms                                 chat_rooms?       @relation(fields: [chat_room_id], references: [id], onUpdate: NoAction, map: "fk_quotations_room")
+  service_orders                             service_orders?
+
+  @@index([contractor_user_id], map: "idx_quotations_contractor")
+  @@index([repair_request_id], map: "idx_quotations_request")
+  @@index([status], map: "idx_quotations_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model repair_request_media {
+  id                BigInt          @id @default(autoincrement())
+  repair_request_id BigInt
+  media_type        String          @db.VarChar(20)
+  file_url          String
+  sort_order        Int             @default(0)
+  created_at        DateTime        @default(now()) @db.Timestamptz(6)
+  repair_requests   repair_requests @relation(fields: [repair_request_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_repair_request_media_request")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model repair_requests {
+  id                                              BigInt                 @id @default(autoincrement())
+  legacy_mongo_id                                 String?                @unique @db.VarChar(24)
+  customer_user_id                                BigInt
+  contractor_user_id                              BigInt
+  store_id                                        BigInt?
+  service_category_id                             BigInt?
+  catalog_service_id                              BigInt?
+  category_snapshot                               String                 @default("") @db.VarChar(80)
+  service_name_snapshot                           String                 @default("") @db.VarChar(80)
+  title                                           String                 @db.VarChar(140)
+  description                                     String                 @db.VarChar(2000)
+  location_id                                     BigInt?
+  status                                          String                 @default("PENDING") @db.VarChar(20)
+  created_at                                      DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                                      DateTime               @default(now()) @db.Timestamptz(6)
+  chat_rooms                                      chat_rooms?
+  quotations                                      quotations[]
+  repair_request_media                            repair_request_media[]
+  catalog_services                                catalog_services?      @relation(fields: [catalog_service_id], references: [id], onUpdate: NoAction, map: "fk_repair_requests_catalog")
+  service_categories                              service_categories?    @relation(fields: [service_category_id], references: [id], onUpdate: NoAction, map: "fk_repair_requests_category")
+  users_repair_requests_contractor_user_idTousers users                  @relation("repair_requests_contractor_user_idTousers", fields: [contractor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_repair_requests_contractor")
+  users_repair_requests_customer_user_idTousers   users                  @relation("repair_requests_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_repair_requests_customer")
+  locations                                       locations?             @relation(fields: [location_id], references: [id], onUpdate: NoAction, map: "fk_repair_requests_location")
+  stores                                          stores?                @relation(fields: [store_id], references: [id], onUpdate: NoAction, map: "fk_repair_requests_store")
+  service_orders                                  service_orders?
+
+  @@index([contractor_user_id, created_at(sort: Desc)], map: "idx_repair_requests_contractor_created")
+  @@index([customer_user_id, created_at(sort: Desc)], map: "idx_repair_requests_customer_created")
+  @@index([status], map: "idx_repair_requests_status")
+}
+
+model review_media {
+  id         BigInt  @id @default(autoincrement())
+  review_id  BigInt
+  file_url   String
+  sort_order Int     @default(0)
+  reviews    reviews @relation(fields: [review_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_review_media_review")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reviews {
+  id                                    BigInt         @id @default(autoincrement())
+  legacy_mongo_id                       String?        @unique @db.VarChar(24)
+  service_order_id                      BigInt
+  customer_user_id                      BigInt
+  target_user_id                        BigInt
+  target_type                           String         @db.VarChar(30)
+  rating                                Int            @db.SmallInt
+  comment                               String         @default("") @db.VarChar(1000)
+  contractor_reply                      String         @default("") @db.VarChar(500)
+  replied_at                            DateTime?      @db.Timestamptz(6)
+  reported_at                           DateTime?      @db.Timestamptz(6)
+  report_reason                         String         @default("") @db.VarChar(500)
+  created_at                            DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at                            DateTime       @default(now()) @db.Timestamptz(6)
+  review_media                          review_media[]
+  users_reviews_customer_user_idTousers users          @relation("reviews_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_customer")
+  service_orders                        service_orders @relation(fields: [service_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reviews_order")
+  users_reviews_target_user_idTousers   users          @relation("reviews_target_user_idTousers", fields: [target_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_target")
+
+  @@unique([service_order_id, customer_user_id, target_user_id, target_type], map: "uq_reviews_party_per_order")
+  @@index([target_user_id, target_type, created_at(sort: Desc)], map: "idx_reviews_target_created")
+}
+
+model roles {
+  id          BigInt   @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  users       users[]
+}
+
+model service_categories {
+  id               BigInt             @id @default(autoincrement())
+  name             String             @unique @db.VarChar(80)
+  is_active        Boolean            @default(true)
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  catalog_services catalog_services[]
+  repair_requests  repair_requests[]
+  services         services[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_images {
+  id         BigInt   @id @default(autoincrement())
+  service_id BigInt
+  file_url   String
+  sort_order Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  services   services @relation(fields: [service_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_service_images_service")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_orders {
+  id                                             BigInt             @id @default(autoincrement())
+  legacy_mongo_id                                String?            @unique @db.VarChar(24)
+  order_code                                     String             @unique @db.VarChar(80)
+  quotation_id                                   BigInt             @unique
+  repair_request_id                              BigInt             @unique
+  customer_user_id                               BigInt
+  contractor_user_id                             BigInt
+  store_id                                       BigInt?
+  title                                          String             @db.VarChar(140)
+  description                                    String             @default("") @db.VarChar(2000)
+  location_id                                    BigInt?
+  amount                                         Decimal            @db.Decimal(14, 2)
+  status                                         String             @default("QUOTATION_ACCEPTED") @db.VarChar(30)
+  payment_status                                 String             @default("UNPAID") @db.VarChar(20)
+  cancel_reason                                  String             @default("") @db.VarChar(500)
+  cancelled_by                                   BigInt?
+  cancelled_at                                   DateTime?          @db.Timestamptz(6)
+  completed_at                                   DateTime?          @db.Timestamptz(6)
+  created_at                                     DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                                     DateTime           @default(now()) @db.Timestamptz(6)
+  commissions                                    commissions[]
+  complaints                                     complaints[]
+  payments                                       payments[]
+  progress_updates                               progress_updates[]
+  reviews                                        reviews[]
+  users_service_orders_cancelled_byTousers       users?             @relation("service_orders_cancelled_byTousers", fields: [cancelled_by], references: [id], onUpdate: NoAction, map: "fk_service_orders_cancelled_by")
+  users_service_orders_contractor_user_idTousers users              @relation("service_orders_contractor_user_idTousers", fields: [contractor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_service_orders_contractor")
+  users_service_orders_customer_user_idTousers   users              @relation("service_orders_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_service_orders_customer")
+  locations                                      locations?         @relation(fields: [location_id], references: [id], onUpdate: NoAction, map: "fk_service_orders_location")
+  quotations                                     quotations         @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_service_orders_quotation")
+  repair_requests                                repair_requests    @relation(fields: [repair_request_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_service_orders_request")
+  stores                                         stores?            @relation(fields: [store_id], references: [id], onUpdate: NoAction, map: "fk_service_orders_store")
+
+  @@index([contractor_user_id, status, updated_at(sort: Desc)], map: "idx_service_orders_contractor_status_updated")
+  @@index([customer_user_id, created_at(sort: Desc)], map: "idx_service_orders_customer_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_suggestions {
+  id                                                 BigInt               @id @default(autoincrement())
+  legacy_mongo_id                                    String?              @unique @db.VarChar(24)
+  requester_user_id                                  BigInt
+  requester_role                                     String               @default("CONTRACTOR") @db.VarChar(30)
+  provider_profile_id                                BigInt?
+  team_name                                          String               @default("") @db.VarChar(100)
+  description                                        String               @db.VarChar(500)
+  status                                             String               @default("PENDING") @db.VarChar(30)
+  reviewed_by                                        BigInt?
+  reviewed_at                                        DateTime?            @db.Timestamptz(6)
+  admin_note                                         String               @default("") @db.VarChar(500)
+  converted_catalog_service_id                       BigInt?
+  created_at                                         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at                                         DateTime             @default(now()) @db.Timestamptz(6)
+  catalog_services                                   catalog_services?    @relation(fields: [converted_catalog_service_id], references: [id], onUpdate: NoAction, map: "fk_service_suggestions_converted")
+  contractor_profiles                                contractor_profiles? @relation(fields: [provider_profile_id], references: [id], onUpdate: NoAction, map: "fk_service_suggestions_provider")
+  users_service_suggestions_requester_user_idTousers users                @relation("service_suggestions_requester_user_idTousers", fields: [requester_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_service_suggestions_requester")
+  users_service_suggestions_reviewed_byTousers       users?               @relation("service_suggestions_reviewed_byTousers", fields: [reviewed_by], references: [id], onUpdate: NoAction, map: "fk_service_suggestions_reviewed_by")
+
+  @@index([requester_user_id], map: "idx_service_suggestions_requester")
+  @@index([status], map: "idx_service_suggestions_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model services {
+  id                  BigInt             @id @default(autoincrement())
+  legacy_mongo_id     String?            @unique @db.VarChar(24)
+  store_id            BigInt
+  contractor_user_id  BigInt
+  service_category_id BigInt
+  catalog_service_id  BigInt?
+  name                String             @db.VarChar(120)
+  catalog_key         String             @default("") @db.VarChar(160)
+  catalog_type        String             @default("LEGACY") @db.VarChar(20)
+  completion_status   String             @default("COMPLETED") @db.VarChar(20)
+  description         String             @default("") @db.VarChar(1000)
+  base_price          Decimal?           @db.Decimal(14, 2)
+  unit                String             @default("JOB") @db.VarChar(20)
+  estimated_hours     Decimal            @default(4) @db.Decimal(8, 2)
+  primary_image_url   String             @default("")
+  price_range_min     Decimal            @default(0) @db.Decimal(14, 2)
+  price_range_max     Decimal            @default(0) @db.Decimal(14, 2)
+  is_active           Boolean            @default(true)
+  created_at          DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime           @default(now()) @db.Timestamptz(6)
+  service_images      service_images[]
+  catalog_services    catalog_services?  @relation(fields: [catalog_service_id], references: [id], onUpdate: NoAction, map: "fk_services_catalog_service")
+  service_categories  service_categories @relation(fields: [service_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_services_category")
+  users               users              @relation(fields: [contractor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_services_contractor_user")
+  stores              stores             @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_services_store")
+
+  @@index([service_category_id], map: "idx_services_category")
+  @@index([store_id, is_active], map: "idx_services_store_active")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model store_media {
+  id         BigInt   @id @default(autoincrement())
+  store_id   BigInt
+  media_type String   @db.VarChar(30)
+  file_url   String
+  sort_order Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  stores     stores   @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_store_media_store")
+}
+
+model store_service_areas {
+  store_id  BigInt
+  area_name String @db.VarChar(150)
+  stores    stores @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_store_service_areas_store")
+
+  @@id([store_id, area_name])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model stores {
+  id                      BigInt                @id @default(autoincrement())
+  legacy_mongo_id         String?               @unique @db.VarChar(24)
+  owner_user_id           BigInt                @unique
+  location_id             BigInt?
+  name                    String                @db.VarChar(100)
+  slogan                  String                @default("") @db.VarChar(140)
+  description             String                @default("") @db.VarChar(2000)
+  phone                   String                @default("") @db.VarChar(30)
+  contact_name            String                @default("") @db.VarChar(80)
+  contact_email           String                @default("") @db.VarChar(120)
+  store_type              String                @default("SERVICES") @db.VarChar(20)
+  cover_image_url         String                @default("")
+  avatar_url              String                @default("")
+  logo_url                String                @default("")
+  achievements            String                @default("") @db.VarChar(500)
+  showroom_note           String                @default("") @db.VarChar(500)
+  delivery_note           String                @default("") @db.VarChar(500)
+  delivery_enabled        Boolean               @default(false)
+  base_delivery_fee       Decimal               @default(0) @db.Decimal(14, 2)
+  free_delivery_radius_km Decimal               @default(0) @db.Decimal(8, 2)
+  delivery_fee_per_km     Decimal               @default(0) @db.Decimal(14, 2)
+  minimum_order_amount    Decimal               @default(0) @db.Decimal(14, 2)
+  display_years           Int?
+  display_worker_count    Int?
+  public_seeded           Boolean               @default(false)
+  opening_hours           String                @default("07:00 – 18:00") @db.VarChar(100)
+  service_radius_km       Decimal               @default(5) @db.Decimal(8, 2)
+  category                String                @default("General repair") @db.VarChar(120)
+  verified                Boolean               @default(false)
+  rating                  Decimal               @default(0) @db.Decimal(3, 2)
+  review_count            Int                   @default(0)
+  material_rating         Decimal               @default(0) @db.Decimal(3, 2)
+  material_review_count   Int                   @default(0)
+  status                  String                @default("INACTIVE") @db.VarChar(20)
+  created_at              DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime              @default(now()) @db.Timestamptz(6)
+  material_categories     material_categories[]
+  material_orders         material_orders[]
+  materials               materials[]
+  repair_requests         repair_requests[]
+  service_orders          service_orders[]
+  services                services[]
+  store_media             store_media[]
+  store_service_areas     store_service_areas[]
+  locations               locations?            @relation(fields: [location_id], references: [id], onUpdate: NoAction, map: "fk_stores_location_id")
+  users                   users                 @relation(fields: [owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stores_owner_user_id")
+
+  @@index([location_id], map: "idx_stores_location_id")
+  @@index([status, store_type], map: "idx_stores_status_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model users {
+  id                                                                                   BigInt                          @id @default(autoincrement())
+  legacy_mongo_id                                                                      String?                         @unique @db.VarChar(24)
+  role_id                                                                              BigInt
+  location_id                                                                          BigInt?
+  full_name                                                                            String                          @db.VarChar(80)
+  email                                                                                String                          @db.VarChar(255)
+  phone_number                                                                         String?                         @db.VarChar(30)
+  password_hash                                                                        String
+  accepted_policy                                                                      Boolean                         @default(false)
+  accepted_policy_version                                                              String                          @default("") @db.VarChar(255)
+  accepted_policy_at                                                                   DateTime?                       @db.Timestamptz(6)
+  profile_status                                                                       String                          @default("INCOMPLETE") @db.VarChar(30)
+  token_version                                                                        Int                             @default(0)
+  avatar_url                                                                           String                          @default("")
+  account_status                                                                       String                          @default("PENDING_EMAIL") @db.VarChar(30)
+  email_verified                                                                       Boolean                         @default(false)
+  verification_code                                                                    String                          @default("") @db.VarChar(255)
+  verification_attempts                                                                Int                             @default(0)
+  verification_sent_at                                                                 DateTime?                       @db.Timestamptz(6)
+  verification_expires_at                                                              DateTime?                       @db.Timestamptz(6)
+  reset_password_token                                                                 String                          @default("") @db.VarChar(255)
+  reset_password_attempts                                                              Int                             @default(0)
+  reset_password_sent_at                                                               DateTime?                       @db.Timestamptz(6)
+  reset_password_expires_at                                                            DateTime?                       @db.Timestamptz(6)
+  refresh_token                                                                        String                          @default("")
+  preferred_language                                                                   String?                         @db.VarChar(2)
+  created_at                                                                           DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                                                                           DateTime                        @default(now()) @db.Timestamptz(6)
+  audit_logs                                                                           audit_logs[]
+  catalog_services_catalog_services_proposed_byTousers                                 catalog_services[]              @relation("catalog_services_proposed_byTousers")
+  catalog_services_catalog_services_reviewed_byTousers                                 catalog_services[]              @relation("catalog_services_reviewed_byTousers")
+  chat_rooms_chat_rooms_contractor_user_idTousers                                      chat_rooms[]                    @relation("chat_rooms_contractor_user_idTousers")
+  chat_rooms_chat_rooms_customer_user_idTousers                                        chat_rooms[]                    @relation("chat_rooms_customer_user_idTousers")
+  commissions                                                                          commissions[]
+  complaints_complaints_admin_user_idTousers                                           complaints[]                    @relation("complaints_admin_user_idTousers")
+  complaints_complaints_against_user_idTousers                                         complaints[]                    @relation("complaints_against_user_idTousers")
+  complaints_complaints_created_by_user_idTousers                                      complaints[]                    @relation("complaints_created_by_user_idTousers")
+  contractor_ekyc_verifications_contractor_ekyc_verifications_admin_reviewed_byTousers contractor_ekyc_verifications[] @relation("contractor_ekyc_verifications_admin_reviewed_byTousers")
+  contractor_ekyc_verifications_contractor_ekyc_verifications_user_idTousers           contractor_ekyc_verifications?  @relation("contractor_ekyc_verifications_user_idTousers")
+  contractor_profiles_contractor_profiles_reviewed_byTousers                           contractor_profiles[]           @relation("contractor_profiles_reviewed_byTousers")
+  contractor_profiles_contractor_profiles_user_idTousers                               contractor_profiles?            @relation("contractor_profiles_user_idTousers")
+  ekyc_attempts                                                                        ekyc_attempts[]
+  material_categories                                                                  material_categories[]
+  material_commissions                                                                 material_commissions[]
+  material_order_payments_material_order_payments_customer_user_idTousers              material_order_payments[]       @relation("material_order_payments_customer_user_idTousers")
+  material_order_payments_material_order_payments_store_owner_user_idTousers           material_order_payments[]       @relation("material_order_payments_store_owner_user_idTousers")
+  material_order_status_history                                                        material_order_status_history[]
+  material_orders_material_orders_customer_user_idTousers                              material_orders[]               @relation("material_orders_customer_user_idTousers")
+  material_orders_material_orders_store_owner_user_idTousers                           material_orders[]               @relation("material_orders_store_owner_user_idTousers")
+  messages                                                                             messages[]
+  notifications                                                                        notifications[]
+  payments_payments_contractor_user_idTousers                                          payments[]                      @relation("payments_contractor_user_idTousers")
+  payments_payments_customer_user_idTousers                                            payments[]                      @relation("payments_customer_user_idTousers")
+  policies                                                                             policies[]
+  policy_revisions                                                                     policy_revisions[]
+  progress_updates                                                                     progress_updates[]
+  quotations_quotations_contractor_user_idTousers                                      quotations[]                    @relation("quotations_contractor_user_idTousers")
+  quotations_quotations_customer_user_idTousers                                        quotations[]                    @relation("quotations_customer_user_idTousers")
+  repair_requests_repair_requests_contractor_user_idTousers                            repair_requests[]               @relation("repair_requests_contractor_user_idTousers")
+  repair_requests_repair_requests_customer_user_idTousers                              repair_requests[]               @relation("repair_requests_customer_user_idTousers")
+  reviews_reviews_customer_user_idTousers                                              reviews[]                       @relation("reviews_customer_user_idTousers")
+  reviews_reviews_target_user_idTousers                                                reviews[]                       @relation("reviews_target_user_idTousers")
+  service_orders_service_orders_cancelled_byTousers                                    service_orders[]                @relation("service_orders_cancelled_byTousers")
+  service_orders_service_orders_contractor_user_idTousers                              service_orders[]                @relation("service_orders_contractor_user_idTousers")
+  service_orders_service_orders_customer_user_idTousers                                service_orders[]                @relation("service_orders_customer_user_idTousers")
+  service_suggestions_service_suggestions_requester_user_idTousers                     service_suggestions[]           @relation("service_suggestions_requester_user_idTousers")
+  service_suggestions_service_suggestions_reviewed_byTousers                           service_suggestions[]           @relation("service_suggestions_reviewed_byTousers")
+  services                                                                             services[]
+  stores                                                                               stores?
+  locations                                                                            locations?                      @relation(fields: [location_id], references: [id], onUpdate: NoAction, map: "fk_users_location_id")
+  roles                                                                                roles                           @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_role_id")
+
+  @@index([location_id], map: "idx_users_location_id")
+  @@index([role_id, account_status], map: "idx_users_role_status")
+}

@@ -1,5 +1,6 @@
-const { Store, STORE_TYPE, STORE_STATUS } = require('../models/Store');
-const { Material } = require('../models/Material');
+const { STORE_TYPE, STORE_STATUS } = require('../models/Store');
+const { Store } = require('../repositories/partnerAccess');
+const { Material } = require('../repositories/offeringAccess');
 const { ApiError } = require('../utils/ApiError');
 const { distanceKm } = require('../utils/geo');
 const { normalizeDeliveryPolicy } = require('../utils/delivery-policy');

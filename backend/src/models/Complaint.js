@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const COMPLAINT_STATUS = Object.freeze({
   OPEN: 'OPEN',
@@ -7,6 +6,10 @@ const COMPLAINT_STATUS = Object.freeze({
   REJECTED: 'REJECTED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const complaintSchema = new mongoose.Schema(
   {
     orderId: {
@@ -64,5 +67,11 @@ complaintSchema.methods.toPublic = function toPublic() {
 };
 
 const Complaint = mongoose.model('Complaint', complaintSchema);
+  built = { Complaint };
+  return built;
+}
 
-module.exports = { Complaint, COMPLAINT_STATUS };
+module.exports = {
+  COMPLAINT_STATUS,
+  get Complaint() { return build().Complaint; },
+};

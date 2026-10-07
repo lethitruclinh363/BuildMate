@@ -1,5 +1,6 @@
-const { Order, ORDER_STATUS } = require('../models/Order');
-const { Complaint, COMPLAINT_STATUS } = require('../models/Complaint');
+const { ORDER_STATUS } = require('../models/Order');
+const { COMPLAINT_STATUS } = require('../models/Complaint');
+const { Order, Complaint } = require('../repositories/commerceAccess');
 const { ApiError } = require('../utils/ApiError');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');

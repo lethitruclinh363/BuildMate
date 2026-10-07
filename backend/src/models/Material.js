@@ -1,6 +1,9 @@
-const mongoose = require('mongoose');
 const { MATERIAL_CATEGORIES } = require('../constants/material-categories');
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const materialSchema = new mongoose.Schema(
   {
     storeId: {
@@ -48,5 +51,11 @@ materialSchema.methods.toPublic = function toPublic() {
 };
 
 const Material = mongoose.model('Material', materialSchema);
+  built = { Material };
+  return built;
+}
 
-module.exports = { Material, MATERIAL_CATEGORIES };
+module.exports = {
+  MATERIAL_CATEGORIES,
+  get Material() { return build().Material; },
+};

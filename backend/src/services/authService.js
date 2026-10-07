@@ -1,11 +1,7 @@
 const crypto = require('crypto');
 const { ROLES, USER_STATUS } = require('../models/user.model');
 const { userRepository } = require('../repositories/userRepository');
-const {
-  sendVerificationEmail,
-  sendResetPasswordEmail,
-  isSmtpConfigured,
-} = require('../providers/emailProvider');
+const emailProvider = require('../providers/emailProvider');
 const { acceptanceForLanguage } = require('./policy.service');
 const { syncUserProfileStatus } = require('./profileStatusService');
 const { ApiError } = require('../utils/ApiError');
@@ -55,7 +51,7 @@ async function issueAndSendOtp(user) {
   }
 
   try {
-    const result = await sendVerificationEmail({
+    const result = await emailProvider.sendVerificationEmail({
       to: user.email,
       name: user.fullName || user.name,
       otp,
@@ -63,7 +59,7 @@ async function issueAndSendOtp(user) {
     return { emailSent: Boolean(result.sent) };
   } catch (err) {
     console.error('[email] verification send failed:', err.message);
-    if (isSmtpConfigured()) {
+    if (emailProvider.isSmtpConfigured()) {
       throw new ApiError(503, 'Could not send verification email. Please try resend-code.');
     }
     return { emailSent: false };
@@ -283,7 +279,7 @@ async function forgotPassword({ email }) {
   if (!issued) return { ...generic, emailSent: true };
 
   try {
-    const result = await sendResetPasswordEmail({
+    const result = await emailProvider.sendResetPasswordEmail({
       to: user.email,
       name: user.fullName || user.name,
       otp,
@@ -297,7 +293,7 @@ async function forgotPassword({ email }) {
     return { ...generic, emailSent: true };
   } catch (err) {
     console.error('[email] reset send failed:', err.message);
-    if (isSmtpConfigured()) {
+    if (emailProvider.isSmtpConfigured()) {
       throw new ApiError(503, 'Could not send reset email. Please try again.');
     }
     return { ...generic, emailSent: false };

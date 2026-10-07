@@ -73,7 +73,7 @@ export default function PartnerStatusPage() {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [partnerApi, refreshUser, t]);
+  }, [partnerApi, refreshUser]);
 
   const phase = phaseOf(currentUser?.profileStatus, profile?.verificationStatus);
 

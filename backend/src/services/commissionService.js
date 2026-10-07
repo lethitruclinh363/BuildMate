@@ -1,5 +1,5 @@
-const { CommissionRule } = require('../models/CommissionRule');
-const { Commission, COMMISSION_STATUS } = require('../models/Commission');
+const { COMMISSION_STATUS } = require('../models/Commission');
+const { CommissionRule, Commission } = require('../repositories/commerceAccess');
 const { ApiError } = require('../utils/ApiError');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
@@ -34,7 +34,7 @@ async function setActivePercentage(percentage, name = 'Platform fee') {
   return rule.toPublic();
 }
 
-async function createForPaidPayment(payment, actorId = null) {
+async function createForPaidPayment(payment, actorId = null, tx) {
   const existing = await Commission.findOne({ paymentId: payment._id });
   if (existing) return existing;
 
@@ -52,7 +52,7 @@ async function createForPaidPayment(payment, actorId = null) {
       platformAmount,
       contractorAmount,
       status: COMMISSION_STATUS.POSTED,
-    });
+    }, tx);
   } catch (err) {
     if (err.code === 11000) {
       return Commission.findOne({ paymentId: payment._id });
@@ -81,12 +81,12 @@ async function createForPaidPayment(payment, actorId = null) {
   return doc;
 }
 
-async function reverseForPayment(paymentId) {
+async function reverseForPayment(paymentId, tx) {
   const row = await Commission.findOne({ paymentId });
   if (!row) return null;
   if (row.status === COMMISSION_STATUS.REVERSED) return row;
   row.status = COMMISSION_STATUS.REVERSED;
-  await row.save();
+  await row.save(tx);
   return row;
 }
 

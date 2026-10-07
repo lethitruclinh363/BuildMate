@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const VERIFICATION_STATUS = Object.freeze({
   DRAFT: 'DRAFT',
@@ -17,6 +16,10 @@ const DOCUMENT_TYPE = Object.freeze({
   PORTFOLIO: 'PORTFOLIO',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const documentSchema = new mongoose.Schema(
   {
     type: { type: String, enum: Object.values(DOCUMENT_TYPE), required: true },
@@ -183,5 +186,12 @@ contractorProfileSchema.methods.toPublic = function toPublic() {
 };
 
 const ContractorProfile = mongoose.model('ContractorProfile', contractorProfileSchema);
+  built = { ContractorProfile };
+  return built;
+}
 
-module.exports = { ContractorProfile, VERIFICATION_STATUS, DOCUMENT_TYPE };
+module.exports = {
+  VERIFICATION_STATUS,
+  DOCUMENT_TYPE,
+  get ContractorProfile() { return build().ContractorProfile; },
+};

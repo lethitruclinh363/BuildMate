@@ -1,8 +1,7 @@
-const { Order, ORDER_STATUS, PAYMENT_STATUS } = require('../models/Order');
-const { Payment } = require('../models/Payment');
-const { RepairRequest, REQUEST_STATUS } = require('../models/RepairRequest');
-const { ChatRoom } = require('../models/ChatRoom');
-const { Quotation } = require('../models/Quotation');
+const { ORDER_STATUS, PAYMENT_STATUS } = require('../models/Order');
+const { Order, Payment, runInTransaction } = require('../repositories/commerceAccess');
+const { REQUEST_STATUS } = require('../models/RepairRequest');
+const { RepairRequest, ChatRoom, Quotation } = require('../repositories/conversationAccess');
 const { ApiError } = require('../utils/ApiError');
 const { CANCELLABLE_ORDER_STATUSES, generateOrderCode } = require('../utils/order.rules');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
@@ -15,7 +14,12 @@ function emitOrder(event, order, extra = {}) {
   emitToUser(order.contractorId, event, payload);
 }
 
-async function createFromQuotation(quotation, request, actorId) {
+function emitCreated(order, room) {
+  emitOrder('order_created', order);
+  if (room) emitToRoom(room._id, 'order_created', { order: order.toPublic() });
+}
+
+async function createFromQuotation(quotation, request, actorId, outerTx) {
   const existing = await Order.findOne({ quotationId: quotation._id });
   if (existing) {
     const payment = await Payment.findOne({ orderId: existing._id });
@@ -28,9 +32,8 @@ async function createFromQuotation(quotation, request, actorId) {
   }
 
   const room = await ChatRoom.findOne({ requestId: quotation.requestId });
-  let order;
-  try {
-    order = await Order.create({
+  const work = async (tx) => {
+    const order = await Order.create({
       orderCode: generateOrderCode(),
       quotationId: quotation._id,
       requestId: quotation.requestId,
@@ -43,7 +46,39 @@ async function createFromQuotation(quotation, request, actorId) {
       amount: quotation.totalCost,
       status: ORDER_STATUS.QUOTATION_ACCEPTED,
       paymentStatus: PAYMENT_STATUS.UNPAID,
+    }, tx);
+    const payment = await Payment.create({
+      orderId: order._id,
+      customerId: quotation.customerId,
+      contractorId: quotation.contractorId,
+      amount: quotation.totalCost,
+      type: 'FULL_PAYMENT',
+      status: PAYMENT_STATUS.UNPAID,
+      provider: 'mock',
+      metadata: {},
+    }, tx);
+    const notification = await notify({
+      userId: quotation.contractorId,
+      title: 'New repair job',
+      message: `${order.title} · ${order.orderCode}`,
+      type: NOTIFICATION_TYPE.ORDER_CREATED,
+      link: `/contractor/orders`,
+      meta: { orderId: String(order._id), quotationId: String(quotation._id) },
     });
+    await writeAudit({
+      actorId,
+      actorRole: 'CUSTOMER',
+      action: AUDIT_ACTION.ORDER_CREATED,
+      entityType: 'Order',
+      entityId: order._id,
+      meta: { quotationId: String(quotation._id), amount: order.amount },
+    });
+    return { order, payment, notification };
+  };
+
+  let created;
+  try {
+    created = outerTx ? await work(outerTx) : await runInTransaction(work);
   } catch (err) {
     if (err.code === 11000) {
       const dup = await Order.findOne({ quotationId: quotation._id });
@@ -60,43 +95,13 @@ async function createFromQuotation(quotation, request, actorId) {
     throw err;
   }
 
-  const payment = await Payment.create({
-    orderId: order._id,
-    customerId: quotation.customerId,
-    contractorId: quotation.contractorId,
-    amount: quotation.totalCost,
-    type: 'FULL_PAYMENT',
-    status: PAYMENT_STATUS.UNPAID,
-    provider: 'mock',
-    metadata: {},
-  });
-
-  const notification = await notify({
-    userId: quotation.contractorId,
-    title: 'New repair job',
-    message: `${order.title} · ${order.orderCode}`,
-    type: NOTIFICATION_TYPE.ORDER_CREATED,
-    link: `/contractor/orders`,
-    meta: { orderId: String(order._id), quotationId: String(quotation._id) },
-  });
-
-  await writeAudit({
-    actorId,
-    actorRole: 'CUSTOMER',
-    action: AUDIT_ACTION.ORDER_CREATED,
-    entityType: 'Order',
-    entityId: order._id,
-    meta: { quotationId: String(quotation._id), amount: order.amount },
-  });
-
-  emitOrder('order_created', order);
-  if (room) emitToRoom(room._id, 'order_created', { order: order.toPublic() });
-
+  if (!outerTx) emitCreated(created.order, room);
   return {
-    order: order.toPublic(),
-    payment: payment.toPublic(),
-    notification,
+    order: created.order.toPublic(),
+    payment: created.payment.toPublic(),
+    notification: created.notification,
     duplicated: false,
+    _emit: () => emitCreated(created.order, room),
   };
 }
 
@@ -144,9 +149,10 @@ async function completeOrder(id, customerId) {
 
   order.status = ORDER_STATUS.CUSTOMER_ACCEPTED;
   order.completedAt = new Date();
-  await order.save();
-
-  await RepairRequest.findByIdAndUpdate(order.requestId, { status: REQUEST_STATUS.COMPLETED });
+  await runInTransaction(async (tx) => {
+    await order.save(tx);
+    await RepairRequest.findByIdAndUpdate(order.requestId, { status: REQUEST_STATUS.COMPLETED }, tx);
+  });
 
   const notification = await notify({
     userId: order.contractorId,
@@ -183,8 +189,10 @@ async function cancelOrder(id, user, reason = '') {
   order.cancelReason = reason || 'Cancelled';
   order.cancelledBy = user.id;
   order.cancelledAt = new Date();
-  await order.save();
-  await RepairRequest.findByIdAndUpdate(order.requestId, { status: REQUEST_STATUS.CANCELLED });
+  await runInTransaction(async (tx) => {
+    await order.save(tx);
+    await RepairRequest.findByIdAndUpdate(order.requestId, { status: REQUEST_STATUS.CANCELLED }, tx);
+  });
 
   const other = String(order.customerId) === uid ? order.contractorId : order.customerId;
   await notify({

@@ -1,8 +1,14 @@
-const { describe, it, before, after } = require('node:test');
+const { describe, it, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureMongo, mongoSkip } = require('./helpers/mongo');
 const { applyMarketplaceFilters } = require('../services/locationService');
 const marketplace = require('../services/marketplaceService');
+const { STORE_STATUS } = require('../models/Store');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { ROLES, USER_STATUS } = require('../models/user.model');
+const { createUser, deleteFixtureUsers } = require('./helpers/party');
+const { testDatabaseReady } = require('./helpers/pg-cleanup');
+const { ContractorProfile, Store } = require('../repositories/partnerAccess');
+const { Service, Material } = require('../repositories/offeringAccess');
 
 describe('marketplace filters', () => {
   const rows = [
@@ -19,52 +25,33 @@ describe('marketplace filters', () => {
 });
 
 describe('marketplace catalog LIVE+APPROVED gate', { timeout: 90000 }, () => {
-  let dbReady = false;
   const cleanup = { users: [], stores: [], services: [], materials: [], profiles: [] };
 
-  before(async () => {
-    dbReady = await ensureMongo();
-  });
-
   after(async () => {
-    if (!dbReady) return;
-    const { User } = require('../models/User');
-    const { Store } = require('../models/Store');
-    const { Service } = require('../models/Service');
-    const { Material } = require('../models/Material');
-    const { ContractorProfile } = require('../models/ContractorProfile');
-    await Promise.all([
-      User.deleteMany({ _id: { $in: cleanup.users } }),
-      Store.deleteMany({ _id: { $in: cleanup.stores } }),
-      Service.deleteMany({ _id: { $in: cleanup.services } }),
-      Material.deleteMany({ _id: { $in: cleanup.materials } }),
-      ContractorProfile.deleteMany({ _id: { $in: cleanup.profiles } }),
-    ]);
-    const { stopMongo } = require('./helpers/mongo');
-    await stopMongo();
+    await deleteFixtureUsers(cleanup.users);
   });
 
   it('hides catalog from draft/pending contractors and keeps approved LIVE stores', async (t) => {
-    if (!dbReady) {
-      t.skip(mongoSkip());
+    if (!testDatabaseReady()) {
+      t.skip('PostgreSQL test database is not available');
       return;
     }
 
-    const { User, ROLES, USER_STATUS } = require('../models/User');
-    const { Store, STORE_STATUS } = require('../models/Store');
-    const { Service } = require('../models/Service');
-    const { Material } = require('../models/Material');
-    const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
+    const { prisma } = require('../config/prisma');
+    await prisma.service_categories.upsert({
+      where: { name: 'Waterproofing' },
+      update: {},
+      create: { name: 'Waterproofing' },
+    });
 
     const stamp = Date.now();
-    const approvedUser = await User.create({
+    const approvedUser = await createUser({
       name: 'Approved Co',
       email: `mkt.ok.${stamp}@buildmate.test`,
       password: 'Demo@1234',
       role: ROLES.CONTRACTOR,
-      status: USER_STATUS.ACTIVE,
     });
-    const pendingUser = await User.create({
+    const pendingUser = await createUser({
       name: 'Pending Co',
       email: `mkt.pending.${stamp}@buildmate.test`,
       password: 'Demo@1234',
@@ -100,6 +87,7 @@ describe('marketplace catalog LIVE+APPROVED gate', { timeout: 90000 }, () => {
       storeType: 'BOTH',
       status: STORE_STATUS.LIVE,
       location: { type: 'Point', coordinates: [105.746, 10.045] },
+      locationConfirmed: true,
     });
     const pendingStore = await Store.create({
       contractorId: pendingUser._id,
@@ -161,12 +149,11 @@ describe('marketplace catalog LIVE+APPROVED gate', { timeout: 90000 }, () => {
     assert.equal(pub.visibility, 'LIVE');
     assert.equal(pub.store.name, 'Live Approved Store');
 
-    const quietUser = await User.create({
+    const quietUser = await createUser({
       name: 'Quiet Co',
       email: `mkt.quiet.${stamp}@buildmate.test`,
       password: 'Demo@1234',
       role: ROLES.CONTRACTOR,
-      status: USER_STATUS.ACTIVE,
     });
     cleanup.users.push(quietUser._id);
     const quietProfile = await ContractorProfile.create({

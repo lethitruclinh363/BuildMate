@@ -1,12 +1,10 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureMongo, mongoSkip, stopMongo } = require('./helpers/mongo');
 const { startTestServer, api } = require('./helpers/http');
-const { createParty, cleanupParty } = require('./helpers/party');
-const { User, ROLES, USER_STATUS } = require('../models/User');
-const { Order, ORDER_STATUS } = require('../models/Order');
-const { Payment } = require('../models/Payment');
-const { Commission } = require('../models/Commission');
+const { createParty, cleanupParty, createUser, deleteFixtureUsers, ROLES } = require('./helpers/party');
+const { testDatabaseReady, captureCommissionRules, restoreCommissionRules } = require('./helpers/pg-cleanup');
+const { ORDER_STATUS } = require('../models/Order');
+const { Order, Payment, Commission } = require('../repositories/commerceAccess');
 const { signToken } = require('../services/authService');
 const commissionService = require('../services/commissionService');
 const { invalidateAnalyticsCache } = require('../services/analyticsService');
@@ -29,32 +27,33 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
   const trash = [];
   let admin;
   let adminToken;
+  let commissionSnapshot;
 
   before(async () => {
-    dbReady = await ensureMongo();
+    commissionSnapshot = await captureCommissionRules();
+    dbReady = testDatabaseReady();
     if (!dbReady) return;
     server = await startTestServer();
     await commissionService.setActivePercentage(5, 'Sprint 6.3 5%');
-    admin = await User.create({
+    admin = await createUser({
       name: 'Sprint63 Admin',
       email: `e2e.admin63.${Date.now()}@buildmate.test`,
       password: 'Admin@1234',
       role: ROLES.ADMIN,
-      status: USER_STATUS.ACTIVE,
     });
     adminToken = signToken(admin);
   });
 
   after(async () => {
+    await restoreCommissionRules(commissionSnapshot);
     for (const party of trash) await cleanupParty(party);
-    if (admin) await User.deleteOne({ _id: admin._id });
+    if (admin) await deleteFixtureUsers([admin._id]);
     if (server) await server.close();
-    await stopMongo();
   });
 
   it('full HTTP journey: login → quote accept → pay → assign → progress → complete → review → complaint → admin', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`flow63-${Date.now()}`);
@@ -180,7 +179,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
 
   it('finance: double checkout blocked; mock-success idempotent; refund reverses commission', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`fin63-${Date.now()}`);
@@ -249,7 +248,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
 
   it('order COMPLETED may stay UNPAID — no commission until PAID', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`unpaid63-${Date.now()}`);
@@ -279,7 +278,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
 
   it('reviews: completed PASS, unfinished FAIL, duplicate FAIL, stranger FAIL, average accurate', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`rev63-${Date.now()}`);
@@ -319,7 +318,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
 
   it('complaints: party PASS, stranger FAIL, late FAIL, OPEN cannot skip to RESOLVED', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`cmp63-${Date.now()}`);
@@ -384,7 +383,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
 
   it('RBAC: customer/contractor cannot use admin or foreign finance APIs; JWT rejects garbage', async (t) => {
     if (!dbReady) {
-      t.skip(mongoSkip());
+      t.skip('PostgreSQL test database is not available');
       return;
     }
     const party = await createParty(`rbac63-${Date.now()}`);

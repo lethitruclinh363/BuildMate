@@ -252,7 +252,7 @@ export function ChatPage() {
                       )}
                     >
                       {msg.type === 'IMAGE' ? (
-                        <img src={mediaUrl(msg.content)} alt="" className="max-h-56 rounded-2xl" />
+                        <img src={mediaUrl(msg.content)} alt="" loading="lazy" decoding="async" className="max-h-56 rounded-2xl" />
                       ) : msg.type === 'VIDEO' ? (
                         <video src={mediaUrl(msg.content)} controls className="max-h-56 rounded-2xl" />
                       ) : (

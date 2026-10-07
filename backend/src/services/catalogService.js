@@ -1,5 +1,7 @@
-const { CatalogService, CATALOG_STATUS, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { CATALOG_STATUS, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
+const { CatalogService } = require('../repositories/offeringAccess');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { ContractorProfile } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const {
   CONTRACTOR_SERVICES,
@@ -411,7 +413,8 @@ async function syncCustomStatuses(profile) {
 }
 
 async function materializeOfferings(serviceId) {
-  const { Store, STORE_TYPE } = require('../models/Store');
+  const { STORE_TYPE } = require('../models/Store');
+  const { Store } = require('../repositories/partnerAccess');
   const serviceService = require('./serviceService');
   const profiles = await ContractorProfile.find({
     verificationStatus: VERIFICATION_STATUS.APPROVED,
@@ -454,16 +457,24 @@ async function reviewCatalogService(id, status, adminId) {
 let seeded = false;
 let seeding = null;
 
+function catalogChanged(doc, before) {
+  return ['code', 'foldedName', 'name', 'status', 'type'].some((key) => doc[key] !== before[key]);
+}
+
 async function ensureSystemCatalog() {
   if (seeded) return;
   if (seeding) return seeding;
   seeding = (async () => {
-    const unlabeled = await CatalogService.find({
-      $or: [{ foldedName: '' }, { foldedName: null }, { foldedName: { $exists: false } }],
-    });
-    for (const doc of unlabeled) {
-      doc.foldedName = foldServiceName(doc.name);
-      await doc.save();
+    const rows = await CatalogService.find({});
+    const byCode = new Map();
+    const byNormalized = new Map();
+    for (const doc of rows) {
+      if (!doc.foldedName) {
+        doc.foldedName = foldServiceName(doc.name);
+        await doc.save();
+      }
+      if (doc.code) byCode.set(doc.code, doc);
+      if (doc.normalizedName) byNormalized.set(doc.normalizedName, doc);
     }
     for (const item of CONTRACTOR_SERVICES) {
       const label = SERVICE_LABELS.vi[item.name] || item.name;
@@ -471,8 +482,15 @@ async function ensureSystemCatalog() {
       const normalizedName = normalizeServiceName(label);
       const foldedName = foldServiceName(label);
       const aliasSet = new Set(serviceAliases(item).map((alias) => normalizeServiceName(alias)));
-      const existing = await CatalogService.findOne({ $or: [{ code }, { normalizedName }] });
+      const existing = byCode.get(code) || byNormalized.get(normalizedName);
       if (existing && (aliasSet.has(existing.normalizedName) || existing.code === code || existing.normalizedName === normalizedName)) {
+        const before = {
+          code: existing.code,
+          foldedName: existing.foldedName,
+          name: existing.name,
+          status: existing.status,
+          type: existing.type,
+        };
         if (!existing.code) existing.code = code;
         existing.foldedName = foldedName;
         if (!existing.name) existing.name = label;
@@ -485,11 +503,12 @@ async function ensureSystemCatalog() {
         } else if (isLive(existing.status) && existing.type !== 'SYSTEM') {
           existing.type = 'SYSTEM';
         }
-        await existing.save();
+        if (existing.code) byCode.set(existing.code, existing);
+        if (catalogChanged(existing, before)) await existing.save();
         continue;
       }
       try {
-        await CatalogService.create({
+        const created = await CatalogService.create({
           name: label,
           normalizedName,
           foldedName,
@@ -499,6 +518,8 @@ async function ensureSystemCatalog() {
           type: 'SYSTEM',
           status: CATALOG_STATUS.ACTIVE,
         });
+        if (created.code) byCode.set(created.code, created);
+        if (created.normalizedName) byNormalized.set(created.normalizedName, created);
       } catch (err) {
         if (err?.code !== 11000) throw err;
       }

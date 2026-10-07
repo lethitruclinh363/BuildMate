@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const { describePlace } = require('../utils/geo');
 const { ORDER_STATUS, REPAIR_JOB_STATUS, generateOrderCode } = require('../utils/order.rules');
 
@@ -10,6 +9,10 @@ const PAYMENT_STATUS = Object.freeze({
   REFUNDED: 'REFUNDED',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const orderSchema = new mongoose.Schema(
   {
     orderCode: {
@@ -107,5 +110,13 @@ orderSchema.methods.toPublic = function toPublic() {
 };
 
 const Order = mongoose.model('Order', orderSchema);
+  built = { Order };
+  return built;
+}
 
-module.exports = { Order, ORDER_STATUS, REPAIR_JOB_STATUS, PAYMENT_STATUS };
+module.exports = {
+  ORDER_STATUS,
+  REPAIR_JOB_STATUS,
+  PAYMENT_STATUS,
+  get Order() { return build().Order; },
+};

@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const MESSAGE_TYPE = Object.freeze({
   TEXT: 'TEXT',
@@ -8,6 +7,10 @@ const MESSAGE_TYPE = Object.freeze({
   LOCATION: 'LOCATION',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema(
   {
     roomId: {
@@ -69,5 +72,11 @@ messageSchema.methods.toPublic = function toPublic() {
 };
 
 const Message = mongoose.model('Message', messageSchema);
+  built = { Message };
+  return built;
+}
 
-module.exports = { Message, MESSAGE_TYPE };
+module.exports = {
+  MESSAGE_TYPE,
+  get Message() { return build().Message; },
+};

@@ -1,6 +1,9 @@
-const mongoose = require('mongoose');
 const { EKYC_STATUS, FACE_DECISIONS, emptyOcr, toPublic } = require('../services/ekycStatus');
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const ocrSchema = new mongoose.Schema(
   {
     idNumber: { type: String, default: '' },
@@ -110,5 +113,11 @@ contractorEkycSchema.methods.toPublic = function toPublicRecord() {
 };
 
 const ContractorEkycVerification = mongoose.model('ContractorEkycVerification', contractorEkycSchema);
+  built = { ContractorEkycVerification };
+  return built;
+}
 
-module.exports = { ContractorEkycVerification, EKYC_STATUS };
+module.exports = {
+  EKYC_STATUS,
+  get ContractorEkycVerification() { return build().ContractorEkycVerification; },
+};

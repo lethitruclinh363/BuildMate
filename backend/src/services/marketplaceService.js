@@ -1,12 +1,12 @@
-const { Store, STORE_STATUS } = require('../models/Store');
-const { Service } = require('../models/Service');
-const { Material } = require('../models/Material');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { STORE_STATUS } = require('../models/Store');
+const { Service, Material, CatalogService } = require('../repositories/offeringAccess');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { ContractorProfile, Store } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const { publicPricedServiceMatch, foldServiceName } = require('../constants/contractorServices');
 const { presentPublicProfile, seedPublicProfile, seedMaterialPublicProfile, loadPublicHighlights } = require('./publicProfileService');
 const reviewService = require('./reviewService');
-const { CatalogService, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
+const { LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
 const activationService = require('./activation.service');
 const { USER_STATUS } = require('../models/User');
 

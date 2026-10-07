@@ -231,9 +231,7 @@ function createMaterialDepositService(deps) {
 }
 
 function mongooseDeps() {
-  const { MaterialOrder } = require('../models/MaterialOrder');
-  const { MaterialOrderPayment } = require('../models/MaterialOrderPayment');
-  const { MaterialCommission } = require('../models/MaterialCommission');
+  const { MaterialOrder, MaterialOrderPayment, MaterialCommission } = require('../repositories/materialOrderAccess');
   const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 
   return {
@@ -273,9 +271,16 @@ function mongooseDeps() {
 }
 
 const depositApi = createMaterialDepositService(mongooseDeps());
+const { runInTransaction } = require('../repositories/pgContext');
+const { env } = require('../config/env');
+
+function transactional(work) {
+  if (env.databaseProvider !== 'postgres') return work();
+  return runInTransaction(() => work());
+}
 
 module.exports = {
   createMaterialDepositService,
-  checkout: (user, orderId) => depositApi.checkout(user, orderId),
-  capture: (user, orderId) => depositApi.capture(user, orderId),
+  checkout: (user, orderId) => transactional(() => depositApi.checkout(user, orderId)),
+  capture: (user, orderId) => transactional(() => depositApi.capture(user, orderId)),
 };

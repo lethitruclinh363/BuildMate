@@ -1,5 +1,5 @@
 const { verifyToken, getUserId } = require('../utils/jwt');
-const { User } = require('../models/User');
+const { loadUser } = require('../repositories/partnerAccess');
 const chatService = require('../services/chatService');
 const {
   markOnline,
@@ -17,9 +17,9 @@ async function authenticateSocket(socket, next) {
     const payload = verifyToken(token);
     const userId = getUserId(payload);
     if (!payload.role || !userId) return next(new Error('Invalid token payload'));
-    const user = await User.findById(userId);
+    const user = await loadUser(userId);
     if (!user) return next(new Error('User no longer exists'));
-    socket.user = { id: user._id.toString(), role: user.role, name: user.name };
+    socket.user = { id: String(user._id), role: user.role, name: user.name };
     return next();
   } catch {
     return next(new Error('Invalid or expired token'));

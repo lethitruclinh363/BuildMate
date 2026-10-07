@@ -1,5 +1,7 @@
-const { ServiceSuggestion, SUGGESTION_STATUS } = require('../models/ServiceSuggestion');
-const { User, ROLES } = require('../models/User');
+const { SUGGESTION_STATUS } = require('../models/ServiceSuggestion');
+const { ServiceSuggestion } = require('../repositories/offeringAccess');
+const { ROLES } = require('../models/User');
+const { findUsersByRole } = require('../repositories/partnerAccess');
 const catalogService = require('./catalogService');
 const notificationService = require('./notificationService');
 const { NOTIFICATION_TYPE } = require('../models/Notification');
@@ -25,7 +27,7 @@ async function notifyUser(userId, title, message, link) {
 }
 
 async function notifyAdmins(title, message) {
-  const admins = await User.find({ role: ROLES.ADMIN }).select('_id');
+  const admins = await findUsersByRole(ROLES.ADMIN);
   await Promise.all(admins.map((admin) => notifyUser(admin._id, title, message, '/services')));
 }
 

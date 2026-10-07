@@ -1,3 +1,10 @@
+const { env } = require('../config/env');
+
+if (env.databaseProvider === 'postgres') {
+  module.exports = require('./user.postgres');
+  return;
+}
+
 const { BaseRepository } = require('./baseRepository');
 const { User } = require('../models/user.model');
 

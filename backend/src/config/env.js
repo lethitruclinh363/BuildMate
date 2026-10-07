@@ -1,7 +1,13 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
-const required = ['MONGODB_URI', 'JWT_SECRET'];
+const databaseProvider = String(process.env.DATABASE_PROVIDER || 'postgres').trim().toLowerCase();
+if (!['mongo', 'postgres'].includes(databaseProvider)) {
+  throw new Error('DATABASE_PROVIDER must be mongo or postgres');
+}
+
+const required = ['JWT_SECRET'];
+if (databaseProvider === 'mongo') required.push('MONGODB_URI');
 
 for (const key of required) {
   if (!process.env[key]) {
@@ -47,6 +53,7 @@ function resolveClientUrl() {
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 5000,
+  databaseProvider,
   mongoUri: process.env.MONGODB_URI,
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',

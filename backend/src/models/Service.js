@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const SERVICE_CATEGORIES = Object.freeze([
   'Waterproofing',
@@ -10,6 +9,10 @@ const SERVICE_CATEGORIES = Object.freeze([
   'General repair',
 ]);
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const serviceSchema = new mongoose.Schema(
   {
     storeId: {
@@ -84,5 +87,11 @@ serviceSchema.methods.toPublic = function toPublic() {
 };
 
 const Service = mongoose.model('Service', serviceSchema);
+  built = { Service };
+  return built;
+}
 
-module.exports = { Service, SERVICE_CATEGORIES };
+module.exports = {
+  SERVICE_CATEGORIES,
+  get Service() { return build().Service; },
+};

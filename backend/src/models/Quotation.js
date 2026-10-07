@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const QUOTE_ITEM_TYPE = Object.freeze({
   MATERIAL: 'MATERIAL',
@@ -13,6 +12,10 @@ const QUOTATION_STATUS = Object.freeze({
   MODIFICATION_REQUEST: 'MODIFICATION_REQUEST',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const quotationItemSchema = new mongoose.Schema(
   {
     type: { type: String, enum: Object.values(QUOTE_ITEM_TYPE), required: true },
@@ -89,5 +92,12 @@ quotationSchema.methods.toPublic = function toPublic() {
 };
 
 const Quotation = mongoose.model('Quotation', quotationSchema);
+  built = { Quotation };
+  return built;
+}
 
-module.exports = { Quotation, QUOTE_ITEM_TYPE, QUOTATION_STATUS };
+module.exports = {
+  QUOTE_ITEM_TYPE,
+  QUOTATION_STATUS,
+  get Quotation() { return build().Quotation; },
+};

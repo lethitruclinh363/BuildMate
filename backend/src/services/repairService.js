@@ -1,30 +1,44 @@
-const { RepairRequest, REQUEST_STATUS, REPAIR_CATEGORY } = require('../models/RepairRequest');
-const { Store, STORE_STATUS, STORE_TYPE } = require('../models/Store');
-const { User } = require('../models/User');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { ChatRoom } = require('../models/ChatRoom');
+const { REQUEST_STATUS, REPAIR_CATEGORY } = require('../models/RepairRequest');
+const { RepairRequest, ChatRoom } = require('../repositories/conversationAccess');
+const { STORE_STATUS, STORE_TYPE } = require('../models/Store');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { Store, ContractorProfile, loadUser, findUsersByIds } = require('../repositories/partnerAccess');
+const { env } = require('../config/env');
 const { ApiError } = require('../utils/ApiError');
 const { createRoomForRequest } = require('./chatService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
-const { CatalogService, LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
+const { LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
+const { CatalogService } = require('../repositories/offeringAccess');
 const { requirePlace } = require('../utils/geo');
 const locationCorrection = require('./locationCorrection.service');
 
-async function populateCard(request) {
-  const [customer, contractor, store, room] = await Promise.all([
-    User.findById(request.customerId),
-    User.findById(request.contractorId),
-    request.storeId ? Store.findById(request.storeId) : null,
-    ChatRoom.findOne({ requestId: request._id }),
+async function populateCards(requests) {
+  const list = requests.filter(Boolean);
+  if (!list.length) return [];
+  const userIds = [...new Set(list.flatMap((row) => [row.customerId, row.contractorId].filter(Boolean).map(String)))];
+  const storeIds = [...new Set(list.map((row) => row.storeId).filter(Boolean).map(String))];
+  const requestIds = list.map((row) => row._id).filter(Boolean);
+  const [users, stores, rooms] = await Promise.all([
+    findUsersByIds(userIds),
+    storeIds.length ? Store.find({ _id: { $in: storeIds } }) : [],
+    requestIds.length ? ChatRoom.find({ requestId: { $in: requestIds } }) : [],
   ]);
-  return {
+  const userById = new Map(users.map((user) => [String(user._id), user]));
+  const storeById = new Map(stores.map((store) => [String(store._id), store]));
+  const roomByRequest = new Map(rooms.map((room) => [String(room.requestId), room]));
+  return list.map((request) => ({
     ...request.toPublic(),
-    customer: customer ? customer.toPublic() : null,
-    contractor: contractor ? contractor.toPublic() : null,
-    store: store ? store.toPublic() : null,
-    roomId: room ? room._id : null,
-  };
+    customer: userById.get(String(request.customerId))?.toPublic() || null,
+    contractor: userById.get(String(request.contractorId))?.toPublic() || null,
+    store: request.storeId ? storeById.get(String(request.storeId))?.toPublic() || null : null,
+    roomId: roomByRequest.get(String(request._id))?._id || null,
+  }));
+}
+
+async function populateCard(request) {
+  const [card] = await populateCards([request]);
+  return card;
 }
 
 async function createRequest(customerId, payload) {
@@ -41,7 +55,7 @@ async function createRequest(customerId, payload) {
   } else if (!Object.values(REPAIR_CATEGORY).includes(category)) {
     throw new ApiError(400, 'Select a valid service');
   }
-  const contractor = await User.findById(payload.contractorId);
+  const contractor = await loadUser(payload.contractorId);
   if (!contractor || contractor.role !== 'CONTRACTOR') {
     throw new ApiError(404, 'Contractor not found');
   }
@@ -98,12 +112,14 @@ async function createRequest(customerId, payload) {
     locationSource: locationCorrection.locationSourceOf(payload.locationSource),
     locationConfirmedAt: confirmedAt,
   });
-  await locationCorrection.record({
-    address: site.address,
-    lat: site.lat,
-    lng: site.lng,
-    refId: payload.providerRefId,
-  }).catch(() => null);
+  if (env.databaseProvider !== 'postgres') {
+    await locationCorrection.record({
+      address: site.address,
+      lat: site.lat,
+      lng: site.lng,
+      refId: payload.providerRefId,
+    }).catch(() => null);
+  }
 
   const room = await createRoomForRequest(request);
   await notify({
@@ -120,12 +136,12 @@ async function createRequest(customerId, payload) {
 
 async function listMine(customerId) {
   const rows = await RepairRequest.find({ customerId }).sort({ createdAt: -1 });
-  return Promise.all(rows.map(populateCard));
+  return populateCards(rows);
 }
 
 async function listReceived(contractorId) {
   const rows = await RepairRequest.find({ contractorId }).sort({ createdAt: -1 });
-  return Promise.all(rows.map(populateCard));
+  return populateCards(rows);
 }
 
 async function getById(id, user) {

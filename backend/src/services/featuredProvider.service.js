@@ -1,13 +1,14 @@
-const { Store, STORE_TYPE, STORE_STATUS } = require('../models/Store');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { User, USER_STATUS } = require('../models/User');
-const { Service } = require('../models/Service');
-const { Material } = require('../models/Material');
-const { Order } = require('../models/Order');
-const { RepairRequest } = require('../models/RepairRequest');
-const { Review, REVIEW_TARGET } = require('../models/Review');
-const { Complaint, COMPLAINT_STATUS } = require('../models/Complaint');
-const { MaterialOrder } = require('../models/MaterialOrder');
+const { STORE_TYPE, STORE_STATUS } = require('../models/Store');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { ContractorProfile, Store } = require('../repositories/partnerAccess');
+const { USER_STATUS } = require('../models/User');
+const { Service, Material } = require('../repositories/offeringAccess');
+const { RepairRequest } = require('../repositories/conversationAccess');
+const { REVIEW_TARGET } = require('../models/Review');
+const { COMPLAINT_STATUS } = require('../models/Complaint');
+const { Order, Review, Complaint } = require('../repositories/commerceAccess');
+const { MaterialOrder } = require('../repositories/materialOrderAccess');
+const { userRepository } = require('../repositories/userRepository');
 const { publicPricedServiceMatch } = require('../constants/contractorServices');
 const { ORDER_STATUS } = require('../utils/order.rules');
 const { MATERIAL_ORDER_STATUS } = require('../utils/material-order.rules');
@@ -227,12 +228,10 @@ async function loadCandidates() {
       userId: { $in: stores.map((store) => store.contractorId) },
       verificationStatus: VERIFICATION_STATUS.APPROVED,
     }).lean(),
-    User.find({
-      _id: { $in: stores.map((store) => store.contractorId) },
-      status: { $nin: [USER_STATUS.BLOCKED, USER_STATUS.BANNED, USER_STATUS.INACTIVE] },
-    })
-      .select('status')
-      .lean(),
+    userRepository.findManyByIds(
+      stores.map((store) => store.contractorId),
+      { excludeStatuses: [USER_STATUS.BLOCKED, USER_STATUS.BANNED, USER_STATUS.INACTIVE] }
+    ),
   ]);
   const profileByUser = indexBy(profiles, 'userId');
   const userById = indexBy(users, '_id');

@@ -28,24 +28,31 @@ export function RequestHistoryPage() {
   const back = useReturnState();
   const [rows, setRows] = useState<RepairRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () => {
-    setLoading(true);
-    setError(null);
+  const load = (first = false) => {
+    if (first) setLoading(true);
+    else setPending(true);
     repairApi
       .mine()
-      .then((res) => setRows(res.data.data))
+      .then((res) => {
+        setRows(res.data.data || []);
+        setError(null);
+      })
       .catch((err) => setError(te(getApiErrorMessage(err))))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setPending(false);
+      });
   };
 
   useEffect(() => {
-    load();
+    load(true);
   }, []);
 
   if (loading) return <DashboardSkeleton />;
-  if (error) return <ErrorState body={error} onRetry={load} />;
+  if (error && rows.length === 0) return <ErrorState body={error} pending={pending} onRetry={() => load(false)} />;
 
   return (
     <PageTransition>
@@ -78,8 +85,8 @@ export function RequestHistoryPage() {
                   </p>
                   <p className="mt-2 max-w-2xl text-sm text-ink-600">{item.description}</p>
                 </div>
-                {item.images[0] ? (
-                  <img src={mediaUrl(item.images[0])} alt="" className="h-20 w-20 rounded-2xl object-cover" />
+                {item.images?.[0] ? (
+                  <img src={mediaUrl(item.images[0])} alt="" width={80} height={80} loading="lazy" decoding="async" className="h-20 w-20 rounded-2xl object-cover" />
                 ) : null}
               </div>
               {item.roomId ? (

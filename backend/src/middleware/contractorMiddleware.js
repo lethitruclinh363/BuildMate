@@ -1,5 +1,5 @@
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { Store } = require('../models/Store');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { ContractorProfile, Store } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const { asyncHandler } = require('../utils/asyncHandler');
 

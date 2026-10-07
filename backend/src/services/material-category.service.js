@@ -1,6 +1,6 @@
-const { MaterialCategory, CATEGORY_RECORD_STATUS } = require('../models/MaterialCategory');
-const { Store } = require('../models/Store');
-const { ContractorProfile } = require('../models/ContractorProfile');
+const { CATEGORY_RECORD_STATUS } = require('../models/MaterialCategory');
+const { MaterialCategory } = require('../repositories/offeringAccess');
+const { Store, ContractorProfile } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const { insertUnique, foldServiceName } = require('../constants/contractorServices');
 const {
@@ -224,8 +224,10 @@ async function categoriesForProfile(profile) {
   return selectionFromProfile(profile, owned, extras);
 }
 
-async function selectionsForProfiles(profiles) {
-  const stores = profiles.filter((profile) => profile.userId?.role === 'MATERIAL_STORE_OWNER');
+async function selectionsForProfiles(profiles, options = {}) {
+  const stores = options.includeAll
+    ? (profiles || []).filter(Boolean)
+    : profiles.filter((profile) => profile.userId?.role === 'MATERIAL_STORE_OWNER');
   const ownerIds = stores.map((profile) => profile.userId?._id || profile.userId).filter(Boolean);
   const [owned, extras] = await Promise.all([
     ownerIds.length

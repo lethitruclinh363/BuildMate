@@ -1,6 +1,9 @@
-const mongoose = require('mongoose');
 const { POLICY_TYPES, POLICY_STATUS } = require('./Policy');
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const policyRevisionSchema = new mongoose.Schema(
   {
     policyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Policy', required: true, index: true },
@@ -17,5 +20,10 @@ const policyRevisionSchema = new mongoose.Schema(
 );
 
 const PolicyRevision = mongoose.models.PolicyRevision || mongoose.model('PolicyRevision', policyRevisionSchema);
+  built = { PolicyRevision };
+  return built;
+}
 
-module.exports = { PolicyRevision };
+module.exports = {
+  get PolicyRevision() { return build().PolicyRevision; },
+};

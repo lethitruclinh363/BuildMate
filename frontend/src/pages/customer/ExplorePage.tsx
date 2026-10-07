@@ -53,36 +53,88 @@ export function ExplorePage() {
     storeType: filters.storeType || undefined,
   };
 
-  const load = () => {
-    setLoading(true);
-    setError(null);
-    Promise.all([
-      locationApi.nearbyContractors(origin.lat, origin.lng, filters.radius, extra),
-      locationApi.nearbyStores(origin.lat, origin.lng, filters.radius, extra),
-      locationApi.searchServices(filters.category ? { category: filters.category } : {}),
-      locationApi.searchMaterials({}),
-    ])
-      .then(([c, s, svc, mat]) => {
-        setContractors(c.data.data);
-        setStores(s.data.data);
-        setServices(svc.data.data);
-        setMaterials(mat.data.data);
-      })
-      .catch((err) => setError(te(getApiErrorMessage(err))))
-      .finally(() => setLoading(false));
-  };
+  const seen = useRef(false);
 
   useEffect(() => {
     api
       .get<{ data: { category: string }[] }>('/service-catalog', { silent: true })
       .then((res) => setGroups([...new Set((res.data.data || []).map((item) => item.category))]))
       .catch(() => setGroups([]));
+    let cancelled = false;
+    locationApi
+      .searchMaterials({})
+      .then((res) => {
+        if (!cancelled) setMaterials(res.data.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setMaterials([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    locationApi
+      .searchServices(filters.category ? { category: filters.category } : {})
+      .then((res) => {
+        if (!cancelled) setServices(res.data.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setServices([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.category]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!seen.current) setLoading(true);
+    Promise.all([
+      locationApi.nearbyContractors(origin.lat, origin.lng, filters.radius, extra),
+      locationApi.nearbyStores(origin.lat, origin.lng, filters.radius, extra),
+    ])
+      .then(([crews, yards]) => {
+        if (cancelled) return;
+        setContractors(crews.data.data || []);
+        setStores(yards.data.data || []);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(te(getApiErrorMessage(err)));
+      })
+      .finally(() => {
+        seen.current = true;
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // extra is derived from the same filter fields listed here
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [origin.lat, origin.lng, filters.radius, filters.category, filters.minRating, filters.storeType]);
+
+  const reloadNearby = () => {
+    seen.current = false;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      locationApi.nearbyContractors(origin.lat, origin.lng, filters.radius, extra),
+      locationApi.nearbyStores(origin.lat, origin.lng, filters.radius, extra),
+    ])
+      .then(([crews, yards]) => {
+        setContractors(crews.data.data || []);
+        setStores(yards.data.data || []);
+        setError(null);
+      })
+      .catch((err) => setError(te(getApiErrorMessage(err))))
+      .finally(() => {
+        seen.current = true;
+        setLoading(false);
+      });
+  };
 
   useEffect(() => {
     setPick(null);
@@ -199,14 +251,14 @@ export function ExplorePage() {
         <span className="inline-flex items-center gap-2"><Store className="h-4 w-4 text-amber-600" /> {legend[2][1]}</span>
       </div>
 
-      {loading ? (
+      {loading && contractors.length === 0 && stores.length === 0 ? (
         <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-2">
           <CardSkeleton />
           <CardSkeleton />
         </div>
-      ) : error ? (
+      ) : error && contractors.length === 0 && stores.length === 0 ? (
         <div className="mt-8">
-          <ErrorState body={error} onRetry={load} />
+          <ErrorState body={error} onRetry={reloadNearby} />
         </div>
       ) : (
         <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-2">

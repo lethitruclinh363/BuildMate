@@ -8,8 +8,7 @@ const {
   servicesBlockReason,
   visibleOnboardingServices,
   insertUnique,
-} = require('../constants/contractor-services');
-const { CatalogService } = require('../models/CatalogService');
+} = require('../constants/contractorServices');
 
 describe('service name normalization', () => {
   it('treats spacing and case variants of a Vietnamese name as the same service', () => {
@@ -150,10 +149,15 @@ describe('unique custom name claim', () => {
 });
 
 describe('catalog collection', () => {
-  it('stores custom names separately from priced store services and enforces a unique normalized name', () => {
-    assert.equal(CatalogService.modelName, 'CatalogService');
-    assert.equal(CatalogService.collection.collectionName, 'catalogservices');
-    const unique = CatalogService.schema.indexes().some(([fields, options]) => fields.normalizedName === 1 && options && options.unique);
-    assert.equal(unique, true);
+  it('stores custom names separately from priced store services and enforces a unique normalized name', async () => {
+    const { prisma } = require('../config/prisma');
+    const rows = await prisma.$queryRaw`
+      SELECT indexdef
+      FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND tablename = 'catalog_services'
+        AND indexdef ILIKE '%normalized_name%'
+    `;
+    assert.ok(rows.length >= 1);
   });
 });

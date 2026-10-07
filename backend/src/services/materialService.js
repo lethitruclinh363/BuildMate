@@ -1,6 +1,7 @@
-const { Material } = require('../models/Material');
-const { Store, STORE_TYPE } = require('../models/Store');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { Material } = require('../repositories/offeringAccess');
+const { STORE_TYPE } = require('../models/Store');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { Store, ContractorProfile } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const materialCategoryService = require('./material-category.service');
 

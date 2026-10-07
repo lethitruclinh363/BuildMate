@@ -1,6 +1,9 @@
-const mongoose = require('mongoose');
 const { MATERIAL_PAYMENT_STATUS } = require('../utils/material-order.rules');
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const materialOrderPaymentSchema = new mongoose.Schema(
   {
     materialOrderId: {
@@ -48,5 +51,10 @@ materialOrderPaymentSchema.methods.toPublic = function toPublic() {
 };
 
 const MaterialOrderPayment = mongoose.model('MaterialOrderPayment', materialOrderPaymentSchema);
+  built = { MaterialOrderPayment };
+  return built;
+}
 
-module.exports = { MaterialOrderPayment };
+module.exports = {
+  get MaterialOrderPayment() { return build().MaterialOrderPayment; },
+};

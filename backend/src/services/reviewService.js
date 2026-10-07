@@ -1,7 +1,8 @@
-const { Order, ORDER_STATUS } = require('../models/Order');
-const { Review, REVIEW_TARGET } = require('../models/Review');
-const { User } = require('../models/User');
-const { Store, STORE_TYPE } = require('../models/Store');
+const { ORDER_STATUS } = require('../models/Order');
+const { REVIEW_TARGET } = require('../models/Review');
+const { STORE_TYPE } = require('../models/Store');
+const { Order, Review } = require('../repositories/commerceAccess');
+const { Store, findUsersByIds, findUsersByRole } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
@@ -124,7 +125,7 @@ async function listForUser(targetUserId, targetType) {
   }
   const rows = await Review.find(query).sort({ createdAt: -1 });
   const [people, orders] = await Promise.all([
-    User.find({ _id: { $in: rows.map((row) => row.customerId) } }).select('name avatar'),
+    findUsersByIds(rows.map((row) => row.customerId)),
     Order.find({ _id: { $in: rows.map((row) => row.orderId) } }).select('title'),
   ]);
   const byId = new Map(people.map((person) => [String(person._id), person]));
@@ -169,7 +170,7 @@ async function reportReview(contractorId, reviewId, reason) {
   review.reportedAt = new Date();
   review.reportReason = String(reason || '').trim();
   await review.save();
-  const admins = await User.find({ role: 'ADMIN' }).select('_id');
+  const admins = await findUsersByRole('ADMIN');
   await Promise.all(admins.map((admin) => notify({
     userId: admin._id,
     title: 'Review reported',

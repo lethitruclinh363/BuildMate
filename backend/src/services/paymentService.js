@@ -1,6 +1,7 @@
 const crypto = require('crypto');
-const { Order, ORDER_STATUS, PAYMENT_STATUS } = require('../models/Order');
-const { Payment, PAYMENT_TYPE } = require('../models/Payment');
+const { ORDER_STATUS, PAYMENT_STATUS } = require('../models/Order');
+const { PAYMENT_TYPE } = require('../models/Payment');
+const { Order, Payment, runInTransaction } = require('../repositories/commerceAccess');
 const { ApiError } = require('../utils/ApiError');
 const { MockPaymentProvider } = require('../providers/MockPaymentProvider');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
@@ -27,12 +28,12 @@ function rollupStatus(payments) {
   return PAYMENT_STATUS.UNPAID;
 }
 
-async function syncOrderPaymentStatus(orderId) {
-  const rows = await Payment.find({ orderId });
+async function syncOrderPaymentStatus(orderId, tx) {
+  const rows = await Payment.listByOrder(orderId, tx);
   const order = await Order.findById(orderId);
-  if (!order) return;
+  if (!order) return null;
   order.paymentStatus = rollupStatus(rows);
-  await order.save();
+  await order.save(tx);
   return order;
 }
 
@@ -87,8 +88,10 @@ async function checkout(paymentId, user, { method = 'MOCK' } = {}) {
     providerRef: session.providerRef,
     nonce: crypto.randomBytes(4).toString('hex'),
   };
-  await payment.save();
-  await syncOrderPaymentStatus(order._id);
+  await runInTransaction(async (tx) => {
+    await payment.save(tx);
+    await syncOrderPaymentStatus(order._id, tx);
+  });
 
   await writeAudit({
     actorId: user.id,
@@ -111,41 +114,41 @@ async function markPaid(payment, actorId, actorRole = 'SYSTEM') {
     throw new ApiError(409, 'Payment must be PENDING before capture');
   }
 
-  payment.status = PAYMENT_STATUS.PAID;
-  payment.paidAt = new Date();
-  await payment.save();
-  const paidOrder = await syncOrderPaymentStatus(payment.orderId);
-  if (payment.type === PAYMENT_TYPE.DEPOSIT && paidOrder) {
-    const next = orderStatusAfterDeposit(paidOrder.status);
-    if (next !== paidOrder.status) {
-      paidOrder.status = next;
-      await paidOrder.save();
+  const captured = await runInTransaction(async (tx) => {
+    payment.status = PAYMENT_STATUS.PAID;
+    payment.paidAt = new Date();
+    await payment.save(tx);
+    const paidOrder = await syncOrderPaymentStatus(payment.orderId, tx);
+    if (payment.type === PAYMENT_TYPE.DEPOSIT && paidOrder) {
+      const next = orderStatusAfterDeposit(paidOrder.status);
+      if (next !== paidOrder.status) {
+        paidOrder.status = next;
+        await paidOrder.save(tx);
+      }
     }
-  }
-
-  const commission = await commissionService.createForPaidPayment(payment, actorId);
-
-  await notify({
-    userId: payment.contractorId,
-    title: 'Payment received',
-    message: `${payment.amount.toLocaleString('vi-VN')}đ captured`,
-    type: NOTIFICATION_TYPE.PAYMENT_SUCCESS,
-    link: '/contractor/orders',
-    meta: { paymentId: String(payment._id), orderId: String(payment.orderId) },
-  });
-
-  await writeAudit({
-    actorId,
-    actorRole,
-    action: AUDIT_ACTION.PAYMENT_PAID,
-    entityType: 'Payment',
-    entityId: payment._id,
-    meta: { orderId: String(payment.orderId), amount: payment.amount },
+    const commission = await commissionService.createForPaidPayment(payment, actorId, tx);
+    await notify({
+      userId: payment.contractorId,
+      title: 'Payment received',
+      message: `${payment.amount.toLocaleString('vi-VN')}đ captured`,
+      type: NOTIFICATION_TYPE.PAYMENT_SUCCESS,
+      link: '/contractor/orders',
+      meta: { paymentId: String(payment._id), orderId: String(payment.orderId) },
+    });
+    await writeAudit({
+      actorId,
+      actorRole,
+      action: AUDIT_ACTION.PAYMENT_PAID,
+      entityType: 'Payment',
+      entityId: payment._id,
+      meta: { orderId: String(payment.orderId), amount: payment.amount },
+    });
+    return commission;
   });
 
   return {
     payment: payment.toPublic(),
-    commission: commission.toPublic(),
+    commission: captured.toPublic(),
     duplicated: false,
   };
 }
@@ -164,12 +167,14 @@ async function refund(paymentId, adminId, reason = '') {
   if (payment.status !== PAYMENT_STATUS.PAID) {
     throw new ApiError(409, 'Only PAID payments can be refunded');
   }
-  payment.status = PAYMENT_STATUS.REFUNDED;
-  payment.refundedAt = new Date();
-  payment.metadata = { ...(payment.metadata || {}), refundReason: reason || 'Admin refund' };
-  await payment.save();
-  await commissionService.reverseForPayment(payment._id);
-  await syncOrderPaymentStatus(payment.orderId);
+  await runInTransaction(async (tx) => {
+    payment.status = PAYMENT_STATUS.REFUNDED;
+    payment.refundedAt = new Date();
+    payment.metadata = { ...(payment.metadata || {}), refundReason: reason || 'Admin refund' };
+    await payment.save(tx);
+    await commissionService.reverseForPayment(payment._id, tx);
+    await syncOrderPaymentStatus(payment.orderId, tx);
+  });
 
   await notify({
     userId: payment.customerId,

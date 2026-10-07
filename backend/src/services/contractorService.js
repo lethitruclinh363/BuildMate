@@ -1,17 +1,13 @@
-const {
-  ContractorProfile,
-  VERIFICATION_STATUS,
-  DOCUMENT_TYPE,
-} = require('../models/ContractorProfile');
-const { User, USER_STATUS } = require('../models/User');
-const { Store, STORE_TYPE } = require('../models/Store');
+const { VERIFICATION_STATUS, DOCUMENT_TYPE } = require('../models/ContractorProfile');
+const { USER_STATUS } = require('../models/User');
+const { STORE_TYPE } = require('../models/Store');
+const { ContractorProfile, Store, loadUser, updateUser, findUsersByRole } = require('../repositories/partnerAccess');
 const storeService = require('./storeService');
-const { Service } = require('../models/Service');
+const { Service } = require('../repositories/offeringAccess');
 const { ApiError } = require('../utils/ApiError');
 const { MIME_BY_EXT, extensionOf } = require('../utils/upload');
 const { ensureContractorProfile } = require('../middleware/contractorMiddleware');
 const { setProfileStatus, PROFILE_STATUS } = require('./profileStatusService');
-const { ContractorEkycVerification } = require('../models/ContractorEkycVerification');
 const { EKYC_STATUS } = require('./ekycStatus');
 const { servicesBlockReason } = require('../constants/contractorServices');
 const catalogService = require('./catalogService');
@@ -70,7 +66,7 @@ async function updateProfile(userId, payload) {
 
   assertVerificationEditable(profile);
 
-  const user = await User.findById(userId).select('role');
+  const user = await loadUser(userId);
   const rest = { ...payload };
   delete rest.services;
   delete rest.completedSteps;
@@ -91,7 +87,7 @@ async function updateProfile(userId, payload) {
   if (Array.isArray(payload.completedSteps)) {
     const steps = payload.completedSteps.map((flag) => flag === true);
     if (steps[4] === true) {
-      const owner = await User.findById(userId).select('role');
+      const owner = await loadUser(userId);
       if (!verificationDocsReady(profile, owner?.role)) {
         throw new ApiError(400, 'Verification documents are incomplete');
       }
@@ -382,13 +378,30 @@ function applicationReady(profile, role) {
     && hasDocument(profile, new Set(['STORE_IMAGE', 'PORTFOLIO']));
 }
 
+async function identitySubmitted(userId) {
+  const { postgres } = require('../repositories/partnerAccess');
+  if (!postgres) {
+    const { ContractorEkycVerification } = require('../models/ContractorEkycVerification');
+    const ekyc = await ContractorEkycVerification.findOne({ userId }).select('status');
+    return ekyc?.status === EKYC_STATUS.SUBMITTED;
+  }
+  const { prisma } = require('../config/prisma');
+  const owner = await prisma.users.findFirst({
+    where: { legacy_mongo_id: String(userId) },
+    select: { id: true },
+  });
+  if (!owner) return false;
+  const row = await prisma.contractor_ekyc_verifications.findUnique({ where: { user_id: owner.id } });
+  return row?.status === EKYC_STATUS.SUBMITTED;
+}
+
 async function submitVerification(userId, payload) {
   if (payload?.acceptedTerms !== true) {
     throw new ApiError(400, 'You must accept the Terms of Service');
   }
 
   const profile = await ensureContractorProfile(userId);
-  const user = await User.findById(userId).select('role');
+  const user = await loadUser(userId);
   if (user?.role === 'CONTRACTOR') {
     profile.services = await catalogService.resolveProfileServices(profile.services, profile.services, userId);
     profile.markModified('services');
@@ -412,8 +425,8 @@ async function submitVerification(userId, payload) {
   }
 
   if (user?.role === 'CONTRACTOR') {
-    const ekyc = await ContractorEkycVerification.findOne({ userId }).select('status');
-    if (!ekyc || ekyc.status !== EKYC_STATUS.SUBMITTED) {
+    const submitted = await identitySubmitted(userId);
+    if (!submitted) {
       throw new ApiError(400, 'Complete identity verification before submitting');
     }
   }
@@ -431,7 +444,7 @@ async function submitVerification(userId, payload) {
   profile.rejectionReason = '';
   await profile.save();
 
-  await User.findByIdAndUpdate(userId, {
+  await updateUser(userId, {
     status: USER_STATUS.PENDING_VERIFICATION,
     profileStatus: PROFILE_STATUS.SUBMITTED,
   });
@@ -439,11 +452,12 @@ async function submitVerification(userId, payload) {
 }
 
 async function getMaterialWorkspace(userId) {
-  const profile = await ensureContractorProfile(userId);
-  await storeService.enforceStoreType(userId, STORE_TYPE.MATERIALS);
-  const store = await Store.findOne({ contractorId: userId });
+  const [profile, store] = await Promise.all([
+    ensureContractorProfile(userId),
+    Store.findOne({ contractorId: userId }),
+  ]);
   const activationService = require('./activation.service');
-  const activation = await activationService.getActivationReadiness(userId);
+  const activation = await activationService.getActivationReadiness(userId, { profile, store });
   return {
     profile: profile.toPublic(),
     store: store ? store.toPublic() : null,
@@ -458,7 +472,7 @@ async function requestVerificationChange(userId, note) {
     throw new ApiError(409, 'Only a verified partner can request an update');
   }
   const text = String(note || '').trim();
-  const actor = await User.findById(userId).select('role');
+  const actor = await loadUser(userId);
   const storeOwner = actor?.role === 'MATERIAL_STORE_OWNER' || actor?.role === 'STORE';
   await writeAudit({
     actorId: userId,
@@ -468,7 +482,7 @@ async function requestVerificationChange(userId, note) {
     entityId: profile._id,
     meta: { kind: 'verification-change-request', note: text },
   });
-  const admins = await User.find({ role: 'ADMIN' }).select('_id');
+  const admins = await findUsersByRole('ADMIN');
   await Promise.all(admins.map((admin) => notify({
     userId: admin._id,
     title: 'Verification update requested',
@@ -483,11 +497,10 @@ async function requestVerificationChange(userId, note) {
 async function getWorkspace(userId) {
   const profile = await ensureContractorProfile(userId);
   await catalogService.syncCustomStatuses(profile);
-  await storeService.enforceStoreType(userId, STORE_TYPE.SERVICES);
   const store = await Store.findOne({ contractorId: userId });
   const services = store ? await Service.countDocuments({ storeId: store._id }) : 0;
   const activationService = require('./activation.service');
-  const activation = await activationService.getActivationReadiness(userId);
+  const activation = await activationService.getActivationReadiness(userId, { profile, store });
 
   return {
     profile: profile.toPublic(),

@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 
 const POLICY_TYPES = Object.freeze({
   TERMS_OF_SERVICE: 'TERMS_OF_SERVICE',
@@ -17,6 +16,10 @@ const POLICY_STATUS = Object.freeze({
   INACTIVE: 'INACTIVE',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const policySchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true, maxlength: 160 },
@@ -34,5 +37,12 @@ const policySchema = new mongoose.Schema(
 policySchema.index({ type: 1, language: 1, status: 1 });
 
 const Policy = mongoose.models.Policy || mongoose.model('Policy', policySchema);
+  built = { Policy };
+  return built;
+}
 
-module.exports = { Policy, POLICY_TYPES, POLICY_STATUS };
+module.exports = {
+  POLICY_TYPES,
+  POLICY_STATUS,
+  get Policy() { return build().Policy; },
+};

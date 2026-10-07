@@ -8,7 +8,6 @@ export function useContractorWorkspace() {
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    setLoading(true);
     setError('');
     try {
       const res = await contractorApi.workspace();

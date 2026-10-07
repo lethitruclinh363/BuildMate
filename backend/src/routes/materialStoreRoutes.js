@@ -1,6 +1,7 @@
 const express = require('express');
 const { ROLES } = require('../models/User');
-const { Store, STORE_TYPE } = require('../models/Store');
+const { STORE_TYPE } = require('../models/Store');
+const { ContractorProfile, Store } = require('../repositories/partnerAccess');
 const { authenticate } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 const { validate } = require('../utils/validator');
@@ -16,7 +17,7 @@ const {
 } = require('../validators/partner.validator');
 const { updateMaterialOrderStatusSchema } = require('../validators/material-order.validator');
 const { verificationUpload } = require('../middleware/uploadMiddleware');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
 const { ApiError } = require('../utils/ApiError');
 const { asyncHandler } = require('../utils/asyncHandler');
 const storeController = require('../controllers/storeController');

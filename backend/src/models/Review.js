@@ -1,10 +1,13 @@
-const mongoose = require('mongoose');
 
 const REVIEW_TARGET = Object.freeze({
   CONTRACTOR: 'CONTRACTOR',
   MATERIAL_STORE: 'MATERIAL_STORE',
 });
 
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const reviewSchema = new mongoose.Schema(
   {
     orderId: {
@@ -62,5 +65,11 @@ reviewSchema.methods.toPublic = function toPublic() {
 };
 
 const Review = mongoose.model('Review', reviewSchema);
+  built = { Review };
+  return built;
+}
 
-module.exports = { Review, REVIEW_TARGET };
+module.exports = {
+  REVIEW_TARGET,
+  get Review() { return build().Review; },
+};

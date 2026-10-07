@@ -1,4 +1,6 @@
-const { AuditLog, AUDIT_ACTION } = require('../models/AuditLog');
+const { AUDIT_ACTION } = require('../models/AuditLog');
+const { AuditLog } = require('../repositories/systemAccess');
+const { findUsersByIds } = require('../repositories/partnerAccess');
 
 async function writeAudit({ actorId, actorRole = '', action, entityType, entityId = '', meta = {}, ip = '' }) {
   const doc = await AuditLog.create({
@@ -27,14 +29,18 @@ async function listAudit({ action, limit = 50 } = {}) {
   if (action) filter.action = action;
   const rows = await AuditLog.find(filter)
     .sort({ createdAt: -1 })
-    .limit(Math.min(Number(limit) || 50, 200))
-    .populate('actorId', 'name email role');
-  return rows.map((row) => ({
-    ...row.toPublic(),
-    actor: row.actorId
-      ? { id: row.actorId._id, name: row.actorId.name, email: row.actorId.email, role: row.actorId.role }
-      : null,
-  }));
+    .limit(Math.min(Number(limit) || 50, 200));
+  const actors = await findUsersByIds(rows.map((row) => row.actorId).filter(Boolean));
+  const byId = new Map(actors.map((actor) => [String(actor._id), actor]));
+  return rows.map((row) => {
+    const actor = row.actorId ? byId.get(String(row.actorId)) : null;
+    return {
+      ...row.toPublic(),
+      actor: actor
+        ? { id: actor._id, name: actor.name, email: actor.email, role: actor.role }
+        : null,
+    };
+  });
 }
 
 module.exports = { writeAudit, fromRequest, listAudit, AUDIT_ACTION };

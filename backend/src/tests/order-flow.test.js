@@ -4,17 +4,9 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
-let mongoose;
-let connectDatabase;
+const { createUser } = require('./helpers/party');
+const { deleteFixtureUsers, testDatabaseReady } = require('./helpers/pg-cleanup');
 let dbReady = false;
-let skipReason = '';
-
-try {
-  ({ connectDatabase } = require('../config/database'));
-  mongoose = require('mongoose');
-} catch (err) {
-  skipReason = err.message;
-}
 
 const ids = {
   users: [],
@@ -28,72 +20,47 @@ const ids = {
 
 describe('Sprint 5.1 order execution flow', { timeout: 60000 }, () => {
   before(async () => {
-    if (!connectDatabase) return;
-    try {
-      await connectDatabase();
-      dbReady = true;
-    } catch (err) {
-      skipReason = err.message;
-    }
+    dbReady = testDatabaseReady();
   });
 
   after(async () => {
     if (!dbReady) return;
-    const { User } = require('../models/User');
-    const { RepairRequest } = require('../models/RepairRequest');
-    const { Quotation } = require('../models/Quotation');
-    const { Order } = require('../models/Order');
-    const { Payment } = require('../models/Payment');
-    const { ProgressUpdate } = require('../models/ProgressUpdate');
-    const { Notification } = require('../models/Notification');
-
-    await Promise.all([
-      User.deleteMany({ _id: { $in: ids.users } }),
-      RepairRequest.deleteMany({ _id: { $in: ids.requests } }),
-      Quotation.deleteMany({ _id: { $in: ids.quotations } }),
-      Order.deleteMany({ _id: { $in: ids.orders } }),
-      Payment.deleteMany({ _id: { $in: ids.payments } }),
-      ProgressUpdate.deleteMany({ _id: { $in: ids.progress } }),
-      Notification.deleteMany({ userId: { $in: ids.users } }),
-    ]);
-    const { stopMongo } = require('./helpers/mongo');
-    await stopMongo();
+    await deleteFixtureUsers(ids.users);
   });
 
   it('accepts a quotation once, lets the contractor record progress, and blocks a duplicate order', async (t) => {
     if (!dbReady) {
-      t.skip(skipReason || 'MongoDB is not available');
+      t.skip('PostgreSQL test database is not available');
       return;
     }
 
-    const { User, ROLES, USER_STATUS } = require('../models/User');
-    const { RepairRequest, REPAIR_CATEGORY, REQUEST_STATUS } = require('../models/RepairRequest');
-    const { Quotation, QUOTE_ITEM_TYPE, QUOTATION_STATUS } = require('../models/Quotation');
-    const { Order } = require('../models/Order');
-    const { Payment } = require('../models/Payment');
-    const { ProgressUpdate } = require('../models/ProgressUpdate');
-    const { Notification, NOTIFICATION_TYPE } = require('../models/Notification');
+    const { ROLES } = require('../models/user.model');
+    const { REPAIR_CATEGORY, REQUEST_STATUS } = require('../models/RepairRequest');
+    const { QUOTE_ITEM_TYPE, QUOTATION_STATUS } = require('../models/Quotation');
+    const { NOTIFICATION_TYPE } = require('../models/Notification');
+    const { Quotation } = require('../repositories/conversationAccess');
+    const repairAccess = require('../repositories/conversationAccess');
+    const { Order, Payment, ProgressUpdate } = require('../repositories/commerceAccess');
+    const { Notification } = require('../repositories/systemAccess');
     const { customerAction } = require('../services/quotationService');
     const progressService = require('../services/progressService');
 
     const stamp = Date.now();
-    const customer = await User.create({
+    const customer = await createUser({
       name: 'Sprint51 Customer',
       email: `s51.customer.${stamp}@buildmate.test`,
       password: 'Demo@1234',
       role: ROLES.CUSTOMER,
-      status: USER_STATUS.ACTIVE,
     });
-    const contractor = await User.create({
+    const contractor = await createUser({
       name: 'Sprint51 Contractor',
       email: `s51.contractor.${stamp}@buildmate.test`,
       password: 'Demo@1234',
       role: ROLES.CONTRACTOR,
-      status: USER_STATUS.ACTIVE,
     });
     ids.users.push(customer._id, contractor._id);
 
-    const request = await RepairRequest.create({
+    const request = await repairAccess.RepairRequest.create({
       customerId: customer._id,
       contractorId: contractor._id,
       category: REPAIR_CATEGORY.PLUMBING,

@@ -1,32 +1,41 @@
-const { User, ROLES, USER_STATUS } = require('../../models/User');
-const { RepairRequest, REPAIR_CATEGORY, REQUEST_STATUS } = require('../../models/RepairRequest');
-const { Quotation, QUOTE_ITEM_TYPE, QUOTATION_STATUS } = require('../../models/Quotation');
+const { ROLES, USER_STATUS } = require('../../models/user.model');
+const { REPAIR_CATEGORY, REQUEST_STATUS } = require('../../models/RepairRequest');
+const { QUOTE_ITEM_TYPE, QUOTATION_STATUS } = require('../../models/Quotation');
+const { userRepository } = require('../../repositories/userRepository');
+const { RepairRequest, Quotation } = require('../../repositories/conversationAccess');
 const { signToken } = require('../../services/authService');
+const { assertTestDatabase, deleteFixtureUsers } = require('./pg-cleanup');
+
+async function createUser(fields) {
+  assertTestDatabase();
+  if (!String(fields.email || '').toLowerCase().endsWith('@buildmate.test')) {
+    throw new Error('Test fixtures must use an @buildmate.test email');
+  }
+  return userRepository.create({
+    status: USER_STATUS.ACTIVE,
+    emailVerified: true,
+    ...fields,
+  });
+}
 
 async function createParty(stamp = Date.now()) {
-  const customer = await User.create({
+  const customer = await createUser({
     name: 'E2E Customer',
     email: `e2e.customer.${stamp}@buildmate.test`,
     password: 'Demo@1234',
     role: ROLES.CUSTOMER,
-    status: USER_STATUS.ACTIVE,
-    emailVerified: true,
   });
-  const contractor = await User.create({
+  const contractor = await createUser({
     name: 'E2E Contractor',
     email: `e2e.contractor.${stamp}@buildmate.test`,
     password: 'Demo@1234',
     role: ROLES.CONTRACTOR,
-    status: USER_STATUS.ACTIVE,
-    emailVerified: true,
   });
-  const stranger = await User.create({
+  const stranger = await createUser({
     name: 'E2E Stranger',
     email: `e2e.stranger.${stamp}@buildmate.test`,
     password: 'Demo@1234',
     role: ROLES.CUSTOMER,
-    status: USER_STATUS.ACTIVE,
-    emailVerified: true,
   });
 
   const request = await RepairRequest.create({
@@ -69,30 +78,7 @@ async function createParty(stamp = Date.now()) {
 
 async function cleanupParty(party) {
   if (!party) return;
-  const { Order } = require('../../models/Order');
-  const { Payment } = require('../../models/Payment');
-  const { ProgressUpdate } = require('../../models/ProgressUpdate');
-  const { Notification } = require('../../models/Notification');
-  const { Quotation } = require('../../models/Quotation');
-  const { RepairRequest } = require('../../models/RepairRequest');
-  const { User } = require('../../models/User');
-
-  const order = await Order.findOne({ quotationId: party.quotation._id });
-  const { Commission } = require('../../models/Commission');
-  const { Review } = require('../../models/Review');
-  const { Complaint } = require('../../models/Complaint');
-  await Promise.all([
-    order ? Payment.deleteMany({ orderId: order._id }) : null,
-    order ? Commission.deleteMany({ orderId: order._id }) : null,
-    order ? Review.deleteMany({ orderId: order._id }) : null,
-    order ? Complaint.deleteMany({ orderId: order._id }) : null,
-    order ? ProgressUpdate.deleteMany({ orderId: order._id }) : null,
-    order ? Order.deleteOne({ _id: order._id }) : null,
-    Notification.deleteMany({ userId: { $in: party.ids } }),
-    Quotation.deleteOne({ _id: party.quotation._id }),
-    RepairRequest.deleteOne({ _id: party.request._id }),
-    User.deleteMany({ _id: { $in: party.ids } }),
-  ]);
+  await deleteFixtureUsers(party.ids || [party.customer?._id, party.contractor?._id, party.stranger?._id]);
 }
 
-module.exports = { createParty, cleanupParty };
+module.exports = { createUser, createParty, cleanupParty, deleteFixtureUsers, ROLES, USER_STATUS };

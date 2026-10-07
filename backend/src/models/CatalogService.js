@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const { CONTRACTOR_SERVICE_CATEGORIES } = require('../constants/contractorServices');
 
 const CATALOG_STATUS = Object.freeze({
@@ -12,6 +11,11 @@ const CATALOG_STATUS = Object.freeze({
 const LIVE_CATALOG_STATUSES = Object.freeze([CATALOG_STATUS.ACTIVE, CATALOG_STATUS.APPROVED]);
 
 // Shared BuildMate catalog. Priced contractor offerings stay on the Service model.
+
+let built;
+function build() {
+  if (built) return built;
+  const mongoose = require('mongoose');
 const catalogServiceSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 80 },
@@ -55,5 +59,12 @@ catalogServiceSchema.methods.toPublic = function toPublic() {
 };
 
 const CatalogService = mongoose.models.CatalogService || mongoose.model('CatalogService', catalogServiceSchema);
+  built = { CatalogService };
+  return built;
+}
 
-module.exports = { CatalogService, CATALOG_STATUS, LIVE_CATALOG_STATUSES };
+module.exports = {
+  CATALOG_STATUS,
+  LIVE_CATALOG_STATUSES,
+  get CatalogService() { return build().CatalogService; },
+};

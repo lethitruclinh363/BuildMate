@@ -1,5 +1,6 @@
-const { User, ROLES, PROFILE_STATUS } = require('../models/user.model');
-const { ContractorProfile, VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { ROLES, PROFILE_STATUS } = require('../models/user.model');
+const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+const { ContractorProfile, updateUser } = require('../repositories/partnerAccess');
 
 const PARTNER_ROLES = new Set([ROLES.CONTRACTOR, ROLES.MATERIAL_STORE_OWNER]);
 
@@ -31,7 +32,7 @@ async function syncUserProfileStatus(user) {
 }
 
 async function setProfileStatus(userId, status) {
-  await User.findByIdAndUpdate(userId, { profileStatus: status });
+  await updateUser(userId, { profileStatus: status });
 }
 
 module.exports = {
