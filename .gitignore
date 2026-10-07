@@ -47,3 +47,4 @@ ekyc-service/.pytest_cache/
 ekyc-service/.env
 ekyc-service/.cache/
 *.pyc
+*.zip
