@@ -51,14 +51,14 @@ const variantTheme: Record<
 > = {
   customer: {
     aside: 'bg-navy-800',
-    activeNav: 'bg-white/10 font-semibold text-white ring-1 ring-copper-400/40',
+    activeNav: 'bg-white/10 font-semibold text-white',
     header: 'bg-paper-50/90',
     main: 'bg-mist-100',
     dense: false,
   },
   contractor: {
-    aside: 'bg-[#071f33]',
-    activeNav: 'bg-copper-500/20 font-semibold text-white ring-1 ring-copper-400/50',
+    aside: 'bg-[#29404d]',
+    activeNav: 'bg-white/10 font-semibold text-white',
     header: 'bg-paper-50/95',
     main: 'bg-[#f3f5f8]',
     dense: true,
@@ -92,10 +92,12 @@ export function DashboardShell({
 
   if (!user) return null;
 
+  const dashboardPath = variant === 'customer' ? '/customer/dashboard' : user.role === 'MATERIAL_STORE_OWNER' ? '/store/dashboard' : '/contractor/dashboard';
+
   const sidebar = (
     <>
       <div className={cn('flex items-center justify-between px-4', theme.dense ? 'h-14' : 'h-16')}>
-        <Logo inverted compact={collapsed && !mobileOpen} />
+        <Logo inverted compact={collapsed && !mobileOpen} to={dashboardPath} />
         <button
           type="button"
           onClick={() => (mobileOpen ? setMobileOpen(false) : setCollapsed((v) => !v))}
@@ -120,7 +122,7 @@ export function DashboardShell({
                 onClick={() => setMobileOpen(false)}
                 className={() =>
                   cn(
-                    'flex items-center gap-3 rounded-2xl px-3 text-sm font-medium text-white/70 hover:bg-white/8 hover:text-white',
+                    'flex items-center gap-3 rounded-xl border-l-2 border-transparent px-3 text-sm font-medium text-white/70 hover:bg-white/8 hover:text-white',
                     theme.dense ? 'py-2' : 'py-2.5',
                     active && theme.activeNav
                   )
@@ -136,7 +138,7 @@ export function DashboardShell({
       <div className="border-t border-white/10 p-3">
         <button
           type="button"
-          className={cn('flex w-full items-center gap-3 rounded-2xl bg-white/8 p-2 text-left', collapsed && !mobileOpen && 'justify-center')}
+          className={cn('flex w-full items-center gap-3 p-2 text-left', collapsed && !mobileOpen && 'justify-center')}
           onClick={() => {
             setMobileOpen(false);
             navigate(accountPath(user.role));

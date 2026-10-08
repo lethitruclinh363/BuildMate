@@ -4,13 +4,13 @@
 
 :root {
   color-scheme: dark;
-  --admin-bg: #070b14;
-  --admin-surface: #0b1220;
+  --admin-bg: #071e32;
+  --admin-surface: #0b2e4a;
 }
 
 html[data-theme='oled'] {
   --admin-bg: #000000;
-  --admin-surface: #050505;
+  --admin-surface: #071e32;
 }
 
 html,
@@ -23,7 +23,7 @@ body,
 body {
   margin: 0;
   background: var(--admin-bg);
-  color: #e8edf7;
+  color: #fbf9f4;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: 16px;
   font-weight: 400;
@@ -55,21 +55,83 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(200, 148, 69, 0.28);
+  background: rgba(201, 132, 42, 0.42);
   border-radius: 999px;
 }
 
 ::selection {
-  background: rgba(200, 148, 69, 0.35);
+  background: rgba(201, 132, 42, 0.35);
 }
 
 @layer components {
   .glass-card {
-    @apply rounded-xl border border-white/10 bg-white/[0.03] shadow-none;
+    @apply rounded-xl border border-white/10 bg-navy-900/70 shadow-none;
   }
 }
 
 html[data-theme='oled'] .glass-card {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Keep the admin navigation branded and dark while matching the user dashboards in the workspace area. */
+.admin-shell > div {
+  background-color: #f3f5f8 !important;
+  color: #1a2332;
+}
+
+.admin-shell > div .glass-card,
+.admin-shell > div .bg-navy-900\/70 {
+  background-color: #ffffff !important;
+  border-color: rgba(11, 46, 74, 0.1);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.admin-shell > div .bg-navy-900\/40,
+.admin-shell > div .bg-navy-900 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.admin-shell > div .bg-navy-950\/60,
+.admin-shell > div .bg-navy-950\/40 {
+  background-color: #f7f8f9 !important;
+}
+
+.admin-shell > div [class~='bg-white/[0.03]'],
+.admin-shell > div [class~='bg-white/5'],
+.admin-shell > div [class~='bg-white/8'],
+.admin-shell > div [class~='bg-white/10'] {
+  background-color: rgba(11, 46, 74, 0.05) !important;
+}
+
+.admin-shell > div [class~='text-white'],
+.admin-shell > div [class~='text-white/80'],
+.admin-shell > div [class~='text-white/70'],
+.admin-shell > div [class~='text-white/60'],
+.admin-shell > div [class~='text-white/55'],
+.admin-shell > div [class~='text-white/50'],
+.admin-shell > div [class~='text-white/45'],
+.admin-shell > div [class~='text-white/40'],
+.admin-shell > div [class~='text-white/35'],
+.admin-shell > div [class~='text-white/30'] {
+  color: #1a2332 !important;
+}
+
+.admin-shell > div [class~='border-white/15'],
+.admin-shell > div [class~='border-white/12'],
+.admin-shell > div [class~='border-white/10'],
+.admin-shell > div [class~='border-white/8'],
+.admin-shell > div [class~='border-white/6'] {
+  border-color: rgba(11, 46, 74, 0.1) !important;
+}
+
+.admin-shell > div [class~='hover:bg-white/6']:hover,
+.admin-shell > div [class~='hover:bg-white/8']:hover {
+  background-color: rgba(11, 46, 74, 0.06) !important;
+}
+
+.admin-shell > div input,
+.admin-shell > div textarea,
+.admin-shell > div select {
+  color: #1a2332;
 }

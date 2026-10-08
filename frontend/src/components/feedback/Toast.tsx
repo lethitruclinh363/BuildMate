@@ -25,7 +25,7 @@ export function ToastViewport() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               className={cn(
-                'pointer-events-auto flex items-start gap-3 rounded-2xl border bg-white p-4 shadow-lift',
+                'pointer-events-auto flex items-start gap-3 rounded-xl border bg-white p-4',
                 item.kind === 'error' && 'border-red-100',
                 item.kind === 'success' && 'border-emerald-100',
                 item.kind === 'info' && 'border-navy-800/10'

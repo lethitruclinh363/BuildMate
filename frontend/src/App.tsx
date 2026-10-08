@@ -122,7 +122,7 @@ export function App() {
           </Route>
 
           <Route element={<ProtectedRoute roles={['CUSTOMER']} />}>
-            <Route element={<MainLayout />}>
+            <Route element={<CustomerLayout />}>
               <Route path="/cart" element={<MaterialCartPage />} />
             </Route>
           </Route>
