@@ -6,19 +6,19 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          950: '#070b14',
-          900: '#0b1220',
-          800: '#111b2e',
-          700: '#18253d',
-          600: '#243552',
-          500: '#3a4d6e',
+          950: '#071e32',
+          900: '#0b2e4a',
+          800: '#0f4c81',
+          700: '#165a8a',
+          600: '#1e6493',
+          500: '#3b7eaa',
         },
         copper: {
-          300: '#e4c9a0',
-          400: '#d4af77',
-          500: '#c89445',
-          600: '#b08b4f',
-          700: '#8c6d3a',
+          300: '#ebc894',
+          400: '#c9842a',
+          500: '#b8612a',
+          600: '#9a4c1f',
+          700: '#7a3c19',
         },
       },
       fontFamily: {
@@ -33,9 +33,9 @@ const config: Config = {
       },
       backgroundImage: {
         'admin-grid':
-          'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+          'linear-gradient(rgba(201,132,42,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(201,132,42,0.06) 1px, transparent 1px)',
         'admin-glow':
-          'radial-gradient(ellipse at 12% -10%, rgba(201,163,106,0.18), transparent 42%), radial-gradient(ellipse at 90% 0%, rgba(36,80,140,0.22), transparent 40%)',
+          'radial-gradient(ellipse at 12% -10%, rgba(201,132,42,0.18), transparent 42%), radial-gradient(ellipse at 90% 0%, rgba(30,100,147,0.22), transparent 40%)',
       },
     },
   },

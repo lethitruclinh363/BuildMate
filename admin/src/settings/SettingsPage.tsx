@@ -5,13 +5,10 @@ import { GlassCard } from '@/components/GlassCard';
 import { PageHeader } from '@/components/PageHeader';
 import { roleLabel } from '@/lib/utils';
 import { setAdminLanguage } from '@/locales/i18n';
-import { applyAdminTheme, useUiStore } from '@/stores/ui.store';
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
-  const theme = useUiStore((s) => s.theme);
-  const setTheme = useUiStore((s) => s.setTheme);
 
   return (
     <div>
@@ -41,24 +38,6 @@ export function SettingsPage() {
                 }`}
               >
                 {lng.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          <p className="mt-6 text-sm text-white/60">{t('shell.appearance')}</p>
-          <div className="mt-3 flex gap-2">
-            {(['dark', 'oled'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => {
-                  setTheme(mode);
-                  applyAdminTheme(mode);
-                }}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold ${
-                  theme === mode ? 'bg-copper-500 text-navy-950' : 'bg-white/8 text-white/70'
-                }`}
-              >
-                {mode === 'dark' ? t('shell.dark') : t('shell.oled')}
               </button>
             ))}
           </div>

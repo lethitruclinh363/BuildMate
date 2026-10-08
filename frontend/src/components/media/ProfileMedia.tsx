@@ -42,6 +42,13 @@ export function MediaFrame({
   }
 
   const status = visual.src === resolved ? visual.status : 'loading';
+  const defaultAspect = frameClassName.includes('aspect-')
+    ? ''
+    : fit === 'logo'
+      ? 'aspect-square'
+      : fit === 'cover'
+        ? 'aspect-[21/9]'
+        : 'aspect-[4/3]';
 
   useLayoutEffect(() => {
     const image = imgRef.current;
@@ -61,7 +68,7 @@ export function MediaFrame({
   }, [resolved]);
 
   return (
-    <div className={`relative w-full overflow-hidden bg-navy-800/5 ${frameClassName}`}>
+    <div className={`relative w-full overflow-hidden bg-navy-800/5 ${defaultAspect} ${frameClassName}`}>
       {!src ? (
         empty ?? null
       ) : status === 'error' ? (

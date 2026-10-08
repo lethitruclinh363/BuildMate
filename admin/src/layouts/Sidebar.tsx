@@ -1,15 +1,14 @@
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import {
   BadgeCheck,
   BarChart3,
   Building2,
   ClipboardList,
   CreditCard,
-  Flag,
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard,
-  PanelLeftClose,
   Percent,
   Scale,
   ScrollText,
@@ -22,7 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth.store';
-import { cn } from '@/lib/utils';
+import { cn, roleLabel } from '@/lib/utils';
 import { useUiStore } from '@/stores/ui.store';
 
 const items = [
@@ -53,7 +52,6 @@ const systemItems = [
 export function Sidebar() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const collapsed = useUiStore((s) => s.collapsed);
   const mobileOpen = useUiStore((s) => s.mobileOpen);
   const toggleCollapsed = useUiStore((s) => s.toggleCollapsed);
@@ -69,18 +67,17 @@ export function Sidebar() {
         onClick={() => setMobileOpen(false)}
         className={({ isActive }) =>
           cn(
-            'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/55 transition hover:bg-white/6 hover:text-white',
+            'group relative flex items-center gap-3 rounded-xl border-l-2 border-transparent px-3 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/8 hover:text-white',
             collapsed && 'justify-center px-2',
-            isActive && 'bg-copper-500/15 font-semibold text-copper-300'
+            isActive && 'bg-white/10 font-semibold text-white'
           )
         }
       >
-        {({ isActive }) => (
+        {() => (
           <>
-            {isActive ? <span className="absolute left-0 top-1.5 h-7 w-0.5 rounded-full bg-copper-400 shadow-[0_0_12px_#c89445]" /> : null}
-            <motion.span whileHover={{ scale: 1.12 }} className="grid place-items-center">
+            <span className="grid place-items-center">
               <Icon className="h-4 w-4" />
-            </motion.span>
+            </span>
             {!collapsed ? t(`nav.${item.key}`) : null}
           </>
         )}
@@ -90,18 +87,21 @@ export function Sidebar() {
 
   const nav = (
     <>
-      <div className={cn('flex items-center gap-3 px-4 py-6', collapsed && 'justify-center px-2')}>
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-copper-500 text-navy-950">
-          <Flag className="h-5 w-5" />
-        </div>
+      <div className={cn('flex h-14 items-center justify-between px-4', collapsed && 'justify-center px-2')}>
+        <img src="/brand-logo.png" alt="BuildMate" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
         {!collapsed ? (
           <div className="min-w-0">
-            <p className="truncate font-display text-base font-semibold text-white">{t('brand')}</p>
-            <p className="truncate text-[11px] uppercase tracking-[0.18em] text-copper-400">{t('tagline')}</p>
+            <p className="truncate font-display text-[17px] font-bold tracking-tight text-white">{t('brand')}</p>
+            <p className="truncate text-[11px] font-medium text-white/70">{t('tagline')}</p>
           </div>
         ) : null}
-        <button type="button" className="ml-auto text-white/50 lg:hidden" onClick={() => setMobileOpen(false)}>
-          <X className="h-4 w-4" />
+        <button
+          type="button"
+          className="rounded-full bg-white/10 p-2 text-white/80 hover:bg-white/15"
+          onClick={() => (mobileOpen ? setMobileOpen(false) : toggleCollapsed())}
+          aria-label={collapsed ? t('shell.expand') : t('shell.collapse')}
+        >
+          {mobileOpen ? <X className="h-4 w-4" /> : collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
       <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
@@ -115,28 +115,24 @@ export function Sidebar() {
         </p>
         {systemItems.map((item) => renderNavItem(item))}
       </nav>
-      <div className="mt-auto border-t border-white/8">
+      <div className="mt-auto border-t border-white/10 p-3">
         {!collapsed && user ? (
-          <div className="px-4 py-3">
-            <p className="truncate text-sm font-medium text-white">{user.name}</p>
-            <p className="truncate text-[11px] text-white/40">{user.email}</p>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className="mt-2 text-xs text-white/45 hover:text-white"
-            >
-              {t('common.logout')}
-            </button>
+          <div className="flex items-center gap-3 px-1 py-1">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-800 text-sm font-bold text-white">
+              {user.name
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join('')
+                .toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+              <p className="truncate text-[11px] tracking-wider text-white/50">{roleLabel(user.role)}</p>
+            </div>
           </div>
         ) : null}
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          className="hidden w-full items-center gap-2 px-4 py-4 text-xs text-white/40 hover:text-white lg:flex"
-        >
-          <PanelLeftClose className="h-4 w-4" />
-          {!collapsed ? t('shell.collapse') : null}
-        </button>
       </div>
     </>
   );
@@ -148,10 +144,10 @@ export function Sidebar() {
       ) : null}
       <aside
         className={cn(
-          'z-50 flex h-screen shrink-0 flex-col border-r border-white/8 bg-navy-900 transition-[width,transform] duration-300',
+          'z-50 flex h-screen shrink-0 flex-col border-r border-white/10 bg-[#29404d] transition-[width,transform] duration-300',
           'fixed inset-y-0 left-0 lg:static lg:h-full',
-          collapsed ? 'lg:w-[84px]' : 'lg:w-[260px]',
-          mobileOpen ? 'w-[260px] translate-x-0' : '-translate-x-full lg:translate-x-0'
+          collapsed ? 'lg:w-[84px]' : 'lg:w-[244px]',
+          mobileOpen ? 'w-[244px] translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         {nav}

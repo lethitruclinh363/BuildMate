@@ -32,7 +32,8 @@ export default function Login() {
       const next = params.get('next');
       const safeNext = Boolean(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\'));
       const home = homeForUser(session.user);
-      const dest = home === '/partner/onboarding' ? home : safeNext && next ? next : home;
+      const partnerRole = session.user.role === 'CONTRACTOR' || session.user.role === 'MATERIAL_STORE_OWNER';
+      const dest = home === '/partner/onboarding' || partnerRole ? home : safeNext && next ? next : home;
       pushToast({ kind: 'success', title: t('auth.loginSuccess') });
       navigate(dest, { replace: true });
     } catch (err) {

@@ -24,7 +24,7 @@ export function MaterialCartPage() {
           <div className="mt-8">
             <p className="text-sm text-ink-600">{t('cart.empty')}</p>
             <Button asChild className="mt-4">
-              <Link to="/explore">{t('cart.browse')}</Link>
+              <Link to="/customer/explore">{t('cart.browse')}</Link>
             </Button>
           </div>
         ) : (

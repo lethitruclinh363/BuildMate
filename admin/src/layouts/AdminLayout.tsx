@@ -2,13 +2,12 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar } from '@/layouts/Sidebar';
 import { Topbar } from '@/layouts/Topbar';
-import { GlobalSearch } from '@/components/GlobalSearch';
 
 export function AdminLayout() {
   const location = useLocation();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--admin-bg)] text-white">
+    <div className="admin-shell flex h-screen overflow-hidden bg-[var(--admin-bg)] text-white">
       <Sidebar />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-navy-950">
         <Topbar />
@@ -26,7 +25,6 @@ export function AdminLayout() {
           </AnimatePresence>
         </main>
       </div>
-      <GlobalSearch />
     </div>
   );
 }

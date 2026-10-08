@@ -38,7 +38,7 @@ export function CustomerLayout() {
     <div className="min-h-screen bg-[#f6f7f4]">
       <header className="sticky top-0 z-40 border-b border-navy-800/8 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4">
-          <Logo />
+          <Logo to="/customer/dashboard" />
           <div className="ml-auto flex items-center gap-2">
             <LanguageSwitcher variant="light" placement="customer-header" className="hidden sm:inline-flex" />
             <CartLink />
@@ -82,8 +82,10 @@ export function CustomerLayout() {
                 end={item.end}
                 className={({ isActive }) =>
                   cn(
-                    'rounded-full px-3 py-1.5 text-sm font-medium text-ink-600 hover:bg-paper-100',
-                    isActive && 'bg-navy-800 text-white'
+                    'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-navy-800 text-white hover:bg-navy-800 hover:text-white'
+                      : 'text-ink-600 hover:bg-paper-100 hover:text-navy-800'
                   )
                 }
               >

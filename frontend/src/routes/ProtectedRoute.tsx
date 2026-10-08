@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ScreenLoader } from '@/components/motion/ScreenLoader';
-import { homeForUser, partnerGatePath, useAuth } from '@/context/AuthContext';
+import { homeForUser, isPartnerRole, partnerGatePath, useAuth } from '@/context/AuthContext';
 
 function normalizeRole(role: string) {
   if (role === 'MATERIAL_STORE_OWNER') return 'STORE';
@@ -67,7 +67,7 @@ export function GuestOnly() {
     if (home === '/partner/onboarding' || home === '/partner/onboarding/status') {
       return <Navigate to={home} replace />;
     }
-    if (safeNext && next) return <Navigate to={next} replace />;
+    if (safeNext && next && !isPartnerRole(currentUser.role)) return <Navigate to={next} replace />;
     if (home.startsWith('/customer') || home.startsWith('/contractor') || home.startsWith('/store') || home.startsWith('/partner')) {
       return <Navigate to={home} replace />;
     }

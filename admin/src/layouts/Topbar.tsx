@@ -1,29 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LogOut, Menu, Moon, Search, SunMedium, UserRound } from 'lucide-react';
+import { LogOut, Menu, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/auth/auth.store';
 import { NotificationCenter } from '@/components/NotificationCenter';
 import { roleLabel } from '@/lib/utils';
 import { setAdminLanguage } from '@/locales/i18n';
-import { applyAdminTheme, useUiStore } from '@/stores/ui.store';
+import { useUiStore } from '@/stores/ui.store';
 
 export function Topbar() {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const theme = useUiStore((s) => s.theme);
-  const setTheme = useUiStore((s) => s.setTheme);
-  const setSearchOpen = useUiStore((s) => s.setSearchOpen);
   const setMobileOpen = useUiStore((s) => s.setMobileOpen);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'oled' : 'dark';
-    setTheme(next);
-    applyAdminTheme(next);
-  };
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -47,27 +38,7 @@ export function Topbar() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setSearchOpen(true)}
-          className="hidden items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-white/50 md:flex"
-        >
-          <Search className="h-3.5 w-3.5" />
-          {t('shell.search')}
-          <kbd className="rounded border border-white/15 px-1.5 py-0.5 text-[10px]">Ctrl K</kbd>
-        </button>
-        <button type="button" className="rounded-xl border border-white/10 p-2 md:hidden" onClick={() => setSearchOpen(true)}>
-          <Search className="h-4 w-4" />
-        </button>
         <NotificationCenter />
-        <button
-          type="button"
-          onClick={toggleTheme}
-          title={theme === 'dark' ? t('shell.oled') : t('shell.dark')}
-          className="rounded-xl border border-white/10 p-2 text-white/70"
-        >
-          {theme === 'dark' ? <Moon className="h-4 w-4" /> : <SunMedium className="h-4 w-4" />}
-        </button>
         <button
           type="button"
           onClick={() => setAdminLanguage(i18n.language === 'vi' ? 'en' : 'vi')}
@@ -80,9 +51,9 @@ export function Topbar() {
           <button
             type="button"
             onClick={() => setProfileOpen((open) => !open)}
-            className="flex items-center gap-2 rounded-xl border border-white/10 px-2 py-1.5 text-left"
+            className="flex items-center gap-2 rounded-lg border border-white/10 px-2 py-1.5 text-left hover:bg-white/6"
           >
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-copper-500/15 text-copper-300">
+            <span className="grid h-8 w-8 place-items-center rounded-md bg-copper-500/15 text-copper-300">
               <UserRound className="h-4 w-4" />
             </span>
             <span className="hidden min-w-0 sm:block">
@@ -91,16 +62,18 @@ export function Topbar() {
             </span>
           </button>
           {profileOpen ? (
-            <div className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-white/10 bg-navy-900 p-3 shadow-xl">
-              <p className="truncate text-sm font-semibold text-white">{user?.name}</p>
-              <p className="truncate text-xs text-white/50">{user?.email}</p>
-              <p className="mt-2 inline-flex rounded-full border border-copper-500/30 px-2 py-0.5 text-[10px] uppercase tracking-wider text-copper-300">
+            <div className="absolute right-0 z-50 mt-2 w-60 rounded-lg border border-navy-800/10 bg-white p-2 shadow-md">
+              <div className="border-b border-navy-800/10 px-2 pb-2">
+                <p className="truncate text-sm font-semibold text-navy-800">{user?.name}</p>
+                <p className="truncate text-xs text-ink-400">{user?.email}</p>
+              </div>
+              <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-wider text-copper-600">
                 {roleLabel(user?.role)}
               </p>
               <Link
                 to="/settings"
                 onClick={() => setProfileOpen(false)}
-                className="mt-3 flex items-center gap-2 rounded-xl px-2 py-2 text-sm text-white/70 hover:bg-white/6 hover:text-white"
+                className="mt-2 flex items-center gap-2 rounded-md px-2 py-2 text-sm text-ink-600 hover:bg-paper-100 hover:text-navy-800"
               >
                 <UserRound className="h-4 w-4" />
                 {t('shell.profile')}
@@ -108,7 +81,7 @@ export function Topbar() {
               <button
                 type="button"
                 onClick={() => void logout()}
-                className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-sm text-red-300 hover:bg-white/6"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-red-600 hover:bg-red-50"
               >
                 <LogOut className="h-4 w-4" />
                 {t('common.logout')}

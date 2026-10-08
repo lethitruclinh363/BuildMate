@@ -49,7 +49,7 @@ export function MainLayout() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-navy-800/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 md:px-8">
-          <Logo inverted />
+          <Logo inverted to="/" />
           <nav className="hidden items-center gap-8 text-sm text-white/75 md:flex">{links}</nav>
           <div className="flex items-center gap-2">
             <LanguageSwitcher variant="dark" placement="main" className="hidden sm:inline-flex" />

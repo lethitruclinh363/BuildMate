@@ -6,13 +6,14 @@ import { useI18n } from '@/locales';
 interface LogoProps {
   inverted?: boolean;
   compact?: boolean;
+  to?: string;
   className?: string;
 }
 
-export function Logo({ inverted, compact, className }: LogoProps) {
+export function Logo({ inverted, compact, to = '/', className }: LogoProps) {
   const { t } = useI18n();
   return (
-    <Link to="/" className={cn('inline-flex items-center gap-2.5', className)}>
+    <Link to={to} className={cn('inline-flex items-center gap-2.5', className)}>
       <motion.span
         whileHover={{ rotate: -6, scale: 1.04 }}
         className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl"
