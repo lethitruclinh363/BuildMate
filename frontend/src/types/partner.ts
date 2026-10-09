@@ -118,14 +118,33 @@ export interface CatalogMaterial {
   id: string;
   name: string;
   category: string;
+  categoryId?: string | null;
   sku: string;
   unit: string;
   price: number;
   stock: number;
   minOrderQty: number;
   image: string;
+  images?: string[];
   description: string;
   isActive: boolean;
+  listingStatus?: 'ACTIVE' | 'PAUSED' | 'DISCONTINUED';
+  saleAvailability?: 'AVAILABLE' | 'MANUALLY_UNAVAILABLE';
+  restockExpectedOn?: string | null;
+  statusNote?: string;
+  saleState?: 'selling' | 'out' | 'paused' | 'discontinued';
+  createdAt?: string;
+}
+
+export interface StoreMaterialCategory {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  type: 'SYSTEM' | 'CUSTOM';
+  status: 'ACTIVE' | 'INACTIVE';
+  productCount: number;
+  createdAt?: string | null;
 }
 
 export interface ActivationCheck {

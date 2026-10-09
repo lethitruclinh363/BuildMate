@@ -3,8 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
-const path = require('path');
 const { env } = require('./config/env');
+const { uploadRoot } = require('./middleware/uploadMiddleware');
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { mongoSanitize } = require('./middleware/sanitizeMiddleware');
@@ -76,7 +76,7 @@ function createApp() {
   app.use('/api/admin/auth', authRate);
   app.use('/api/v1/admin/auth', authRate);
 
-  app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
+  app.use('/uploads', express.static(uploadRoot));
   app.use('/api', apiRoutes);
   app.use('/api/v1', apiRoutes);
   app.use(notFound);

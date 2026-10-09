@@ -115,7 +115,7 @@ async function getPublicStore(id) {
     : store;
   const [services, materials, reviews] = await Promise.all([
     Service.find({ storeId: published._id, ...publicPricedServiceMatch() }).sort({ category: 1 }),
-    Material.find({ storeId: published._id, isActive: true }).sort({ category: 1 }),
+    Material.find({ storeId: published._id }).sort({ category: 1 }),
     published.storeType === 'MATERIALS'
       ? reviewService.listForUser(published.contractorId, 'MATERIAL_STORE')
       : Promise.resolve(null),
@@ -192,6 +192,7 @@ async function getPublicContractor(id) {
 }
 
 async function searchMaterials({ category, keyword, store }) {
+  // isActive is publication, not "currently for sale". Paused and discontinued stay listed.
   const match = { isActive: true };
   if (store) {
     const live = await assertApprovedLiveStore(store);
@@ -221,6 +222,11 @@ async function searchMaterials({ category, keyword, store }) {
     images: row.images?.length ? row.images : row.image ? [row.image] : [],
     description: row.description || '',
     isActive: row.isActive,
+    listingStatus: row.listingStatus || (row.isActive === false ? 'PAUSED' : 'ACTIVE'),
+    saleAvailability: row.saleAvailability || 'AVAILABLE',
+    restockExpectedOn: row.restockExpectedOn || null,
+    statusNote: row.statusNote || '',
+    saleState: row.saleState,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     store: row.storeDoc

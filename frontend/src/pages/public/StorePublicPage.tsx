@@ -16,6 +16,7 @@ import type { PublicStoreProfile, PublicStoreReview } from '@/types/marketplace'
 import { locationApi } from '@/features/map/services/location.api';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
 import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
+import { saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
 import { mediaUrl, vnd } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
 import type { CatalogMaterial, CatalogService, Storefront } from '@/types/partner';
@@ -179,8 +180,8 @@ export function StorePublicPage() {
             <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {materials.map((m) => (
                 <Card key={m.id}>
-                  <Badge tone="mist">{m.category}</Badge>
-                  <h3 className="mt-3 font-display text-lg text-navy-800">{m.name}</h3>
+                  <Badge tone={saleTone(saleState(m))}>{t(saleLabelKey(saleState(m)))}</Badge>
+                  <Link to={`/stores/${store.id}/materials/${m.id}`} className="mt-3 block font-display text-lg text-navy-800">{m.name}</Link>
                   <p className="text-xs text-ink-400">{t('public.skuStock', { sku: m.sku, stock: m.stock })}</p>
                   <p className="mt-3 font-display text-xl text-navy-800">
                     {vnd(m.price)} <span className="text-sm font-sans font-normal text-ink-400">/{m.unit}</span>

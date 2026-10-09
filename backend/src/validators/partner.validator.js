@@ -235,6 +235,13 @@ const materialCategoryNameSchema = z.object({
   name: z.string().trim().min(1, 'Please enter a category name.').max(80),
 });
 
+const storeCategorySchema = z.object({
+  name: z.string().trim().min(1, 'Please enter a category name.').max(80),
+  description: z.string().trim().max(400).optional().or(z.literal('')),
+  image: z.string().trim().max(2000).optional().or(z.literal('')),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+});
+
 const materialSchema = z.object({
   name: z.string().trim().min(2).max(120),
   category: z.string().trim().min(2),
@@ -246,6 +253,10 @@ const materialSchema = z.object({
   image: z.string().trim().optional().or(z.literal('')),
   description: z.string().trim().max(800).optional().or(z.literal('')),
   isActive: z.coerce.boolean().optional(),
+  listingStatus: z.enum(['ACTIVE', 'PAUSED', 'DISCONTINUED']).optional(),
+  saleAvailability: z.enum(['AVAILABLE', 'MANUALLY_UNAVAILABLE']).optional(),
+  restockExpectedOn: z.string().trim().max(40).optional().or(z.literal('')).or(z.null()),
+  statusNote: z.string().trim().max(400).optional().or(z.literal('')),
 });
 
 const submitSchema = z.object({
@@ -289,6 +300,7 @@ module.exports = {
   catalogStatusSchema,
   catalogReviewSchema,
   materialCategoryNameSchema,
+  storeCategorySchema,
   materialSchema,
   rejectSchema,
   serviceSuggestionSchema,

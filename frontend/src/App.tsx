@@ -36,6 +36,12 @@ const StoreVerificationPage = lazy(() =>
 const StoreMaterialsPage = lazy(() =>
   import('@/pages/store/StoreMaterialsPage').then((m) => ({ default: m.StoreMaterialsPage }))
 );
+const StoreProductDetailPage = lazy(() =>
+  import('@/pages/store/StoreProductDetailPage').then((m) => ({ default: m.StoreProductDetailPage }))
+);
+const StoreCategoriesPage = lazy(() =>
+  import('@/pages/store/StoreCategoriesPage').then((m) => ({ default: m.StoreCategoriesPage }))
+);
 const StoreDeliveryPage = lazy(() =>
   import('@/pages/store/StoreDeliveryPage').then((m) => ({ default: m.StoreDeliveryPage }))
 );
@@ -69,6 +75,7 @@ const ContractorPublicPage = lazy(() =>
   import('@/pages/public/ContractorPublicPage').then((m) => ({ default: m.ContractorPublicPage }))
 );
 const StorePublicPage = lazy(() => import('@/pages/public/StorePublicPage').then((m) => ({ default: m.StorePublicPage })));
+const PublicMaterialPage = lazy(() => import('@/pages/public/PublicMaterialPage').then((m) => ({ default: m.PublicMaterialPage })));
 const MaterialCartPage = lazy(() => import('@/pages/customer/MaterialCartPage').then((m) => ({ default: m.MaterialCartPage })));
 const MaterialCheckoutPage = lazy(() => import('@/pages/customer/MaterialCheckoutPage').then((m) => ({ default: m.MaterialCheckoutPage })));
 const MaterialOrderDetailPage = lazy(() =>
@@ -118,6 +125,7 @@ export function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/contractors/:id" element={<ContractorPublicPage />} />
+            <Route path="/stores/:id/materials/:materialId" element={<PublicMaterialPage />} />
             <Route path="/stores/:id" element={<StorePublicPage />} />
           </Route>
 
@@ -187,11 +195,10 @@ export function App() {
                   <Route path="/store/dashboard" element={<StoreDashboard />} />
                   <Route path="/store/profile/edit" element={<StorePublicProfilePage />} />
                   <Route path="/store/verification" element={<StoreVerificationPage />} />
-                  <Route element={<StoreMaterialsPage />}>
-                    <Route path="/store/materials" />
-                    <Route path="/store/products" />
-                    <Route path="/store/prices" />
-                  </Route>
+                  <Route path="/store/materials" element={<StoreCategoriesPage />} />
+                  <Route path="/store/products/:id" element={<StoreProductDetailPage />} />
+                  <Route path="/store/products" element={<StoreMaterialsPage />} />
+                  <Route path="/store/prices" element={<Navigate to="/store/products" replace />} />
                   <Route path="/store/delivery" element={<StoreDeliveryPage />} />
                   <Route path="/store/orders" element={<StoreOrdersPage />} />
                   <Route path="/store/orders/:id" element={<StoreOrderDetailPage />} />

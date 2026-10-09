@@ -434,6 +434,8 @@ model material_categories {
   folded_name                    String                           @db.VarChar(120)
   category_type                  String                           @default("CUSTOM") @db.VarChar(20)
   status                         String                           @default("APPROVED") @db.VarChar(30)
+  description                    String                           @default("") @db.VarChar(400)
+  image_url                      String                           @default("")
   owner_user_id                  BigInt?
   store_id                       BigInt?
   created_at                     DateTime                         @default(now()) @db.Timestamptz(6)
@@ -590,6 +592,10 @@ model materials {
   primary_image_url    String                 @default("")
   description          String                 @default("") @db.VarChar(800)
   is_active            Boolean                @default(true)
+  listing_status       String                 @default("ACTIVE") @db.VarChar(20)
+  sale_availability    String                 @default("AVAILABLE") @db.VarChar(30)
+  restock_expected_on  DateTime?              @db.Date
+  status_note          String                 @default("") @db.VarChar(400)
   created_at           DateTime               @default(now()) @db.Timestamptz(6)
   updated_at           DateTime               @default(now()) @db.Timestamptz(6)
   material_images      material_images[]

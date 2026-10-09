@@ -32,6 +32,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error: AxiosError<{ message?: string }>) => {
+    if (
+      axios.isCancel(error) ||
+      error.code === 'ERR_CANCELED' ||
+      error.name === 'CanceledError' ||
+      error.name === 'AbortError'
+    ) {
+      return Promise.reject(error);
+    }
+
     const status = error.response?.status;
     const url = error.config?.url || '';
     const silent = (error.config as InternalAxiosRequestConfig & { silent?: boolean })?.silent;

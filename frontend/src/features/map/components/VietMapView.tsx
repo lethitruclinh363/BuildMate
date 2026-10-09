@@ -235,11 +235,21 @@ export function VietMapView({
       readyRef.current = true;
       setReady(true);
     };
-    const onError = (event: { sourceId?: string; error?: { message?: string } }) => {
+    const onError = (event: { sourceId?: string; error?: { name?: string; message?: string } }) => {
+      const message = event?.error?.message || '';
+      if (event?.error?.name === 'AbortError' || /signal is aborted/i.test(message)) return;
       if (event?.sourceId || readyRef.current) return;
-      console.warn('[BuildMate] map style failed', event?.error?.message || 'style');
+      console.warn('[BuildMate] map style failed', message || 'style');
       setFailed(true);
     };
+    const ignoreAbort = (event: PromiseRejectionEvent) => {
+      const reason = event.reason as { name?: string; message?: string } | undefined;
+      const message = String(reason?.message || '');
+      if (reason?.name === 'AbortError' || /signal is aborted/i.test(message)) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('unhandledrejection', ignoreAbort);
     map.on('load', onLoad);
     map.on('error', onError);
     map.on('click', (event) => {
@@ -260,6 +270,7 @@ export function VietMapView({
       map.remove();
       mapRef.current = null;
       readyRef.current = false;
+      window.setTimeout(() => window.removeEventListener('unhandledrejection', ignoreAbort), 1000);
     };
     // Map instance stays alive across style changes. setStyle keeps the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -12,6 +12,7 @@ export interface MaterialCartItem {
   quantity: number;
   minOrderQty: number;
   stock: number;
+  purchasable?: boolean;
 }
 
 interface MaterialCartState {
@@ -43,7 +44,7 @@ export const useMaterialCartStore = create<MaterialCartState>()(
       ...empty,
       addItem: (item, storeName) => {
         const { min, stock, sellable } = bounds(item);
-        if (!sellable) return 'unavailable';
+        if (item.purchasable === false || !sellable) return 'unavailable';
         const current = get();
         if (current.storeId && current.items.length > 0 && current.storeId !== item.storeId) {
           return 'needs-switch';
@@ -73,7 +74,7 @@ export const useMaterialCartStore = create<MaterialCartState>()(
       },
       replaceStore: (item, storeName) => {
         const { min, stock, sellable } = bounds(item);
-        if (!sellable) return 'unavailable';
+        if (item.purchasable === false || !sellable) return 'unavailable';
         set({
           storeId: item.storeId,
           storeName,

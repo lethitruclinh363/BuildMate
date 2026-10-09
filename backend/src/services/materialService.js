@@ -1,3 +1,4 @@
+const { prisma } = require('../config/prisma');
 const { Material } = require('../repositories/offeringAccess');
 const { STORE_TYPE } = require('../models/Store');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
@@ -52,9 +53,21 @@ async function updateMaterial(storeId, id, payload) {
 
 async function deleteMaterial(storeId, id) {
   await assertMaterialStore(storeId, { published: true });
-  const item = await Material.findOneAndDelete({ _id: id, storeId });
+  const item = await Material.findOne({ _id: id, storeId });
   if (!item) throw new ApiError(404, 'Material not found');
-  return { deleted: true, id };
+  const used = item.pgId
+    ? await prisma.material_order_items.count({ where: { material_id: item.pgId } })
+    : 0;
+  if (used > 0) {
+    item.listingStatus = 'PAUSED';
+    item.unpublish = true;
+    item.isActive = false;
+    await item.save();
+    return { deleted: false, deactivated: true, id: item._id };
+  }
+  const removed = await Material.findOneAndDelete({ _id: id, storeId });
+  if (!removed) throw new ApiError(404, 'Material not found');
+  return { deleted: true, deactivated: false, id: item._id };
 }
 
 module.exports = { listMaterials, createMaterial, updateMaterial, deleteMaterial };

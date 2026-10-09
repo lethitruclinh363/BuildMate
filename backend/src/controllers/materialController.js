@@ -2,6 +2,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const { success, created } = require('../utils/response');
 const materialService = require('../services/materialService');
 const materialCategoryService = require('../services/material-category.service');
+const storeCategoryService = require('../services/store-category.service');
 const publicProfileService = require('../services/publicProfileService');
 
 const list = asyncHandler(async (req, res) => {
@@ -44,6 +45,26 @@ const registerCategory = asyncHandler(async (req, res) => {
   return created(res, data, 'Category registered');
 });
 
+const listStoreCategories = asyncHandler(async (req, res) => {
+  const data = await storeCategoryService.listStoreCategories(req.user.id);
+  return success(res, data, 'Store categories retrieved');
+});
+
+const createStoreCategory = asyncHandler(async (req, res) => {
+  const data = await storeCategoryService.createStoreCategory(req.user.id, req.body);
+  return created(res, data, 'Category added');
+});
+
+const updateStoreCategory = asyncHandler(async (req, res) => {
+  const data = await storeCategoryService.updateStoreCategory(req.user.id, req.params.id, req.body);
+  return success(res, data, 'Category updated');
+});
+
+const removeStoreCategory = asyncHandler(async (req, res) => {
+  const data = await storeCategoryService.deleteStoreCategory(req.user.id, req.params.id);
+  return success(res, data, 'Category removed');
+});
+
 const getPublicProfile = asyncHandler(async (req, res) => {
   const data = await publicProfileService.getMaterialPublicProfile(req.user.id);
   return success(res, data, 'Public profile retrieved');
@@ -63,6 +84,10 @@ module.exports = {
   checkCategory,
   createCategory,
   registerCategory,
+  listStoreCategories,
+  createStoreCategory,
+  updateStoreCategory,
+  removeStoreCategory,
   getPublicProfile,
   updatePublicProfile,
 };

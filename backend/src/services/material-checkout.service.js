@@ -5,6 +5,7 @@ const { ApiError } = require('../utils/ApiError');
 const { distanceKm } = require('../utils/geo');
 const { normalizeDeliveryPolicy } = require('../utils/delivery-policy');
 const { summarizeMaterialCheckout } = require('../utils/material-checkout');
+const { purchaseBlock } = require('../utils/material-sale');
 
 function mergeLines(items) {
   const quantities = new Map();
@@ -34,7 +35,6 @@ async function prepare(body, { requireLive = false } = {}) {
   const materials = await Material.find({
     _id: { $in: ids },
     storeId: store._id,
-    isActive: true,
   });
   if (materials.length !== ids.length) {
     throw new ApiError(422, 'Some materials are no longer available');
@@ -45,6 +45,8 @@ async function prepare(body, { requireLive = false } = {}) {
   let materialSubtotal = 0;
   for (const [materialId, quantity] of quantities) {
     const material = byId.get(materialId);
+    const blocked = purchaseBlock(material);
+    if (blocked) throw new ApiError(422, blocked);
     const minOrderQty = Math.max(1, Number(material.minOrderQty) || 1);
     const stock = Math.max(0, Number(material.stock) || 0);
     if (quantity < minOrderQty) {

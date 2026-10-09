@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { HardHat, MapPin, Store } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -19,6 +20,7 @@ import { originFromPlace, reverseGeocode } from '@/features/map/services/geocodi
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api';
+import { saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { SEARCH_CHIPS, type NearbyPlace, type PublicMaterial, type PublicService } from '@/types/marketplace';
@@ -325,8 +327,10 @@ export function ExplorePage() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {materials.slice(0, 8).map((m) => (
               <Card key={m.id}>
-                <Badge tone="mist">{m.category}</Badge>
-                <h3 className="mt-3 font-display text-lg text-navy-800">{m.name}</h3>
+                <Badge tone={saleTone(saleState(m))}>{t(saleLabelKey(saleState(m)))}</Badge>
+                <h3 className="mt-3 font-display text-lg text-navy-800">
+                  {m.store?.id ? <Link to={`/stores/${m.store.id}/materials/${m.id}`}>{m.name}</Link> : m.name}
+                </h3>
                 <p className="mt-1 text-sm text-ink-400">{m.store?.name}</p>
                 <p className="mt-3 font-display text-xl text-navy-800">
                   {vnd(m.price)} <span className="text-sm font-sans text-ink-400">/{m.unit}</span>

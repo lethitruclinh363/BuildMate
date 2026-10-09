@@ -61,7 +61,7 @@ async function uploadImage(file: File) {
   if (!allowed.includes(file.type) || file.size > 8 * 1024 * 1024) throw new Error('invalid-image');
   const body = new FormData();
   body.append('file', file);
-  const res = await api.post<ApiResponse<{ url: string }>>('/upload/stores', body, { timeout: 60000 });
+  const res = await api.post<ApiResponse<{ url: string }>>('/uploads/stores', body, { timeout: 60000 });
   return res.data.data.url;
 }
 

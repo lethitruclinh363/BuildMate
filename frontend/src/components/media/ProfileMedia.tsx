@@ -89,7 +89,6 @@ export function MediaFrame({
             decoding="async"
             onLoad={() => setVisual({ src: resolved, status: 'ready' })}
             onError={() => {
-              if (import.meta.env.DEV) console.error('[BuildMate Image] Failed to load:\nURL:', resolved);
               setVisual({ src: resolved, status: 'error' });
             }}
             className={`absolute inset-0 z-[1] h-full w-full ${FRAME_FIT[fit]}`}
@@ -305,7 +304,6 @@ function ViewerImage({
         alt={slide.alt}
         onLoad={() => setVisual({ src: resolved, status: 'ready' })}
         onError={() => {
-          if (import.meta.env.DEV) console.error('[BuildMate Image] Failed to load:\nURL:', resolved);
           setVisual({ src: resolved, status: 'error' });
         }}
         onClick={(event) => event.stopPropagation()}
