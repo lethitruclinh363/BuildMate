@@ -94,7 +94,13 @@ export function MaterialCheckoutPage() {
         .quote(payload, { signal: controller.signal })
         .then((res) => setQuote(res.data.data))
         .catch((err: unknown) => {
-          if (axios.isCancel(err)) return;
+          const cancel = err as { name?: string; code?: string; message?: string };
+          if (
+            axios.isCancel(err) ||
+            cancel.name === 'AbortError' ||
+            cancel.code === 'ERR_CANCELED' ||
+            /signal is aborted/i.test(cancel.message || '')
+          ) return;
           setQuote(null);
           setQuoteError(getApiErrorMessage(err));
         })

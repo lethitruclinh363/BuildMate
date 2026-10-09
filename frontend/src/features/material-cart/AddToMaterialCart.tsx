@@ -4,6 +4,7 @@ import { ConfirmModal } from '@/components/feedback/ConfirmModal';
 import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
+import { purchasable, saleBannerKey, saleNoticeKey, saleState } from '@/lib/material-sale';
 import type { CatalogMaterial } from '@/types/partner';
 import { useMaterialCartStore } from './material-cart.store';
 
@@ -27,6 +28,10 @@ export function AddToMaterialCart({
   const addItem = useMaterialCartStore((state) => state.addItem);
   const replaceStore = useMaterialCartStore((state) => state.replaceStore);
   const { min, stock, sellable } = limits(material);
+  const state = saleState(material);
+  const canBuy = purchasable(material) && sellable;
+  const banner = saleBannerKey(state);
+  const notice = saleNoticeKey(state);
   const [quantity, setQuantity] = useState(min);
   const [switchOpen, setSwitchOpen] = useState(false);
 
@@ -41,6 +46,7 @@ export function AddToMaterialCart({
       quantity,
       minOrderQty: min,
       stock,
+      purchasable: purchasable(material),
     };
   }
 
@@ -66,25 +72,30 @@ export function AddToMaterialCart({
           type="button"
           className="grid h-9 w-9 place-items-center text-navy-800 disabled:text-ink-300"
           aria-label={t('cart.decrease')}
-          disabled={!sellable || quantity <= min}
+          disabled={!canBuy || quantity <= min}
           onClick={() => setQuantity((value) => Math.max(min, value - 1))}
         >
           <Minus className="h-4 w-4" />
         </button>
-        <span className="min-w-8 text-center text-sm font-semibold text-navy-800">{sellable ? quantity : 0}</span>
+        <span className="min-w-8 text-center text-sm font-semibold text-navy-800">{canBuy ? quantity : 0}</span>
         <button
           type="button"
           className="grid h-9 w-9 place-items-center text-navy-800 disabled:text-ink-300"
           aria-label={t('cart.increase')}
-          disabled={!sellable || quantity >= stock}
+          disabled={!canBuy || quantity >= stock}
           onClick={() => setQuantity((value) => Math.min(stock, value + 1))}
         >
           <Plus className="h-4 w-4" />
         </button>
       </div>
-      <Button type="button" className="w-full" disabled={!sellable} onClick={onAdd}>
-        {t('cart.add')}
+      {banner ? <p className="text-sm font-semibold tracking-wide text-red-700">{t(banner)}</p> : null}
+      <Button type="button" className="w-full" disabled={!canBuy} onClick={onAdd}>
+        {banner ? t(banner) : t('cart.add')}
       </Button>
+      {notice ? <p className="text-sm leading-6 text-ink-600">{t(notice)}</p> : null}
+      {state === 'out' && material.restockExpectedOn ? (
+        <p className="text-sm text-ink-500">{t('materialPage.restockOn', { date: String(material.restockExpectedOn).slice(0, 10) })}</p>
+      ) : null}
       <ConfirmModal
         open={switchOpen}
         title={t('cart.switchTitle')}

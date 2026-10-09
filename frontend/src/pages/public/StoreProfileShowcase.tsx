@@ -10,7 +10,8 @@ import { MapPlaceActions } from '@/features/map/components/MapPlaceActions';
 import { ServiceAreaMap } from '@/pages/public/ServiceAreaMap';
 import { categoryDisplayLabel, foldCategoryName } from '@/data/material-categories';
 import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
-import { vnd } from '@/lib/partner-api';
+import { saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
+import { productImageUrl, vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
 import type { CatalogMaterial } from '@/types/partner';
@@ -47,7 +48,10 @@ export function StoreProfileShowcase({
       profile.logo ? { src: profile.logo, alt: t('storePublic.logo') } : null,
       profile.avatar ? { src: profile.avatar, alt: t('storePublic.avatar') } : null,
       ...gallerySlides,
-      ...materials.filter((item) => item.image).map((item) => ({ src: item.image, alt: item.name })),
+      ...materials.flatMap((item) => {
+        const photo = productImageUrl(item.image);
+        return photo ? [{ src: photo, alt: item.name }] : [];
+      }),
     ].filter((item): item is ViewerSlide => Boolean(item));
     const index = slides.findIndex((item) => item.src === src);
     setViewer(index >= 0 ? { slides, index } : { slides: [{ src, alt }], index: 0 });
@@ -204,27 +208,30 @@ export function StoreProfileShowcase({
         <p className="mt-1 text-sm text-ink-500">{t('storePublic.productsHint')}</p>
         {visibleProducts.length ? (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleProducts.map((item) => (
+            {visibleProducts.map((item) => {
+              const photo = productImageUrl(item.image);
+              return (
               <Card key={item.id} hover={false} className="overflow-hidden p-0">
                 <MediaFrame
-                  src={item.image}
+                  src={photo}
                   alt={item.name}
                   fit="cover"
                   frameClassName="aspect-[4/3]"
-                  onOpen={item.image ? () => openAt(item.image, item.name) : undefined}
+                  onOpen={photo ? () => openAt(photo, item.name) : undefined}
                   empty={<span className="absolute inset-0 grid place-items-center text-xs text-ink-400">{t('storePublic.noPhoto')}</span>}
                 />
                 <div className="p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">{categoryDisplayLabel({ name: item.category, type: 'SYSTEM' }, t)}</p>
-                  <h3 className="mt-1 font-display text-lg text-navy-800">{item.name}</h3>
+                  <Link to={`/stores/${profile.id}/materials/${item.id}`} className="mt-1 block font-display text-lg text-navy-800">{item.name}</Link>
                   <p className="mt-2 font-display text-xl text-navy-800">{vnd(item.price)} <span className="text-sm font-sans font-normal text-ink-400">/ {item.unit}</span></p>
-                  <p className="mt-1 text-xs text-ink-500">{item.stock > 0 ? t('storePublic.inStock') : t('storePublic.outOfStock')}</p>
+                  <div className="mt-2"><Badge tone={saleTone(saleState(item))}>{t(saleLabelKey(saleState(item)))}</Badge></div>
                   {preview ? null : (
                     <AddToMaterialCart material={item} storeId={String(profile.id)} storeName={profile.displayName} />
                   )}
                 </div>
               </Card>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="mt-3 text-sm text-ink-500">{activeCategory ? t('storePublic.noProductsInCategory') : t('storePublic.noProducts')}</p>

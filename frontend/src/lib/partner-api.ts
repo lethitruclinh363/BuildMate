@@ -2,6 +2,7 @@ import { api } from '@/lib/api';
 import type { ApiResponse } from '@/types/user';
 import type {
   CatalogMaterial,
+  StoreMaterialCategory,
   CatalogService,
   ContractorProfile,
   DocumentType,
@@ -17,9 +18,19 @@ import type { MaterialCategoryCatalog, MaterialCategoryPick } from '@/data/mater
 const origin = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
 
 export function mediaUrl(url?: string) {
-  if (!url) return '';
-  if (url.startsWith('http') || url.startsWith('blob:')) return url;
-  return `${origin}${url}`;
+  const value = (url || '').trim();
+  if (!value) return '';
+  if (/^(https?:|blob:|data:)/i.test(value)) return value;
+  const filePath = value.startsWith('/') ? value : `/${value}`;
+  return `${origin}${filePath}`;
+}
+
+/** A product photo the browser can request. A bare filename is not an image URL. */
+export function productImageUrl(url?: string) {
+  const value = (url || '').trim();
+  if (!value) return '';
+  if (/^(https?:|blob:|data:)/i.test(value) || value.startsWith('/uploads/')) return value;
+  return '';
 }
 
 export function vnd(value: number) {
@@ -137,12 +148,19 @@ export const materialStoreApi = {
     api.post<ApiResponse<MaterialCategoryPick>>('/material-store/categories/custom', { name }),
   registerMaterialCategory: (name: string) =>
     api.post<ApiResponse<MaterialCategoryPick[]>>('/material-store/categories/register', { name }),
+  listStoreCategories: () => api.get<ApiResponse<StoreMaterialCategory[]>>('/material-store/store-categories'),
+  saveStoreCategory: (body: { name: string; description?: string; image?: string; status?: 'ACTIVE' | 'INACTIVE' }, id?: string) =>
+    id
+      ? api.patch<ApiResponse<StoreMaterialCategory>>(`/material-store/store-categories/${id}`, body)
+      : api.post<ApiResponse<StoreMaterialCategory>>('/material-store/store-categories', body),
+  deleteStoreCategory: (id: string) => api.delete<ApiResponse<{ deleted: boolean; id: string }>>(`/material-store/store-categories/${id}`),
   listMaterials: () => api.get<ApiResponse<CatalogMaterial[]>>('/material-store/materials'),
   saveMaterial: (body: Partial<CatalogMaterial>, id?: string) =>
     id
       ? api.patch<ApiResponse<CatalogMaterial>>(`/material-store/materials/${id}`, body)
       : api.post<ApiResponse<CatalogMaterial>>('/material-store/materials', body),
-  deleteMaterial: (id: string) => api.delete(`/material-store/materials/${id}`),
+  deleteMaterial: (id: string) =>
+    api.delete<ApiResponse<{ deleted: boolean; deactivated?: boolean; id: string }>>(`/material-store/materials/${id}`),
   getPublicProfile: () =>
     api.get<
       ApiResponse<{

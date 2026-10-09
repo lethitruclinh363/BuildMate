@@ -58,8 +58,14 @@ export function AddressSearch({
           setActive(0);
           setStatus(next.length ? 'idle' : 'empty');
         })
-        .catch((err: { code?: string; name?: string }) => {
-          if (controller.signal.aborted || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') return;
+        .catch((err: { code?: string; name?: string; message?: string }) => {
+          if (
+            controller.signal.aborted ||
+            err?.code === 'ERR_CANCELED' ||
+            err?.name === 'CanceledError' ||
+            err?.name === 'AbortError' ||
+            /signal is aborted/i.test(err?.message || '')
+          ) return;
           setHits([]);
           setStatus('error');
         })

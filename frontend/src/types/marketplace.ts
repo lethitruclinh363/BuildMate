@@ -139,6 +139,10 @@ export interface PublicMaterial {
   image: string;
   images: string[];
   description: string;
+  listingStatus?: 'ACTIVE' | 'PAUSED' | 'DISCONTINUED';
+  saleAvailability?: 'AVAILABLE' | 'MANUALLY_UNAVAILABLE';
+  saleState?: 'selling' | 'out' | 'paused' | 'discontinued';
+  isActive?: boolean;
   store?: { id: string; name: string; address: string; city: string; coverImage: string } | null;
 }
 

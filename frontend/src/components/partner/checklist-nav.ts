@@ -24,7 +24,7 @@ export const STORE_CHECKLIST: Record<string, ChecklistLink> = {
   address: { route: '/store/profile/edit', hash: '#address' },
   categories: { route: '/store/materials', hash: '' },
   products: { route: '/store/products', hash: '' },
-  prices: { route: '/store/prices', hash: '' },
+  prices: { route: '/store/products', hash: '' },
   hours: { route: '/store/profile/edit', hash: '#working-hours' },
   location: { route: '/store/profile/edit', hash: '#location' },
   contact: { route: '/store/profile/edit', hash: '#public-contact' },

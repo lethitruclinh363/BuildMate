@@ -1,5 +1,8 @@
 const crypto = require('crypto');
+const { Prisma } = require('@prisma/client');
 const { prisma } = require('../config/prisma');
+const { ensureSaleColumns } = require('./column-ensure');
+const { listingOf, saleStateOf } = require('../utils/material-sale');
 const { legacyClause, enumClause, compareClause } = require('./scopedQuery');
 
 function newId() {
@@ -215,6 +218,7 @@ class PgMaterial {
       storeId: legacyOf(this.storeId),
       name: this.name,
       category: this.category,
+      categoryId: this.categoryId || null,
       sku: this.sku,
       unit: this.unit,
       price: Number(this.price),
@@ -224,6 +228,11 @@ class PgMaterial {
       images: this.images?.length ? this.images : this.image ? [this.image] : [],
       description: this.description,
       isActive: this.isActive,
+      listingStatus: listingOf(this),
+      saleAvailability: this.saleAvailability === 'MANUALLY_UNAVAILABLE' ? 'MANUALLY_UNAVAILABLE' : 'AVAILABLE',
+      restockExpectedOn: this.restockExpectedOn || null,
+      statusNote: this.statusNote || '',
+      saleState: saleStateOf(this),
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };
@@ -345,6 +354,26 @@ async function allServices() {
   })).map(serviceFromRow);
 }
 
+async function overlaySaleColumns(rows) {
+  if (!rows.length) return rows;
+  await ensureSaleColumns();
+  const extras = await prisma.$queryRaw`
+    SELECT id, listing_status, sale_availability, restock_expected_on, status_note
+    FROM materials
+    WHERE id IN (${Prisma.join(rows.map((row) => row.id))})
+  `;
+  const byId = new Map(extras.map((row) => [String(row.id), row]));
+  for (const row of rows) {
+    const extra = byId.get(String(row.id));
+    if (!extra) continue;
+    row.listing_status = extra.listing_status;
+    row.sale_availability = extra.sale_availability;
+    row.restock_expected_on = extra.restock_expected_on;
+    row.status_note = extra.status_note;
+  }
+  return rows;
+}
+
 function materialFromRow(row) {
   const images = (row.material_images || []).sort((a, b) => a.sort_order - b.sort_order).map((item) => item.file_url);
   return new PgMaterial({
@@ -352,7 +381,7 @@ function materialFromRow(row) {
     _id: row.legacy_mongo_id || String(row.id),
     storeId: row.stores?.legacy_mongo_id || '',
     category: row.material_categories?.name || '',
-    categoryId: row.material_categories?.legacy_mongo_id || null,
+    categoryId: row.material_categories?.legacy_mongo_id || (row.material_categories?.id != null ? String(row.material_categories.id) : null),
     name: row.name,
     sku: row.sku || '',
     unit: row.unit,
@@ -363,15 +392,22 @@ function materialFromRow(row) {
     images,
     description: row.description || '',
     isActive: row.is_active,
+    listingStatus: row.listing_status || (row.is_active === false ? 'PAUSED' : 'ACTIVE'),
+    saleAvailability: row.sale_availability || 'AVAILABLE',
+    restockExpectedOn: row.restock_expected_on || null,
+    statusNote: row.status_note || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
 }
 
 async function allMaterials() {
-  return (await prisma.materials.findMany({
+  await ensureSaleColumns();
+  const rows = await prisma.materials.findMany({
     include: { material_images: true, material_categories: true, stores: { select: { legacy_mongo_id: true } } },
-  })).map(materialFromRow);
+  });
+  await overlaySaleColumns(rows);
+  return rows.map(materialFromRow);
 }
 
 function categoryFromRow(row) {
@@ -506,11 +542,30 @@ async function resolveMaterialCategory(name, storeLegacy) {
 }
 
 async function persistMaterial(doc) {
+  await ensureSaleColumns();
   const store = await prisma.stores.findFirst({ where: { legacy_mongo_id: legacyOf(doc.storeId) } });
   if (!store) throw new Error('Material store is not in PostgreSQL');
   const category = await resolveMaterialCategory(doc.category, doc.storeId);
   if (!category) throw new Error(`Material category is not in PostgreSQL: ${doc.category}`);
-  const images = doc.images?.length ? doc.images : doc.image ? [doc.image] : [];
+  doc.category = category.name;
+  doc.categoryId = category.legacy_mongo_id || String(category.id);
+  const primary = String(doc.image || '').trim();
+  const kept = (Array.isArray(doc.images) ? doc.images : [])
+    .map((url) => String(url || '').trim())
+    .filter((url) => url && url !== primary);
+  const images = primary ? [primary, ...kept] : [];
+  doc.image = primary;
+  doc.images = images;
+  const listing = listingOf(doc);
+  const availability = doc.saleAvailability === 'MANUALLY_UNAVAILABLE' ? 'MANUALLY_UNAVAILABLE' : 'AVAILABLE';
+  doc.listingStatus = listing;
+  doc.saleAvailability = availability;
+  // Publication is separate from the sale lifecycle. Pause and discontinue stay public.
+  // Only an explicit unpublish (soft delete) removes the product from customer lists.
+  doc.isActive = doc.unpublish === true ? false : true;
+  const restock = doc.restockExpectedOn ? new Date(doc.restockExpectedOn) : null;
+  doc.restockExpectedOn = restock && !Number.isNaN(restock.getTime()) ? restock : null;
+  doc.statusNote = text(doc.statusNote, 400);
   const data = {
     store_id: store.id,
     material_category_id: category.id,
@@ -520,7 +575,7 @@ async function persistMaterial(doc) {
     price: money(doc.price || 0),
     stock: money(doc.stock || 0),
     min_order_qty: money(doc.minOrderQty || 1),
-    primary_image_url: doc.image || images[0] || '',
+    primary_image_url: primary,
     description: text(doc.description, 800),
     is_active: doc.isActive !== false,
     updated_at: new Date(),
@@ -530,6 +585,14 @@ async function persistMaterial(doc) {
     : await prisma.materials.create({ data: { ...data, legacy_mongo_id: doc._id || newId(), created_at: doc.createdAt || new Date() } });
   doc.pgId = row.id;
   doc._id = row.legacy_mongo_id || doc._id;
+  await prisma.$executeRaw`
+    UPDATE materials
+    SET listing_status = ${listing},
+        sale_availability = ${availability},
+        restock_expected_on = ${doc.restockExpectedOn},
+        status_note = ${doc.statusNote}
+    WHERE id = ${row.id}
+  `;
   await prisma.material_images.deleteMany({ where: { material_id: row.id } });
   for (let index = 0; index < images.length; index += 1) {
     if (!images[index]) continue;
@@ -884,7 +947,7 @@ function groupRows(rows, spec) {
 
 const materialInclude = {
   material_images: { select: { file_url: true, sort_order: true } },
-  material_categories: { select: { name: true, legacy_mongo_id: true } },
+  material_categories: { select: { id: true, name: true, legacy_mongo_id: true } },
   stores: { select: { legacy_mongo_id: true } },
 };
 const serviceInclude = {
@@ -910,7 +973,12 @@ const Service = model(allServices, PgService, (doc) => doc, {
 });
 const Material = model(allMaterials, PgMaterial, (doc) => doc, {
   where: materialWhere,
-  rows: (where) => prisma.materials.findMany({ where, include: materialInclude }).then((rows) => rows.map(materialFromRow)),
+  rows: async (where) => {
+    await ensureSaleColumns();
+    const rows = await prisma.materials.findMany({ where, include: materialInclude });
+    await overlaySaleColumns(rows);
+    return rows.map(materialFromRow);
+  },
   count: (where) => prisma.materials.count({ where }),
 });
 Service.countPublicByStores = async function countPublicByStores(storeIds) {

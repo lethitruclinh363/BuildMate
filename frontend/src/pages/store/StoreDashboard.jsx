@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardShell } from '@/components/layout/DashboardShell';
 import {
-  BadgeDollarSign,
   Bell,
   ClipboardList,
   FileText,
@@ -33,7 +32,6 @@ export function StoreLayout() {
     { to: '/store/verification', label: t('nav.store.verification'), icon: FileText, section: profileGroup },
     { to: '/store/materials', label: t('nav.store.catalog'), icon: Layers, section: materialsGroup, end: true },
     { to: '/store/products', label: t('nav.store.products'), icon: Package, section: materialsGroup },
-    { to: '/store/prices', label: t('nav.store.prices'), icon: BadgeDollarSign, section: materialsGroup },
     { to: '/store/delivery', label: t('nav.store.delivery'), icon: Truck, section: materialsGroup },
     { to: '/store/orders', label: t('nav.store.orders'), icon: ClipboardList, section: materialsGroup },
     { to: '/store/reviews', label: t('nav.store.reviews'), icon: Star, section: reputationGroup },

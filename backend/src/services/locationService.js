@@ -159,7 +159,7 @@ async function geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog }) {
     ? []
     : catalog === 'materials'
     ? await prisma.materials.findMany({
-      where: { store_id: { in: storeIds }, is_active: true },
+      where: { store_id: { in: storeIds }, is_active: true }, // published shelf, including paused and discontinued
       include: { material_categories: true },
       orderBy: { id: 'asc' },
     })

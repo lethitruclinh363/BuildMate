@@ -14,6 +14,7 @@ const {
   verificationChangeSchema,
   storePublicProfileSchema,
   materialCategoryNameSchema,
+  storeCategorySchema,
 } = require('../validators/partner.validator');
 const { updateMaterialOrderStatusSchema } = require('../validators/material-order.validator');
 const { verificationUpload } = require('../middleware/uploadMiddleware');
@@ -75,6 +76,11 @@ router.patch('/public-profile', ...owner, validate(storePublicProfileSchema), ma
 router.get('/store', ...owner, storeController.getStore);
 router.post('/store', ...owner, validate(storeSchema), storeController.createStore);
 router.patch('/store', ...owner, validate(storeSchema.partial()), storeController.updateStore);
+
+router.get('/store-categories', ...owner, requireApprovedOwner, loadStore, requireMaterialStore, materialController.listStoreCategories);
+router.post('/store-categories', ...owner, requireApprovedOwner, loadStore, requireMaterialStore, validate(storeCategorySchema), materialController.createStoreCategory);
+router.patch('/store-categories/:id', ...owner, requireApprovedOwner, loadStore, requireMaterialStore, validate(storeCategorySchema.partial()), materialController.updateStoreCategory);
+router.delete('/store-categories/:id', ...owner, requireApprovedOwner, loadStore, requireMaterialStore, materialController.removeStoreCategory);
 
 router.get('/categories', ...owner, materialController.listCategories);
 router.get('/categories/check', ...owner, validate(materialCategoryNameSchema, 'query'), materialController.checkCategory);

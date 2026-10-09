@@ -226,7 +226,7 @@ export function ContractorServicesPage() {
     }
     const body = new FormData();
     body.append('file', file);
-    const res = await api.post<ApiResponse<{ url: string }>>('/upload/stores', body, { timeout: 60000 });
+    const res = await api.post<ApiResponse<{ url: string }>>('/uploads/stores', body, { timeout: 60000 });
     setImage(res.data.data.url);
     setError('');
   }

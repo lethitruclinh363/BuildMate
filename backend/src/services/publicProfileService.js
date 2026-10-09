@@ -249,7 +249,7 @@ async function getMaterialPublicProfile(userId) {
   const { profile, store } = await loadApprovedMaterialStore(userId);
   const { Material } = require('../repositories/offeringAccess');
   const [materials, reviews] = await Promise.all([
-    Material.find({ storeId: store._id, isActive: true }).sort({ name: 1 }),
+    Material.find({ storeId: store._id }).sort({ name: 1 }),
     reviewService.listForUser(userId, 'MATERIAL_STORE'),
   ]);
   return {

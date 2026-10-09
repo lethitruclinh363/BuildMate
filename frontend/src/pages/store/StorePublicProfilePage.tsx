@@ -29,7 +29,8 @@ import {
   type MaterialCategoryPick,
 } from '@/data/material-categories';
 import { api, getApiErrorMessage } from '@/lib/api';
-import { materialStoreApi, vnd } from '@/lib/partner-api';
+import { saleLabelKey, saleState } from '@/lib/material-sale';
+import { materialStoreApi, productImageUrl, vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { ApiResponse } from '@/types/user';
@@ -68,7 +69,7 @@ async function uploadImage(file: File) {
   if (!allowed.includes(file.type) || file.size > 8 * 1024 * 1024) throw new Error('invalid-image');
   const body = new FormData();
   body.append('file', file);
-  const res = await api.post<ApiResponse<{ url: string }>>('/upload/stores', body, { timeout: 60000 });
+  const res = await api.post<ApiResponse<{ url: string }>>('/uploads/stores', body, { timeout: 60000 });
   return res.data.data.url;
 }
 
@@ -627,24 +628,27 @@ export function StorePublicProfilePage() {
         >
           {visibleProducts.length ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {visibleProducts.slice(0, 6).map((item) => (
+              {visibleProducts.slice(0, 6).map((item) => {
+                const photo = productImageUrl(item.image);
+                return (
                 <article key={item.id} className="overflow-hidden rounded-2xl bg-mist-100/60">
                   <MediaFrame
-                    src={item.image}
+                    src={photo}
                     alt={item.name}
                     fit="cover"
                     frameClassName="aspect-[4/3]"
-                    onOpen={item.image ? () => openSlides([{ src: item.image, alt: item.name }], 0) : undefined}
+                    onOpen={photo ? () => openSlides([{ src: photo, alt: item.name }], 0) : undefined}
                     empty={<span className="absolute inset-0 grid place-items-center text-xs text-ink-400">{t('storePublic.noPhoto')}</span>}
                   />
                   <div className="p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">{categoryDisplayLabel({ name: item.category, type: 'SYSTEM' }, t)}</p>
                     <h3 className="mt-1 font-display text-lg text-navy-800">{item.name}</h3>
                     <p className="mt-2 font-display text-xl text-navy-800">{vnd(item.price)} <span className="text-sm font-sans font-normal text-ink-400">/ {item.unit}</span></p>
-                    <p className="mt-1 text-xs text-ink-500">{item.stock > 0 ? t('storePublic.inStock') : t('storePublic.outOfStock')}</p>
+                    <p className="mt-2 text-xs font-semibold tracking-wide text-navy-800">{t(saleLabelKey(saleState(item)))}</p>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div>

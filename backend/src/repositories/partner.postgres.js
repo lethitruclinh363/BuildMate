@@ -573,6 +573,13 @@ async function persistProfile(profile, outerTx) {
     }
     profile.locationId = locationId;
     const profileId = row.id;
+    const { ensureSaleColumns } = require('./column-ensure');
+    await ensureSaleColumns();
+    const keptListings = await tx.$queryRaw`
+      SELECT material_category_id, listing_status
+      FROM contractor_material_categories
+      WHERE contractor_profile_id = ${profileId}
+    `;
     await tx.contractor_documents.deleteMany({ where: { contractor_profile_id: profileId } });
     await tx.contractor_service_areas.deleteMany({ where: { contractor_profile_id: profileId } });
     await tx.contractor_profile_steps.deleteMany({ where: { contractor_profile_id: profileId } });
@@ -635,6 +642,15 @@ async function persistProfile(profile, outerTx) {
           selection_status: item.status || 'APPROVED',
         },
       });
+    }
+    for (const kept of keptListings || []) {
+      if (kept.listing_status !== 'HIDDEN') continue;
+      await tx.$executeRaw`
+        UPDATE contractor_material_categories
+        SET listing_status = 'HIDDEN'
+        WHERE contractor_profile_id = ${profileId}
+          AND material_category_id = ${kept.material_category_id}
+      `;
     }
     const media = [
       ...(profile.portfolio?.construction || []).map((url, index) => ({ media_type: 'CONSTRUCTION', file_url: url, sort_order: index })),
