@@ -164,7 +164,8 @@
       "alerts": "Thông báo",
       "orders": "Đơn thi công",
       "revenue": "Thu nhập",
-      "reviews": "Uy tín"
+      "reviews": "Đánh giá",
+      "reputation": "Uy tín"
     },
     "store": {
       "overview": "Tổng quan",

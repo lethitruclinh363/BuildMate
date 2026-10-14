@@ -17,6 +17,7 @@ const {
   storeCategorySchema,
 } = require('../validators/partner.validator');
 const { updateMaterialOrderStatusSchema } = require('../validators/material-order.validator');
+const { reviewListQuerySchema } = require('../validators/finance.validator');
 const { verificationUpload } = require('../middleware/uploadMiddleware');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
 const { ApiError } = require('../utils/ApiError');
@@ -25,6 +26,7 @@ const storeController = require('../controllers/storeController');
 const materialController = require('../controllers/materialController');
 const materialOrderController = require('../controllers/material-order.controller');
 const contractorController = require('../controllers/contractorController');
+const reviewController = require('../controllers/reviewController');
 
 const router = express.Router();
 
@@ -99,6 +101,7 @@ router.patch(
   materialOrderController.updateStoreStatus
 );
 
+router.get('/reviews', ...owner, validate(reviewListQuerySchema, 'query'), reviewController.listStore);
 router.get('/materials', ...owner, loadStore, requireMaterialStore, materialController.list);
 router.post(
   '/materials',

@@ -12,6 +12,7 @@ export interface GeoPoint {
 
 export function cleanPlaceText(value: unknown, max: number): string;
 export function toGeoPoint(lat: number, lng: number): GeoPoint | null;
+export function hasCoordinates(lat: unknown, lng: unknown): boolean;
 export function fromGeoPoint(point?: { coordinates?: number[] } | null): { lat: number; lng: number } | null;
 export function requirePlace(
   input: unknown,

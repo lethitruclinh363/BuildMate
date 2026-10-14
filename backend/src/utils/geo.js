@@ -35,6 +35,7 @@ module.exports = {
   isUnsetLocation,
   UNSET_LOCATION,
   toGeoPoint: place.toGeoPoint,
+  hasCoordinates: place.hasCoordinates,
   fromGeoPoint: place.fromGeoPoint,
   requirePlace: place.requirePlace,
   describePlace: place.describePlace,

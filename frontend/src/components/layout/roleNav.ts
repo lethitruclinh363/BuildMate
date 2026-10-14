@@ -1,4 +1,5 @@
 import {
+  BadgeCheck,
   Bell,
   ClipboardCheck,
   ClipboardList,
@@ -40,7 +41,8 @@ export function contractorNav(t: Translate): DashboardNavItem[] {
     { to: '/contractor/requests', label: t('nav.contractor.requests'), icon: Inbox },
     { to: '/contractor/orders', label: t('nav.contractor.orders'), icon: ClipboardList },
     { to: '/contractor/earnings', label: t('nav.contractor.revenue'), icon: Wallet },
-    { to: '/contractor/reputation', label: t('nav.contractor.reviews'), icon: Star },
+    { to: '/contractor/reviews', label: t('nav.contractor.reviews'), icon: Star },
+    { to: '/contractor/reputation', label: t('nav.contractor.reputation'), icon: BadgeCheck },
     { to: '/contractor/notifications', label: t('nav.contractor.alerts'), icon: Bell },
     { to: '/contractor/account', label: t('nav.contractor.account'), icon: UserRound },
   ];

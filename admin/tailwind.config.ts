@@ -14,11 +14,11 @@ const config: Config = {
           500: '#3b7eaa',
         },
         copper: {
-          300: '#ebc894',
-          400: '#c9842a',
-          500: '#b8612a',
-          600: '#9a4c1f',
-          700: '#7a3c19',
+          300: '#cfe3f1',
+          400: '#8eb0c9',
+          500: '#5f8ca9',
+          600: '#3d6f8d',
+          700: '#173b4f',
         },
       },
       fontFamily: {
@@ -33,9 +33,9 @@ const config: Config = {
       },
       backgroundImage: {
         'admin-grid':
-          'linear-gradient(rgba(201,132,42,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(201,132,42,0.06) 1px, transparent 1px)',
+          'linear-gradient(rgba(23,59,79,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(23,59,79,0.06) 1px, transparent 1px)',
         'admin-glow':
-          'radial-gradient(ellipse at 12% -10%, rgba(201,132,42,0.18), transparent 42%), radial-gradient(ellipse at 90% 0%, rgba(30,100,147,0.22), transparent 40%)',
+          'radial-gradient(ellipse at 12% -10%, rgba(23,59,79,0.18), transparent 42%), radial-gradient(ellipse at 90% 0%, rgba(30,100,147,0.22), transparent 40%)',
       },
     },
   },

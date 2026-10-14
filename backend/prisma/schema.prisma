@@ -567,6 +567,7 @@ model material_orders {
   material_order_items                             material_order_items[]
   material_order_payments                          material_order_payments?
   material_order_status_history                    material_order_status_history[]
+  reviews                                          reviews[]
   users_material_orders_customer_user_idTousers    users                           @relation("material_orders_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_orders_customer")
   locations                                        locations                       @relation(fields: [delivery_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_orders_delivery_location")
   stores                                           stores                          @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_material_orders_store")
@@ -843,7 +844,8 @@ model review_media {
 model reviews {
   id                                    BigInt         @id @default(autoincrement())
   legacy_mongo_id                       String?        @unique @db.VarChar(24)
-  service_order_id                      BigInt
+  service_order_id                      BigInt?
+  material_order_id                     BigInt?
   customer_user_id                      BigInt
   target_user_id                        BigInt
   target_type                           String         @db.VarChar(30)
@@ -857,10 +859,12 @@ model reviews {
   updated_at                            DateTime       @default(now()) @db.Timestamptz(6)
   review_media                          review_media[]
   users_reviews_customer_user_idTousers users          @relation("reviews_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_customer")
-  service_orders                        service_orders @relation(fields: [service_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reviews_order")
+  material_orders                       material_orders? @relation(fields: [material_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reviews_material_order")
+  service_orders                        service_orders? @relation(fields: [service_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reviews_order")
   users_reviews_target_user_idTousers   users          @relation("reviews_target_user_idTousers", fields: [target_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_target")
 
   @@unique([service_order_id, customer_user_id, target_user_id, target_type], map: "uq_reviews_party_per_order")
+  @@unique([material_order_id], map: "uq_reviews_material_order")
   @@index([target_user_id, target_type, created_at(sort: Desc)], map: "idx_reviews_target_created")
 }
 

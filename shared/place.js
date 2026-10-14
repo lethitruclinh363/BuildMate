@@ -14,6 +14,12 @@ function toGeoPoint(lat, lng) {
   return { type: 'Point', coordinates: [longitude, latitude] };
 }
 
+function hasCoordinates(lat, lng) {
+  const point = toGeoPoint(lat, lng);
+  if (!point) return false;
+  return point.coordinates[0] !== 0 || point.coordinates[1] !== 0;
+}
+
 function fromGeoPoint(point) {
   const coordinates = point && point.coordinates;
   if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
@@ -80,6 +86,7 @@ function gpsErrorKind(code) {
 module.exports = {
   cleanPlaceText,
   toGeoPoint,
+  hasCoordinates,
   fromGeoPoint,
   requirePlace,
   describePlace,

@@ -18,6 +18,19 @@ const reviewReportSchema = z.object({
   reason: z.string().trim().min(8).max(500),
 }).strict();
 
+const reviewListQuerySchema = z.object({
+  rating: z.coerce.number().int().min(1).max(5).optional(),
+  sort: z.enum(['newest', 'oldest']).optional().default('newest'),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).optional().default(10),
+});
+
+const materialReviewSchema = z.object({
+  materialOrderId: z.string().min(8),
+  rating: z.coerce.number().int().min(1).max(5),
+  comment: z.string().trim().max(1000).optional().or(z.literal('')),
+}).strict();
+
 const reviewSchema = z.object({
   orderId: z.string().min(8),
   targetUserId: z.string().min(8),
@@ -49,8 +62,10 @@ module.exports = {
   checkoutSchema,
   refundSchema,
   reviewSchema,
+  materialReviewSchema,
   reviewReplySchema,
   reviewReportSchema,
+  reviewListQuerySchema,
   complaintSchema,
   complaintPatchSchema,
   commissionRuleSchema,

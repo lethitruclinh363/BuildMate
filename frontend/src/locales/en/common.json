@@ -164,7 +164,8 @@
       "alerts": "Alerts",
       "orders": "Orders",
       "revenue": "Earnings",
-      "reviews": "Reputation"
+      "reviews": "Reviews",
+      "reputation": "Reputation"
     },
     "store": {
       "overview": "Overview",

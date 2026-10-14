@@ -3,6 +3,7 @@ export type ReviewTargetType = 'CONTRACTOR' | 'MATERIAL_STORE';
 export interface Review {
   id: string;
   orderId: string;
+  materialOrderId?: string;
   customerId: string;
   targetUserId: string;
   targetType: ReviewTargetType;
@@ -13,6 +14,8 @@ export interface Review {
   customerName?: string;
   customerAvatar?: string;
   jobTitle?: string;
+  orderCode?: string;
+  orderStatus?: string;
   contractorReply?: string;
   repliedAt?: string | null;
   reported?: boolean;
@@ -23,4 +26,7 @@ export interface ReviewListPayload {
   count: number;
   distribution?: Record<string, number>;
   items: Review[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
 }

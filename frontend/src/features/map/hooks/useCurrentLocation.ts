@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { rememberGpsOrigin, requestCurrentPosition, type GeoErrorKind } from '@/features/map/lib/location';
+import { hasCoordinates, rememberGpsOrigin, requestCurrentPosition, type GeoErrorKind } from '@/features/map/lib/location';
 import { originFromPlace, reverseGeocode } from '@/features/map/services/geocoding';
 import type { MapOrigin } from '@/features/map/types';
 import { CAN_THO } from '@/types/marketplace';
@@ -22,6 +22,10 @@ export function useCurrentLocation(initial?: MapOrigin) {
     requestCurrentPosition()
       .then(async (point) => {
         if (request.current !== id) return;
+        if (!hasCoordinates(point.lat, point.lng)) {
+          setStatus('unavailable');
+          return;
+        }
         rememberGpsOrigin(point);
         setOrigin({ lat: point.lat, lng: point.lng, source: 'GPS' });
         setStatus('ready');

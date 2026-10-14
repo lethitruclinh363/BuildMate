@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { AddressSearch } from '@/features/map/components/AddressSearch';
 import { VietMapView } from '@/features/map/components/VietMapView';
 import type { MapOrigin } from '@/features/map/types';
-import { autocompleteFocus, formatCoordinates, rememberGpsOrigin, requestCurrentPosition, type GeoErrorKind } from '@/features/map/lib/location';
+import { autocompleteFocus, formatCoordinates, hasCoordinates, rememberGpsOrigin, requestCurrentPosition, type GeoErrorKind } from '@/features/map/lib/location';
 import { originFromPlace, placeDetail, reverseGeocode, type AddressSuggestion } from '@/features/map/services/geocoding';
 import { useI18n } from '@/locales';
 
@@ -63,7 +63,7 @@ export function LocationPicker({
     try {
       const place = await placeDetail(hit.refId);
       const next = { ...originFromPlace(place, 'VIETMAP_PLACE'), locationConfirmed: false };
-      if (!Number.isFinite(next.lat) || !Number.isFinite(next.lng)) {
+      if (!hasCoordinates(next.lat, next.lng)) {
         setNotice(t('map.searchFailed'));
         return;
       }
@@ -78,6 +78,10 @@ export function LocationPicker({
   }
 
   function resolvePin(lat: number, lng: number, source: MapOrigin['source']) {
+    if (!hasCoordinates(lat, lng)) {
+      setNotice(t('map.searchFailed'));
+      return;
+    }
     window.clearTimeout(reverseTimer.current);
     setConfirmed(false);
     onPick({ ...originRef.current, lat, lng, source, locationConfirmed: false });
@@ -112,6 +116,10 @@ export function LocationPicker({
     setNotice('');
     try {
       const point = await requestCurrentPosition();
+      if (!hasCoordinates(point.lat, point.lng)) {
+        setGpsError('unavailable');
+        return;
+      }
       rememberGpsOrigin(point);
       resolvePin(point.lat, point.lng, 'GPS');
     } catch (err) {

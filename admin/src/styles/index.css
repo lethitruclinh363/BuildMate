@@ -3,14 +3,28 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
-  --admin-bg: #071e32;
-  --admin-surface: #0b2e4a;
+  color-scheme: light;
+  --admin-bg: #f4f1ea;
+  --admin-surface: #f7f5f1;
+  --admin-panel: #ffffff;
+  --admin-sidebar: #173b4f;
+  --admin-sidebar-strong: #102d3d;
+  --admin-border: rgba(11, 46, 74, 0.09);
+  --admin-text: #1a2332;
+  --admin-text-soft: #46576b;
+  --admin-accent: #173b4f;
 }
 
 html[data-theme='oled'] {
-  --admin-bg: #000000;
-  --admin-surface: #071e32;
+  --admin-bg: #0b1220;
+  --admin-surface: #0f1c2b;
+  --admin-panel: #12263d;
+  --admin-sidebar: #071e32;
+  --admin-sidebar-strong: #040f1a;
+  --admin-border: rgba(255, 255, 255, 0.08);
+  --admin-text: #edf3fa;
+  --admin-text-soft: #a9bbcf;
+  --admin-accent: #dca85a;
 }
 
 html,
@@ -22,8 +36,8 @@ body,
 
 body {
   margin: 0;
-  background: var(--admin-bg);
-  color: #fbf9f4;
+  background: linear-gradient(180deg, var(--admin-bg) 0%, #eef3f8 100%);
+  color: var(--admin-text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: 16px;
   font-weight: 400;
@@ -60,12 +74,15 @@ body {
 }
 
 ::selection {
-  background: rgba(201, 132, 42, 0.35);
+  background: rgba(23, 59, 79, 0.28);
 }
 
 @layer components {
   .glass-card {
-    @apply rounded-xl border border-white/10 bg-navy-900/70 shadow-none;
+    @apply rounded-xl border shadow-none;
+    background: rgba(255, 255, 255, 0.8);
+    border-color: var(--admin-border);
+    color: var(--admin-text);
   }
 }
 
@@ -74,34 +91,27 @@ html[data-theme='oled'] .glass-card {
   border-color: rgba(255, 255, 255, 0.06);
 }
 
-/* Keep the admin navigation branded and dark while matching the user dashboards in the workspace area. */
+.admin-shell {
+  background: var(--admin-bg);
+}
+
 .admin-shell > div {
-  background-color: #f3f5f8 !important;
-  color: #1a2332;
+  background-color: var(--admin-surface) !important;
+  color: var(--admin-text);
 }
 
 .admin-shell > div .glass-card,
-.admin-shell > div .bg-navy-900\/70 {
-  background-color: #ffffff !important;
-  border-color: rgba(11, 46, 74, 0.1);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
+.admin-shell > div .bg-white,
+.admin-shell > div .bg-white\/80,
+.admin-shell > div .bg-white\/90,
+.admin-shell > div .bg-navy-900\/70,
 .admin-shell > div .bg-navy-900\/40,
-.admin-shell > div .bg-navy-900 {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-}
-
+.admin-shell > div .bg-navy-900,
 .admin-shell > div .bg-navy-950\/60,
 .admin-shell > div .bg-navy-950\/40 {
-  background-color: #f7f8f9 !important;
-}
-
-.admin-shell > div [class~='bg-white/[0.03]'],
-.admin-shell > div [class~='bg-white/5'],
-.admin-shell > div [class~='bg-white/8'],
-.admin-shell > div [class~='bg-white/10'] {
-  background-color: rgba(11, 46, 74, 0.05) !important;
+  background-color: var(--admin-panel) !important;
+  border-color: var(--admin-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .admin-shell > div [class~='text-white'],
@@ -113,25 +123,30 @@ html[data-theme='oled'] .glass-card {
 .admin-shell > div [class~='text-white/45'],
 .admin-shell > div [class~='text-white/40'],
 .admin-shell > div [class~='text-white/35'],
-.admin-shell > div [class~='text-white/30'] {
-  color: #1a2332 !important;
+.admin-shell > div [class~='text-white/30'],
+.admin-shell > div [class*='text-slate-'],
+.admin-shell > div [class*='text-ink-'] {
+  color: var(--admin-text) !important;
 }
 
 .admin-shell > div [class~='border-white/15'],
 .admin-shell > div [class~='border-white/12'],
 .admin-shell > div [class~='border-white/10'],
 .admin-shell > div [class~='border-white/8'],
-.admin-shell > div [class~='border-white/6'] {
-  border-color: rgba(11, 46, 74, 0.1) !important;
+.admin-shell > div [class~='border-white/6'],
+.admin-shell > div [class~='border-navy-800/10'] {
+  border-color: var(--admin-border) !important;
 }
 
 .admin-shell > div [class~='hover:bg-white/6']:hover,
-.admin-shell > div [class~='hover:bg-white/8']:hover {
-  background-color: rgba(11, 46, 74, 0.06) !important;
+.admin-shell > div [class~='hover:bg-white/8']:hover,
+.admin-shell > div [class~='hover:bg-slate-100']:hover,
+.admin-shell > div [class~='hover:bg-paper-100']:hover {
+  background-color: rgba(11, 46, 74, 0.05) !important;
 }
 
 .admin-shell > div input,
 .admin-shell > div textarea,
 .admin-shell > div select {
-  color: #1a2332;
+  color: var(--admin-text);
 }

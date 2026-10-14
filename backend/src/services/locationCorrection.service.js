@@ -1,5 +1,5 @@
 const { LocationCorrection } = require('../repositories/systemAccess');
-const { toGeoPoint } = require('../utils/geo');
+const { hasCoordinates, toGeoPoint } = require('../utils/geo');
 
 const SOURCES = new Set(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']);
 
@@ -25,10 +25,19 @@ function locationSourceOf(value) {
   return SOURCES.has(source) ? source : 'MANUAL_PIN';
 }
 
+function correctionPoint(row) {
+  const coordinates = row && row.location && row.location.coordinates;
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+  const lng = Number(coordinates[0]);
+  const lat = Number(coordinates[1]);
+  if (!hasCoordinates(lat, lng)) return null;
+  return { lat, lng };
+}
+
 async function record({ address, lat, lng, refId }) {
   const normalizedAddress = normalizeAddress(address);
   const point = toGeoPoint(lat, lng);
-  if (!normalizedAddress || normalizedAddress.length < 4 || !point) return null;
+  if (!normalizedAddress || normalizedAddress.length < 4 || !point || !hasCoordinates(lat, lng)) return null;
   return LocationCorrection.findOneAndUpdate(
     { normalizedAddress },
     {
@@ -53,11 +62,9 @@ async function prefer(place) {
   if (normalizedAddress.length >= 4) query.push({ normalizedAddress });
   if (!query.length) return place;
   const row = await LocationCorrection.findOne({ $or: query }).sort({ confirmedCount: -1, lastConfirmedAt: -1 });
-  const coordinates = row && row.location && row.location.coordinates;
-  const lng = Number(coordinates && coordinates[0]);
-  const lat = Number(coordinates && coordinates[1]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return place;
-  return { ...place, lat, lng, corrected: true };
+  const point = correctionPoint(row);
+  if (!point) return place;
+  return { ...place, lat: point.lat, lng: point.lng, corrected: true };
 }
 
-module.exports = { normalizeAddress, confirmedFlag, locationSourceOf, record, prefer };
+module.exports = { normalizeAddress, confirmedFlag, locationSourceOf, correctionPoint, record, prefer };

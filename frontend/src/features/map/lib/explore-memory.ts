@@ -1,4 +1,5 @@
 import type { MarketplaceFilters } from '@/features/map/components/FilterDrawer';
+import { hasCoordinates } from '@/features/map/lib/location';
 import type { MapOrigin } from '@/features/map/types';
 
 const KEY = 'buildmate.explore';
@@ -14,8 +15,7 @@ let memory: ExploreSnapshot | null = null;
 function valid(value: ExploreSnapshot | null): value is ExploreSnapshot {
   return Boolean(
     value &&
-      Number.isFinite(value.origin?.lat) &&
-      Number.isFinite(value.origin?.lng) &&
+      hasCoordinates(value.origin?.lat, value.origin?.lng) &&
       Number.isFinite(value.filters?.radius)
   );
 }

@@ -7,9 +7,9 @@ export function AdminLayout() {
   const location = useLocation();
 
   return (
-    <div className="admin-shell flex h-screen overflow-hidden bg-[var(--admin-bg)] text-white">
+    <div className="admin-shell flex h-screen overflow-hidden bg-[var(--admin-bg)] text-[var(--admin-text)]">
       <Sidebar />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-navy-950">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--admin-surface)]">
         <Topbar />
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <AnimatePresence mode="wait">

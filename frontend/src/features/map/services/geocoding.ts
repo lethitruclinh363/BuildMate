@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { hasCoordinates } from '@/features/map/lib/location';
 import type { MapOrigin } from '@/features/map/types';
 import type { LocationSource } from '@/features/map/types';
 import type { ApiResponse } from '@/types/user';
@@ -87,8 +88,15 @@ export async function placeDetail(refId: string) {
     timeout: 12000,
   });
   const place = res.data.data;
+  const lat = Number(place?.lat);
+  const lng = Number(place?.lng);
+  if (!hasCoordinates(lat, lng)) {
+    throw new Error('missing coordinates');
+  }
   return {
     ...place,
+    lat,
+    lng,
     label: place?.address || place?.display || '',
   };
 }

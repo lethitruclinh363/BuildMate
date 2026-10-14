@@ -26,6 +26,7 @@ const {
   catalogCheckSchema,
   catalogCreateSchema,
 } = require('../validators/partner.validator');
+const { reviewListQuerySchema } = require('../validators/finance.validator');
 const contractorController = require('../controllers/contractorController');
 const contractorEkycController = require('../controllers/contractorEkycController');
 const storeController = require('../controllers/storeController');
@@ -41,6 +42,7 @@ router.get('/earnings', authenticate, authorize(ROLES.CONTRACTOR), paymentContro
 
 router.get('/dashboard-stats', ...contractorOnly, contractorController.getDashboardStats);
 router.get('/reputation', ...contractorOnly, contractorController.getReputation);
+router.get('/reviews', ...contractorOnly, validate(reviewListQuerySchema, 'query'), contractorController.getReviews);
 router.get('/workspace', ...contractorOnly, contractorController.getWorkspace);
 router.post('/activation', ...contractorOnly, contractorController.activatePartner);
 router.post('/activation/pause', ...contractorOnly, contractorController.pausePartner);

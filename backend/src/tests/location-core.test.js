@@ -93,6 +93,16 @@ describe('location core', () => {
     });
     assert.equal(hit.lat, 10.0341);
     assert.equal(hit.lng, 105.7882);
+    await assert.rejects(
+      () => place('auto:zero', {
+        apiKey: KEY,
+        fetch: async () => ({
+          ok: true,
+          json: async () => ({ display: 'Missing point', lat: 0, lng: 0 }),
+        }),
+      }),
+      (err) => err instanceof ApiError && err.statusCode === 502
+    );
     assert.equal(hit.city, 'Cần Thơ');
     assert.equal('district' in hit, false);
   });
