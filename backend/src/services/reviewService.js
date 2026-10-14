@@ -118,39 +118,159 @@ function distributionOf(rows) {
   return distribution;
 }
 
+function reviewSummary(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const count = list.length;
+  const average = count
+    ? Math.round((list.reduce((sum, row) => sum + Number(row.rating), 0) / count) * 10) / 10
+    : 0;
+  return { average, count, distribution: distributionOf(list) };
+}
+
+function pageReviews(rows, options = {}) {
+  const rating = Number(options.rating);
+  const source = Array.isArray(rows) ? rows : [];
+  const filtered = Number.isInteger(rating) && rating >= 1 && rating <= 5
+    ? source.filter((row) => Number(row.rating) === rating)
+    : [...source];
+  const oldest = options.sort === 'oldest';
+  const ordered = [...filtered].sort((left, right) => {
+    const delta = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+    return oldest ? delta : -delta;
+  });
+  const pageSize = Math.min(50, Math.max(1, Number(options.pageSize) || 10));
+  const total = ordered.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(pageCount, Math.max(1, Number(options.page) || 1));
+  return {
+    total,
+    page,
+    pageSize,
+    items: ordered.slice((page - 1) * pageSize, page * pageSize),
+  };
+}
+
+async function presentReviews(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const [people, orders] = await Promise.all([
+    findUsersByIds(list.map((row) => row.customerId)),
+    Order.find({ _id: { $in: list.map((row) => row.orderId) } }),
+  ]);
+  const byId = new Map(people.map((person) => [String(person._id), person]));
+  const byOrder = new Map(orders.map((order) => [String(order._id), order.toPublic ? order.toPublic() : order]));
+  return list.map((row) => {
+    const customer = byId.get(String(row.customerId));
+    const order = byOrder.get(String(row.orderId));
+    return {
+      ...row.toPublic(),
+      customerName: customer?.name || '',
+      customerAvatar: customer?.avatar || '',
+      jobTitle: order?.title || '',
+      orderCode: order?.orderCode || row.orderCode || '',
+      orderStatus: order?.status || row.orderStatus || '',
+      materialOrderId: row.materialOrderId || '',
+    };
+  });
+}
+
 async function listForUser(targetUserId, targetType) {
   const query = { targetUserId };
   if (targetType && Object.values(REVIEW_TARGET).includes(targetType)) {
     query.targetType = targetType;
   }
   const rows = await Review.find(query).sort({ createdAt: -1 });
-  const [people, orders] = await Promise.all([
-    findUsersByIds(rows.map((row) => row.customerId)),
-    Order.find({ _id: { $in: rows.map((row) => row.orderId) } }).select('title'),
-  ]);
-  const byId = new Map(people.map((person) => [String(person._id), person]));
-  const titles = new Map(orders.map((order) => [String(order._id), order.title || '']));
-  const count = rows.length;
-  const average = count ? Math.round((rows.reduce((sum, row) => sum + row.rating, 0) / count) * 10) / 10 : 0;
   return {
-    average,
-    count,
-    distribution: distributionOf(rows),
-    items: rows.map((row) => {
-      const customer = byId.get(String(row.customerId));
-      return {
-        ...row.toPublic(),
-        customerName: customer?.name || '',
-        customerAvatar: customer?.avatar || '',
-        jobTitle: titles.get(String(row.orderId)) || '',
-      };
-    }),
+    ...reviewSummary(rows),
+    items: await presentReviews(rows),
   };
+}
+
+async function listTargetReviews(targetUserId, targetType, options = {}) {
+  const rows = await Review.find({ targetUserId, targetType });
+  const page = pageReviews(rows, options);
+  return {
+    ...reviewSummary(rows),
+    total: page.total,
+    page: page.page,
+    pageSize: page.pageSize,
+    items: await presentReviews(page.items),
+  };
+}
+
+async function listContractorReviews(contractorId, options = {}) {
+  return listTargetReviews(contractorId, REVIEW_TARGET.CONTRACTOR, options);
+}
+
+async function listStoreReviews(storeOwnerId, options = {}) {
+  return listTargetReviews(storeOwnerId, REVIEW_TARGET.MATERIAL_STORE, options);
+}
+
+const RECEIVED_MATERIAL_STATUSES = new Set(['CUSTOMER_RECEIVED', 'COMPLETED']);
+
+function assertMaterialStoreReview(order, customerId) {
+  if (!order) throw new ApiError(404, 'Material order not found');
+  if (String(order.customerId) !== String(customerId)) {
+    throw new ApiError(403, 'Only the customer can review this order');
+  }
+  if (String(order.storeOwnerId) === String(customerId)) {
+    throw new ApiError(403, 'You cannot review your own store');
+  }
+  if (!RECEIVED_MATERIAL_STATUSES.has(order.status)) {
+    throw new ApiError(409, 'Reviews are allowed only after the material order is received');
+  }
+}
+
+async function createMaterialStoreReview(customerId, payload) {
+  const { MaterialOrder } = require('../repositories/materialOrderAccess');
+  const order = await MaterialOrder.findById(payload.materialOrderId);
+  assertMaterialStoreReview(order, customerId);
+
+  let review;
+  try {
+    review = await Review.create({
+      materialOrderId: order._id,
+      customerId,
+      targetUserId: order.storeOwnerId,
+      targetType: REVIEW_TARGET.MATERIAL_STORE,
+      rating: payload.rating,
+      comment: payload.comment || '',
+      images: [],
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      throw new ApiError(409, 'You have already reviewed this store on the order');
+    }
+    throw err;
+  }
+
+  await recomputeTargetRating(order.storeOwnerId, REVIEW_TARGET.MATERIAL_STORE);
+  await notify({
+    userId: order.storeOwnerId,
+    title: 'New review',
+    message: `${payload.rating}/5 · ${order.orderCode || ''}`,
+    type: NOTIFICATION_TYPE.NEW_REVIEW,
+    meta: { materialOrderId: String(order._id), reviewId: String(review._id) },
+  });
+  await writeAudit({
+    actorId: customerId,
+    actorRole: 'CUSTOMER',
+    action: AUDIT_ACTION.REVIEW_CREATED,
+    entityType: 'Review',
+    entityId: review._id,
+    meta: { materialOrderId: String(order._id), rating: payload.rating, targetType: REVIEW_TARGET.MATERIAL_STORE },
+  });
+  review.orderCode = order.orderCode || '';
+  review.orderStatus = order.status || '';
+  const [presented] = await presentReviews([review]);
+  return presented;
 }
 
 async function ownContractorReview(contractorId, reviewId) {
   const review = await Review.findById(reviewId);
-  if (!review || String(review.targetUserId) !== String(contractorId) || review.targetType !== REVIEW_TARGET.CONTRACTOR) {
+  if (!review || String(review.targetUserId) !== String(contractorId)) {
+    throw new ApiError(404, 'Review not found');
+  }
+  if (review.targetType !== REVIEW_TARGET.CONTRACTOR && review.targetType !== REVIEW_TARGET.MATERIAL_STORE) {
     throw new ApiError(404, 'Review not found');
   }
   return review;
@@ -181,7 +301,7 @@ async function reportReview(contractorId, reviewId, reason) {
   })));
   await writeAudit({
     actorId: contractorId,
-    actorRole: 'CONTRACTOR',
+    actorRole: review.targetType === REVIEW_TARGET.MATERIAL_STORE ? 'MATERIAL_STORE_OWNER' : 'CONTRACTOR',
     action: AUDIT_ACTION.REVIEW_REPORTED,
     entityType: 'Review',
     entityId: review._id,
@@ -190,4 +310,16 @@ async function reportReview(contractorId, reviewId, reason) {
   return { reported: true };
 }
 
-module.exports = { createReview, listForUser, recomputeTargetRating, replyToReview, reportReview };
+module.exports = {
+  createReview,
+  listForUser,
+  listContractorReviews,
+  listStoreReviews,
+  createMaterialStoreReview,
+  assertMaterialStoreReview,
+  reviewSummary,
+  pageReviews,
+  recomputeTargetRating,
+  replyToReview,
+  reportReview,
+};

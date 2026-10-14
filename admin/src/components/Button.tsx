@@ -13,11 +13,11 @@ export function Button({ variant = 'primary', loading, className, children, disa
       type="button"
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50',
-        variant === 'primary' && 'bg-copper-500 text-navy-950 hover:bg-copper-400',
-        variant === 'ghost' && 'text-white/70 hover:bg-white/8 hover:text-white',
-        variant === 'danger' && 'bg-red-500/15 text-red-300 hover:bg-red-500/25',
-        variant === 'outline' && 'border border-white/15 text-white/80 hover:border-copper-500/50 hover:text-copper-300',
+        'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 disabled:opacity-50',
+        variant === 'primary' && 'border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-100 hover:text-slate-900',
+        variant === 'ghost' && 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+        variant === 'danger' && 'bg-red-50 text-red-600 hover:bg-red-100',
+        variant === 'outline' && 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900',
         className
       )}
       {...props}

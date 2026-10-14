@@ -51,6 +51,7 @@ const StoreOrderDetailPage = lazy(() =>
 );
 const StoreEarningsPage = lazy(() => import('@/pages/store/StoreSections').then((m) => ({ default: m.StoreEarningsPage })));
 const StoreReviewsPage = lazy(() => import('@/pages/store/StoreReviewsPage').then((m) => ({ default: m.StoreReviewsPage })));
+const StoreReputationPage = lazy(() => import('@/pages/store/StoreReputationPage').then((m) => ({ default: m.StoreReputationPage })));
 const PaymentPage = lazy(() => import('@/features/payments/pages/PaymentPage').then((m) => ({ default: m.PaymentPage })));
 const CustomerReviewsPage = lazy(() =>
   import('@/features/reviews/pages/CustomerReviewsPage').then((m) => ({ default: m.CustomerReviewsPage }))
@@ -60,6 +61,9 @@ const CustomerReviewPage = lazy(() =>
 );
 const ContractorReviewsPage = lazy(() =>
   import('@/features/reviews/pages/ContractorReviewsPage').then((m) => ({ default: m.ContractorReviewsPage }))
+);
+const ContractorReputationPage = lazy(() =>
+  import('@/features/reviews/pages/ContractorReputationPage').then((m) => ({ default: m.ContractorReputationPage }))
 );
 const CustomerComplaintsPage = lazy(() =>
   import('@/features/complaints/pages/CustomerComplaintsPage').then((m) => ({ default: m.CustomerComplaintsPage }))
@@ -179,8 +183,8 @@ export function App() {
                   <Route path="/contractor/orders" element={<ContractorOrdersPage />} />
                   <Route path="/contractor/orders/:id" element={<ContractorOrderDetailPage />} />
                   <Route path="/contractor/earnings" element={<ContractorEarningsPage />} />
-                  <Route path="/contractor/reputation" element={<ContractorReviewsPage />} />
-                  <Route path="/contractor/reviews" element={<Navigate to="/contractor/reputation" replace />} />
+                  <Route path="/contractor/reviews" element={<ContractorReviewsPage />} />
+                  <Route path="/contractor/reputation" element={<ContractorReputationPage />} />
                   <Route path="/contractor/chat/:roomId" element={<ChatPage />} />
                   <Route path="/contractor/quotation/create/:requestId" element={<CreateQuotationPage />} />
                   <Route path="/contractor/quotation/create" element={<ContractorRequestsPage />} />
@@ -204,7 +208,7 @@ export function App() {
                   <Route path="/store/orders/:id" element={<StoreOrderDetailPage />} />
                   <Route path="/store/earnings" element={<StoreEarningsPage />} />
                   <Route path="/store/reviews" element={<StoreReviewsPage />} />
-                  <Route path="/store/reputation" element={<StoreReviewsPage />} />
+                  <Route path="/store/reputation" element={<StoreReputationPage />} />
                   <Route path="/store/chat/:roomId" element={<ChatPage />} />
                   <Route path="/store/notifications" element={<NotificationsPage />} />
                   <Route path="/store/profile" element={<ProfilePage />} />

@@ -712,8 +712,33 @@ async function persistProgress(doc, tx) {
   }
 }
 
+let reviewLinksReady = false;
+
+async function ensureReviewLinks() {
+  if (reviewLinksReady) return;
+  await prisma.$executeRawUnsafe('ALTER TABLE reviews ALTER COLUMN service_order_id DROP NOT NULL');
+  await prisma.$executeRawUnsafe('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS material_order_id bigint');
+  await prisma.$executeRawUnsafe('ALTER TABLE reviews DROP CONSTRAINT IF EXISTS fk_reviews_material_order');
+  await prisma.$executeRawUnsafe(
+    'ALTER TABLE reviews ADD CONSTRAINT fk_reviews_material_order FOREIGN KEY (material_order_id) REFERENCES material_orders(id) ON DELETE CASCADE'
+  );
+  await prisma.$executeRawUnsafe('ALTER TABLE reviews DROP CONSTRAINT IF EXISTS chk_reviews_one_order');
+  await prisma.$executeRawUnsafe(
+    `ALTER TABLE reviews ADD CONSTRAINT chk_reviews_one_order CHECK (
+      (service_order_id IS NOT NULL AND material_order_id IS NULL)
+      OR (service_order_id IS NULL AND material_order_id IS NOT NULL)
+    )`
+  );
+  await prisma.$executeRawUnsafe('ALTER TABLE reviews DROP CONSTRAINT IF EXISTS uq_reviews_material_order');
+  await prisma.$executeRawUnsafe(
+    'ALTER TABLE reviews ADD CONSTRAINT uq_reviews_material_order UNIQUE (material_order_id)'
+  );
+  reviewLinksReady = true;
+}
+
 const reviewInclude = {
-  service_orders: { select: { legacy_mongo_id: true, title: true } },
+  service_orders: { select: { legacy_mongo_id: true, title: true, order_code: true, status: true } },
+  material_orders: { select: { legacy_mongo_id: true, order_code: true, status: true } },
   users_reviews_customer_user_idTousers: { select: { legacy_mongo_id: true } },
   users_reviews_target_user_idTousers: { select: { legacy_mongo_id: true } },
   review_media: { orderBy: { sort_order: 'asc' } },
@@ -730,6 +755,7 @@ class PgReview {
     return {
       id: this._id,
       orderId: legacyOf(this.orderId),
+      materialOrderId: legacyOf(this.materialOrderId),
       customerId: legacyOf(this.customerId),
       targetUserId: legacyOf(this.targetUserId),
       targetType: this.targetType,
@@ -758,6 +784,9 @@ function reviewFromRow(row) {
     pgId: row.id,
     _id: row.legacy_mongo_id,
     orderId: row.service_orders?.legacy_mongo_id || '',
+    materialOrderId: row.material_orders?.legacy_mongo_id || '',
+    orderCode: row.material_orders?.order_code || row.service_orders?.order_code || '',
+    orderStatus: row.material_orders?.status || row.service_orders?.status || '',
     customerId: row.users_reviews_customer_user_idTousers?.legacy_mongo_id || '',
     targetUserId: row.users_reviews_target_user_idTousers?.legacy_mongo_id || '',
     targetType: row.target_type,
@@ -774,17 +803,32 @@ function reviewFromRow(row) {
 }
 
 async function allReviews() {
+  await ensureReviewLinks();
   return (await prisma.reviews.findMany({ include: reviewInclude })).map(reviewFromRow);
 }
 
 async function persistReview(doc, tx) {
   const db = client(tx);
-  const order = await db.service_orders.findFirst({ where: { legacy_mongo_id: legacyOf(doc.orderId) }, select: { id: true } });
+  await ensureReviewLinks();
   const customer = await userId(doc.customerId, tx);
   const target = await userId(doc.targetUserId, tx);
-  if (!order || !customer || !target) throw new Error('Review order or party is not in PostgreSQL');
+  let serviceOrderId = null;
+  let materialOrderId = null;
+  if (doc.materialOrderId) {
+    const materialOrder = await db.material_orders.findFirst({
+      where: { legacy_mongo_id: legacyOf(doc.materialOrderId) },
+      select: { id: true },
+    });
+    if (!materialOrder || !customer || !target) throw new Error('Review material order or party is not in PostgreSQL');
+    materialOrderId = materialOrder.id;
+  } else {
+    const order = await db.service_orders.findFirst({ where: { legacy_mongo_id: legacyOf(doc.orderId) }, select: { id: true } });
+    if (!order || !customer || !target) throw new Error('Review order or party is not in PostgreSQL');
+    serviceOrderId = order.id;
+  }
   const data = {
-    service_order_id: order.id,
+    service_order_id: serviceOrderId,
+    material_order_id: materialOrderId,
     customer_user_id: customer,
     target_user_id: target,
     target_type: doc.targetType,
@@ -1053,13 +1097,20 @@ module.exports = {
   ProgressUpdate: model(allProgress, PgProgress),
   Review: model(allReviews, PgReview, {
     where: reviewWhere,
-    rows: (where, state) => prisma.reviews.findMany({
-      where,
-      include: reviewInclude,
-      orderBy: state?.sort?.createdAt < 0 ? { created_at: 'desc' } : undefined,
-      take: state?.limit > 0 ? state.limit : undefined,
-    }).then((rows) => rows.map(reviewFromRow)),
-    count: (where) => prisma.reviews.count({ where }),
+    rows: async (where, state) => {
+      await ensureReviewLinks();
+      const rows = await prisma.reviews.findMany({
+        where,
+        include: reviewInclude,
+        orderBy: state?.sort?.createdAt < 0 ? { created_at: 'desc' } : undefined,
+        take: state?.limit > 0 ? state.limit : undefined,
+      });
+      return rows.map(reviewFromRow);
+    },
+    count: async (where) => {
+      await ensureReviewLinks();
+      return prisma.reviews.count({ where });
+    },
   }),
   Complaint: model(allComplaints, PgComplaint),
   runInTransaction,

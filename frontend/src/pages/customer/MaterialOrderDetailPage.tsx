@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SiteLocationCard } from '@/features/map/components/SiteLocationCard';
 import { placeFromRecord } from '@/features/map/lib/location';
+import { ReviewForm } from '@/features/reviews/components/ReviewForm';
+import { reviewApi } from '@/features/reviews/services/review.api';
+import type { Review } from '@/features/reviews/types/review.types';
 import { getApiErrorMessage } from '@/lib/api';
 import { useMaterialOrderLiveStore } from '@/features/material-orders/material-order-live';
 import { materialOrderApi, type MaterialOrder } from '@/lib/material-order-api';
@@ -198,6 +201,7 @@ export function MaterialOrderDetailPage() {
             ) : null}
           </div>
         </Card>
+        <MaterialOrderReview order={order} onSaved={() => void load(true)} />
         <Card hover={false} className="mt-4">
           <h2 className="font-display text-2xl text-navy-800">{t('materialOrder.timeline')}</h2>
           <ol className="mt-4 space-y-3">
@@ -240,5 +244,79 @@ export function MaterialOrderDetailPage() {
         onConfirm={() => void run(() => materialOrderApi.cancel(id), t('materialOrder.cancelled'))}
       />
     </PageTransition>
+  );
+}
+
+function MaterialOrderReview({ order, onSaved }: { order: MaterialOrder; onSaved: () => void }) {
+  const { t, locale } = useI18n();
+  const pushToast = useToastStore((s) => s.push);
+  const eligible = order.status === 'COMPLETED' || order.status === 'CUSTOMER_RECEIVED';
+  const [mine, setMine] = useState<Review | null>(null);
+  const [loading, setLoading] = useState(eligible);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!eligible || !order.storeOwnerId) {
+      setMine(null);
+      setLoading(false);
+      return;
+    }
+    let cancel = false;
+    setLoading(true);
+    reviewApi
+      .forUser(order.storeOwnerId, 'MATERIAL_STORE')
+      .then((res) => {
+        if (cancel) return;
+        const found = (res.data.data.items || []).find((item) => item.materialOrderId === order.id) || null;
+        setMine(found);
+      })
+      .catch(() => {
+        if (!cancel) setMine(null);
+      })
+      .finally(() => {
+        if (!cancel) setLoading(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [eligible, order.id, order.storeOwnerId]);
+
+  if (!eligible) return null;
+
+  async function submit(payload: { rating: number; comment: string }) {
+    setBusy(true);
+    try {
+      const res = await reviewApi.createMaterial({ materialOrderId: order.id, rating: payload.rating, comment: payload.comment });
+      setMine(res.data.data);
+      pushToast({ kind: 'success', title: t('review.success') });
+      onSaved();
+    } catch (err) {
+      pushToast({ kind: 'error', title: getApiErrorMessage(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card hover={false} className="mt-4">
+      <h2 className="font-display text-2xl text-navy-800">{t('review.materialForm')}</h2>
+      {loading ? <p className="mt-3 text-sm text-ink-500">{t('review.none')}</p> : null}
+      {!loading && mine ? (
+        <div className="mt-3 text-sm">
+          <p className="text-copper-500" aria-label={t('public.stars', { n: mine.rating })}>
+            {'★'.repeat(mine.rating)}{'☆'.repeat(Math.max(0, 5 - mine.rating))}
+          </p>
+          <p className="mt-1 text-xs text-ink-400">
+            {new Date(mine.createdAt).toLocaleDateString(locale === 'en' ? 'en-GB' : 'vi-VN')}
+          </p>
+          {mine.comment ? <p className="mt-2 leading-6 text-ink-600">{mine.comment}</p> : null}
+          {mine.contractorReply ? (
+            <p className="mt-3 rounded-2xl bg-navy-800/5 px-3 py-2 leading-6 text-navy-800">{mine.contractorReply}</p>
+          ) : null}
+          <p className="mt-3 text-ink-500">{t('review.existsStore')}</p>
+        </div>
+      ) : null}
+      {!loading && !mine ? <div className="mt-4"><ReviewForm title={t('review.write')} onSubmit={(payload) => void submit(payload)} busy={busy} /></div> : null}
+    </Card>
   );
 }

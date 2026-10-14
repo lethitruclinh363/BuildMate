@@ -7,6 +7,16 @@ const create = asyncHandler(async (req, res) => {
   return success(res, data, 'Review created', 201);
 });
 
+const createMaterial = asyncHandler(async (req, res) => {
+  const data = await reviewService.createMaterialStoreReview(req.user.id, req.body);
+  return success(res, data, 'Review created', 201);
+});
+
+const listStore = asyncHandler(async (req, res) => {
+  const data = await reviewService.listStoreReviews(req.user.id, req.query);
+  return success(res, data, 'Reviews loaded');
+});
+
 const listForUser = asyncHandler(async (req, res) => {
   const data = await reviewService.listForUser(req.params.id, req.query.targetType);
   return success(res, data, 'Reviews retrieved');
@@ -22,4 +32,4 @@ const report = asyncHandler(async (req, res) => {
   return success(res, data, 'Review reported');
 });
 
-module.exports = { create, listForUser, reply, report };
+module.exports = { create, createMaterial, listStore, listForUser, reply, report };

@@ -342,7 +342,11 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-xs font-semibold ${active ? 'bg-copper-500 text-navy-950' : 'bg-white/8 text-white/70'}`}
+      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+        active
+          ? 'border-slate-300 bg-slate-200 text-slate-800 hover:bg-slate-300'
+          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+      }`}
     >
       {children}
     </button>

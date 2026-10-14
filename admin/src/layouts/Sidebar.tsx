@@ -67,18 +67,18 @@ export function Sidebar() {
         onClick={() => setMobileOpen(false)}
         className={({ isActive }) =>
           cn(
-            'group relative flex items-center gap-3 rounded-xl border-l-2 border-transparent px-3 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/8 hover:text-white',
+            'group relative flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-2 text-[13px] font-medium leading-none text-white/70 transition-all duration-200 hover:bg-white/6 hover:text-white',
             collapsed && 'justify-center px-2',
-            isActive && 'bg-white/10 font-semibold text-white'
+            isActive && 'border-white/10 bg-white/8 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]'
           )
         }
       >
         {() => (
           <>
-            <span className="grid place-items-center">
+            <span className="grid h-4 w-4 shrink-0 place-items-center">
               <Icon className="h-4 w-4" />
             </span>
-            {!collapsed ? t(`nav.${item.key}`) : null}
+            {!collapsed ? <span className="truncate">{t(`nav.${item.key}`)}</span> : null}
           </>
         )}
       </NavLink>
@@ -87,38 +87,38 @@ export function Sidebar() {
 
   const nav = (
     <>
-      <div className={cn('flex h-14 items-center justify-between px-4', collapsed && 'justify-center px-2')}>
-        <img src="/brand-logo.png" alt="BuildMate" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+      <div className={cn('flex h-[72px] items-center gap-3 px-3', collapsed && 'justify-center px-2')}>
+        <img src="/brand-logo.png" alt="BuildMate" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
         {!collapsed ? (
-          <div className="min-w-0">
-            <p className="truncate font-display text-[17px] font-bold tracking-tight text-white">{t('brand')}</p>
-            <p className="truncate text-[11px] font-medium text-white/70">{t('tagline')}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-[15px] font-bold tracking-tight text-white">{t('brand')}</p>
+            <p className="truncate text-[10px] font-medium uppercase tracking-[0.12em] text-white/60">{t('tagline')}</p>
           </div>
         ) : null}
         <button
           type="button"
-          className="rounded-full bg-white/10 p-2 text-white/80 hover:bg-white/15"
+          className="ml-auto rounded-md bg-white/8 p-1.5 text-white/80 transition hover:bg-white/12 hover:text-white"
           onClick={() => (mobileOpen ? setMobileOpen(false) : toggleCollapsed())}
           aria-label={collapsed ? t('shell.expand') : t('shell.collapse')}
         >
           {mobileOpen ? <X className="h-4 w-4" /> : collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
-      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-2">
         {items.map((item) => renderNavItem(item))}
-        <p className={cn('px-3 pb-1 pt-4 text-xs font-semibold uppercase text-white/40', collapsed && 'px-2 text-center')}>
-          {collapsed ? '·' : t('nav.partners')}
+        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45', collapsed && 'px-1 text-center')}>
+          {collapsed ? '•' : t('nav.partners')}
         </p>
         {partnerItems.map((item) => renderNavItem(item))}
-        <p className={cn('px-3 pb-1 pt-4 text-xs font-semibold uppercase text-white/40', collapsed && 'px-2 text-center')}>
-          {collapsed ? '·' : t('nav.system')}
+        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45', collapsed && 'px-1 text-center')}>
+          {collapsed ? '•' : t('nav.system')}
         </p>
         {systemItems.map((item) => renderNavItem(item))}
       </nav>
-      <div className="mt-auto border-t border-white/10 p-3">
+      <div className="mt-auto border-t border-white/10 p-2.5">
         {!collapsed && user ? (
-          <div className="flex items-center gap-3 px-1 py-1">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-800 text-sm font-bold text-white">
+          <div className="flex items-center gap-2.5 rounded-lg bg-white/4 px-2 py-2">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#3b697d] text-[11px] font-bold text-white shadow-inner shadow-white/10">
               {user.name
                 .split(/\s+/)
                 .filter(Boolean)
@@ -129,7 +129,7 @@ export function Sidebar() {
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{user.name}</p>
-              <p className="truncate text-[11px] tracking-wider text-white/50">{roleLabel(user.role)}</p>
+              <p className="truncate text-[10px] tracking-[0.12em] text-white/50">{roleLabel(user.role)}</p>
             </div>
           </div>
         ) : null}
@@ -144,10 +144,10 @@ export function Sidebar() {
       ) : null}
       <aside
         className={cn(
-          'z-50 flex h-screen shrink-0 flex-col border-r border-white/10 bg-[#29404d] transition-[width,transform] duration-300',
+          'z-50 flex h-screen shrink-0 flex-col border-r border-white/10 bg-[var(--admin-sidebar)] text-white shadow-[8px_0_24px_rgba(15,23,42,0.12)] transition-[width,transform] duration-300',
           'fixed inset-y-0 left-0 lg:static lg:h-full',
-          collapsed ? 'lg:w-[84px]' : 'lg:w-[244px]',
-          mobileOpen ? 'w-[244px] translate-x-0' : '-translate-x-full lg:translate-x-0'
+          collapsed ? 'lg:w-[82px]' : 'lg:w-[232px]',
+          mobileOpen ? 'w-[232px] translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         {nav}

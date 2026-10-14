@@ -235,10 +235,27 @@ export function VietMapView({
       readyRef.current = true;
       setReady(true);
     };
-    const onError = (event: { sourceId?: string; error?: { name?: string; message?: string } }) => {
+    let tileLoaded = false;
+    let tileFailed = false;
+    const onData = (event: { tile?: unknown }) => {
+      if (!event?.tile) return;
+      tileLoaded = true;
+      setFailed(false);
+    };
+    const onIdle = () => {
+      if (tileFailed && !tileLoaded && mapRef.current === map) {
+        console.warn('[BuildMate] map tiles failed');
+        setFailed(true);
+      }
+    };
+    const onError = (event: { sourceId?: string; tile?: unknown; error?: { name?: string; message?: string } }) => {
       const message = event?.error?.message || '';
       if (event?.error?.name === 'AbortError' || /signal is aborted/i.test(message)) return;
-      if (event?.sourceId || readyRef.current) return;
+      if (event?.sourceId || event?.tile) {
+        tileFailed = true;
+        return;
+      }
+      if (readyRef.current) return;
       console.warn('[BuildMate] map style failed', message || 'style');
       setFailed(true);
     };
@@ -251,6 +268,8 @@ export function VietMapView({
     };
     window.addEventListener('unhandledrejection', ignoreAbort);
     map.on('load', onLoad);
+    map.on('data', onData);
+    map.on('idle', onIdle);
     map.on('error', onError);
     map.on('click', (event) => {
       clickRef.current?.(event.lngLat.lat, event.lngLat.lng);

@@ -3,6 +3,7 @@ import {
   directionsUrl as sharedDirectionsUrl,
   fromGeoPoint as sharedFromGeoPoint,
   gpsErrorKind,
+  hasCoordinates as sharedHasCoordinates,
   mapSearchUrl as sharedMapSearchUrl,
   requirePlace,
   toGeoPoint as sharedToGeoPoint,
@@ -126,6 +127,10 @@ export function storeLocationPatch(origin: {
     ...(address.length >= 4 ? { address: address.slice(0, 200) } : {}),
     ...(city ? { city: city.slice(0, 80) } : {}),
   };
+}
+
+export function hasCoordinates(lat: unknown, lng: unknown) {
+  return sharedHasCoordinates(lat, lng);
 }
 
 export function formatCoordinates(lat: number, lng: number, digits = 5) {

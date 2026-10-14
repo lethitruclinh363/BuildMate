@@ -4,6 +4,7 @@ const { publicFileUrl } = require('../middleware/uploadMiddleware');
 const contractorService = require('../services/contractorService');
 const publicProfileService = require('../services/publicProfileService');
 const reviewService = require('../services/reviewService');
+const reputationService = require('../services/reputationService');
 const catalogService = require('../services/catalogService');
 const serviceService = require('../services/serviceService');
 const dashboardService = require('../services/contractorDashboard.service');
@@ -137,11 +138,16 @@ const createCustomService = asyncHandler(async (req, res) => {
 });
 
 const getReputation = asyncHandler(async (req, res) => {
-  const [reviews, highlights] = await Promise.all([
-    reviewService.listForUser(req.user.id, 'CONTRACTOR'),
+  const [reputation, highlights] = await Promise.all([
+    reputationService.forContractor(req.user.id),
     publicProfileService.loadPublicHighlights(req.user.id),
   ]);
-  return success(res, { reviews, highlights }, 'Reputation loaded');
+  return success(res, { reputation, highlights }, 'Reputation loaded');
+});
+
+const getReviews = asyncHandler(async (req, res) => {
+  const data = await reviewService.listContractorReviews(req.user.id, req.query);
+  return success(res, data, 'Reviews loaded');
 });
 
 const activatePartner = asyncHandler(async (req, res) => {
@@ -182,6 +188,7 @@ module.exports = {
   createCustomService,
   getDashboardStats,
   getReputation,
+  getReviews,
   activatePartner,
   pausePartner,
 };

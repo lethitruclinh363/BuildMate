@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
+import { ReputationSummary } from '@/features/reviews/components/ReputationSummary';
 import { reviewApi } from '@/features/reviews/services/review.api';
+import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
 import { mediaUrl, vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
@@ -35,11 +37,13 @@ export function ContractorProfileShowcase({
   profile,
   services,
   highlights,
+  reputation,
   preview,
 }: {
   profile: PublicContractorProfile;
   services: CatalogService[];
   highlights?: PublicHighlights;
+  reputation?: ReputationSnapshot | null;
   preview?: boolean;
 }) {
   const { t, locale } = useI18n();
@@ -163,6 +167,11 @@ export function ContractorProfileShowcase({
                     </span>
                   ) : null}
                 </p>
+                {reputation ? (
+                  <div className="mt-3">
+                    <ReputationSummary reputation={reputation} t={t} />
+                  </div>
+                ) : null}
                 {profile.slogan ? <p className="mt-2 max-w-xl text-base text-ink-600">{profile.slogan}</p> : null}
               </div>
             </div>

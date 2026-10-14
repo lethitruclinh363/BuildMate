@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { locationApi } from '@/features/map/services/location.api';
 import { useI18n } from '@/locales';
 import type { CatalogService } from '@/types/partner';
+import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { PublicContractorProfile, PublicHighlights } from '@/types/marketplace';
 import { ContractorProfileShowcase } from './ContractorProfileShowcase';
 
@@ -18,6 +19,7 @@ export function ContractorPublicPage() {
   const [payload, setPayload] = useState<{
     publicProfile: PublicContractorProfile | null;
     highlights?: PublicHighlights;
+    reputation?: ReputationSnapshot | null;
     services: CatalogService[];
     visibility?: 'LIVE' | 'INACTIVE' | 'PAUSED';
   } | null>(null);
@@ -75,6 +77,7 @@ export function ContractorPublicPage() {
           profile={payload.publicProfile}
           services={payload.services || []}
           highlights={payload.highlights}
+          reputation={payload.reputation}
         />
       </div>
     </PageTransition>

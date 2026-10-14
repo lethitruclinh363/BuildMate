@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeAddress, confirmedFlag, locationSourceOf } = require('../services/locationCorrection.service');
+const { normalizeAddress, confirmedFlag, locationSourceOf, correctionPoint } = require('../services/locationCorrection.service');
 
 describe('location confirmation', () => {
   it('normalizes an address without treating it as coordinates', () => {
@@ -16,6 +16,17 @@ describe('location confirmation', () => {
     assert.equal(confirmedFlag(false), false);
     assert.equal(confirmedFlag('false'), false);
     assert.equal(confirmedFlag(undefined), false);
+  });
+
+  it('does not turn a missing correction into 0,0', () => {
+    assert.equal(correctionPoint(null), null);
+    assert.equal(correctionPoint({ location: null }), null);
+    assert.equal(correctionPoint({ location: { coordinates: [null, null] } }), null);
+    assert.equal(correctionPoint({ location: { coordinates: [0, 0] } }), null);
+    assert.deepEqual(correctionPoint({ location: { coordinates: [105.790104, 10.005443] } }), {
+      lat: 10.005443,
+      lng: 105.790104,
+    });
   });
 
   it('keeps Place, GPS, and a manual pin distinct', () => {

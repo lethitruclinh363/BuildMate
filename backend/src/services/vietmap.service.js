@@ -1,4 +1,5 @@
 const { ApiError } = require('../utils/ApiError');
+const { hasCoordinates } = require('../utils/geo');
 
 const VIETMAP_ORIGIN = 'https://maps.vietmap.vn';
 const DISPLAY_TYPE = '5';
@@ -58,7 +59,7 @@ function toSuggestion(row) {
 function toPlace(row, fallback = {}) {
   const lat = Number(row && row.lat != null ? row.lat : fallback.lat);
   const lng = Number(row && row.lng != null ? row.lng : fallback.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (!hasCoordinates(lat, lng)) return null;
   const display = String((row && (row.display || row.address || row.name)) || '').trim();
   const district = String((row && row.district) || '').trim() || boundaryName(row && row.boundaries, 1);
   const ward = String((row && row.ward) || '').trim() || boundaryName(row && row.boundaries, 2);

@@ -27,14 +27,14 @@ export function Topbar() {
   }, []);
 
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-white/8 bg-navy-900/40 px-4 py-3 backdrop-blur-xl sm:px-6">
+    <header className="flex items-center justify-between gap-3 border-b border-[var(--admin-border)] bg-white/75 px-4 py-3 backdrop-blur-xl sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <button type="button" className="rounded-lg border border-white/10 p-2 lg:hidden" onClick={() => setMobileOpen(true)}>
+        <button type="button" className="rounded-lg border border-[var(--admin-border)] bg-white/70 p-2 text-[var(--admin-text-soft)] lg:hidden" onClick={() => setMobileOpen(true)}>
           <Menu className="h-4 w-4" />
         </button>
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.18em] text-white/35">{t('shell.operations')}</p>
-          <p className="truncate text-sm text-white/80">{user?.name}</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--admin-text-soft)]">{t('shell.operations')}</p>
+          <p className="truncate text-sm font-medium text-[var(--admin-text)]">{user?.name}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -42,7 +42,7 @@ export function Topbar() {
         <button
           type="button"
           onClick={() => setAdminLanguage(i18n.language === 'vi' ? 'en' : 'vi')}
-          className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold uppercase text-white/60"
+          className="rounded-lg border border-[var(--admin-border)] bg-white/80 px-2.5 py-1.5 text-xs font-semibold uppercase text-[var(--admin-text-soft)]"
         >
           {i18n.language === 'vi' ? 'EN' : 'VI'}
         </button>
@@ -51,14 +51,14 @@ export function Topbar() {
           <button
             type="button"
             onClick={() => setProfileOpen((open) => !open)}
-            className="flex items-center gap-2 rounded-lg border border-white/10 px-2 py-1.5 text-left hover:bg-white/6"
+            className="flex items-center gap-2 rounded-lg border border-[var(--admin-border)] bg-white/80 px-2 py-1.5 text-left hover:bg-slate-100"
           >
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-copper-500/15 text-copper-300">
+            <span className="grid h-8 w-8 place-items-center rounded-md bg-copper-500/15 text-copper-600">
               <UserRound className="h-4 w-4" />
             </span>
             <span className="hidden min-w-0 sm:block">
-              <span className="block truncate text-xs font-semibold text-white">{user?.name}</span>
-              <span className="block truncate text-[10px] uppercase tracking-wider text-copper-400">{roleLabel(user?.role)}</span>
+              <span className="block truncate text-xs font-semibold text-[var(--admin-text)]">{user?.name}</span>
+              <span className="block truncate text-[10px] uppercase tracking-wider text-copper-600">{roleLabel(user?.role)}</span>
             </span>
           </button>
           {profileOpen ? (

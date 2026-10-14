@@ -6,6 +6,7 @@ const { ApiError } = require('../utils/ApiError');
 const { publicPricedServiceMatch, foldServiceName } = require('../constants/contractorServices');
 const { presentPublicProfile, seedPublicProfile, seedMaterialPublicProfile, loadPublicHighlights } = require('./publicProfileService');
 const reviewService = require('./reviewService');
+const reputationService = require('./reputationService');
 const { LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
 const activationService = require('./activation.service');
 const { USER_STATUS } = require('../models/User');
@@ -167,12 +168,16 @@ async function getPublicContractor(id) {
     publicProfile.rating = reviewSummary.average;
     publicProfile.reviewCount = reviewSummary.count;
   }
-  const highlights = await loadPublicHighlights(profile.userId);
+  const [highlights, reputation] = await Promise.all([
+    loadPublicHighlights(profile.userId),
+    reputationService.forContractor(profile.userId),
+  ]);
 
   return {
     visibility: 'LIVE',
     publicProfile,
     highlights,
+    reputation,
     contractor: publicProfile
       ? {
           id: profile.userId,

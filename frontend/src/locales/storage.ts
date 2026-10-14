@@ -45,6 +45,7 @@ const PREFIX_NS: Record<string, (typeof NAMESPACES)[number]> = {
   pay: 'finance',
   paymentStatus: 'finance',
   review: 'finance',
+  reputation: 'finance',
   stars: 'finance',
   complaint: 'finance',
   complaintStatus: 'finance',

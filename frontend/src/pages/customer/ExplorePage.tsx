@@ -15,6 +15,7 @@ import { RadiusSelector } from '@/features/map/components/RadiusSelector';
 import { FilterDrawer, type MarketplaceFilters } from '@/features/map/components/FilterDrawer';
 import { useCurrentLocation } from '@/features/map/hooks/useCurrentLocation';
 import { readExplore, rememberExplore } from '@/features/map/lib/explore-memory';
+import { hasCoordinates } from '@/features/map/lib/location';
 import { locationApi } from '@/features/map/services/location.api';
 import { originFromPlace, reverseGeocode } from '@/features/map/services/geocoding';
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
@@ -158,6 +159,7 @@ export function ExplorePage() {
   useEffect(() => () => window.clearTimeout(pinTimer.current), []);
 
   function pinFromMap(lat: number, lng: number) {
+    if (!hasCoordinates(lat, lng)) return;
     setPinFailed(false);
     setOrigin((current) => ({ ...current, lat, lng, source: 'MAP_PIN' }));
     window.clearTimeout(pinTimer.current);

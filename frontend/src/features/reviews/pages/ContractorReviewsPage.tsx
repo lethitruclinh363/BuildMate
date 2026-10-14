@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
@@ -13,11 +13,12 @@ import { getApiErrorMessage } from '@/lib/api';
 import { mediaUrl } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
-import type { PublicHighlights } from '@/types/marketplace';
 import { reviewApi } from '../services/review.api';
 import type { Review, ReviewListPayload } from '../types/review.types';
 
 type StarFilter = 'all' | 1 | 2 | 3 | 4 | 5;
+
+const PAGE_SIZE = 10;
 
 export function ContractorReviewsPage() {
   const { t, locale } = useI18n();
@@ -25,39 +26,35 @@ export function ContractorReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reviews, setReviews] = useState<ReviewListPayload | null>(null);
-  const [highlights, setHighlights] = useState<PublicHighlights>({});
   const [star, setStar] = useState<StarFilter>('all');
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
+  const [page, setPage] = useState(1);
   const [replyFor, setReplyFor] = useState('');
   const [replyText, setReplyText] = useState('');
   const [reportFor, setReportFor] = useState('');
   const [reportText, setReportText] = useState('');
   const [busy, setBusy] = useState(false);
 
-  function load() {
+  function load(nextPage = page) {
     setLoading(true);
     setError('');
     reviewApi
-      .dashboard()
-      .then((res) => {
-        setReviews(res.data.data.reviews);
-        setHighlights(res.data.data.highlights || {});
+      .contractorReviews({
+        rating: star === 'all' ? undefined : star,
+        sort,
+        page: nextPage,
+        pageSize: PAGE_SIZE,
       })
+      .then((res) => setReviews(res.data.data))
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
-    load();
-  }, []);
-
-  const items = useMemo(() => {
-    const rows = (reviews?.items || []).filter((row) => star === 'all' || row.rating === star);
-    return [...rows].sort((a, b) => {
-      const delta = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      return sort === 'newest' ? -delta : delta;
-    });
-  }, [reviews, star, sort]);
+    load(page);
+    // load is recreated each render; the query fields are the real dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [star, sort, page]);
 
   async function sendReply(review: Review) {
     setBusy(true);
@@ -66,7 +63,7 @@ export function ContractorReviewsPage() {
       setReplyFor('');
       setReplyText('');
       pushToast({ kind: 'success', title: t('review.replySaved') });
-      load();
+      load(page);
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -81,7 +78,7 @@ export function ContractorReviewsPage() {
       setReportFor('');
       setReportText('');
       pushToast({ kind: 'success', title: t('review.reportSent') });
-      load();
+      load(page);
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -90,30 +87,30 @@ export function ContractorReviewsPage() {
   }
 
   if (loading && !reviews) return <DashboardSkeleton />;
-  if (error && !reviews) return <ErrorState body={error} onRetry={load} />;
+  if (error && !reviews) return <ErrorState body={error} onRetry={() => load(page)} />;
 
   const average = reviews?.average || 0;
   const count = reviews?.count || 0;
   const distribution = reviews?.distribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   const maxBar = Math.max(1, ...[1, 2, 3, 4, 5].map((value) => Number(distribution[value] || 0)));
   const dateTag = locale === 'en' ? 'en-GB' : 'vi-VN';
-  const responseLabel = highlights.averageResponseMinutes == null
-    ? t('review.none')
-    : highlights.averageResponseMinutes < 60
-      ? t('public.responseMinutes', { n: highlights.averageResponseMinutes })
-      : t('public.responseHours', { n: Math.max(1, Math.round(highlights.averageResponseMinutes / 60)) });
+  const items = reviews?.items || [];
+  const total = reviews?.total ?? items.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <PageTransition>
-      <PageHeader eyebrow={t('review.eyebrow')} title={t('review.contractorTitle')} description={t('review.pageDesc')} />
+      <PageHeader eyebrow={t('review.reviewsEyebrow')} title={t('review.reviewsTitle')} description={t('review.reviewsDesc')} />
       {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Metric label={t('review.average')} value={count ? average.toFixed(1) : t('review.none')} />
-        <Metric label={t('review.count', { n: count })} value={String(count)} />
-        <Metric label={t('review.completed')} value={String(highlights.completedProjects || 0)} />
-        <Metric label={t('review.completion')} value={highlights.completionRate == null ? t('review.none') : `${highlights.completionRate}%`} />
-        <Metric label={t('review.response')} value={highlights.responseRate == null ? t('review.none') : `${highlights.responseRate}%`} />
-        <Metric label={t('review.responseTime')} value={responseLabel} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Card hover={false} className="p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">{t('review.average')}</p>
+          <p className="mt-1 text-2xl font-semibold text-navy-800">{count ? average.toFixed(1) : t('review.noAverage')}</p>
+        </Card>
+        <Card hover={false} className="p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">{t('review.totalLabel')}</p>
+          <p className="mt-1 text-2xl font-semibold text-navy-800">{count}</p>
+        </Card>
       </div>
 
       <Card hover={false} className="mt-6">
@@ -125,7 +122,7 @@ export function ContractorReviewsPage() {
               <div key={value} className="grid grid-cols-[4.5rem_1fr_2rem] items-center gap-3 text-sm">
                 <span className="text-navy-800">{value} ★</span>
                 <span className="h-2 overflow-hidden rounded-full bg-navy-800/8">
-                  <span className="block h-full rounded-full bg-copper-400" style={{ width: `${(amount / maxBar) * 100}%` }} />
+                  <span className="block h-full rounded-full bg-copper-400" style={{ width: count ? `${(amount / maxBar) * 100}%` : '0%' }} />
                 </span>
                 <span className="text-right text-ink-500">{amount}</span>
               </div>
@@ -135,17 +132,21 @@ export function ContractorReviewsPage() {
       </Card>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        <Filter active={star === 'all'} onClick={() => setStar('all')}>{t('public.allStars')}</Filter>
+        <Filter active={star === 'all'} onClick={() => { setStar('all'); setPage(1); }}>{t('public.allStars')}</Filter>
         {([5, 4, 3, 2, 1] as const).map((value) => (
-          <Filter key={value} active={star === value} onClick={() => setStar(value)}>{t('public.stars', { n: value })}</Filter>
+          <Filter key={value} active={star === value} onClick={() => { setStar(value); setPage(1); }}>{t('public.stars', { n: value })}</Filter>
         ))}
-        <Filter active={sort === 'newest'} onClick={() => setSort('newest')}>{t('review.newest')}</Filter>
-        <Filter active={sort === 'oldest'} onClick={() => setSort('oldest')}>{t('review.oldest')}</Filter>
+        <Filter active={sort === 'newest'} onClick={() => { setSort('newest'); setPage(1); }}>{t('review.newest')}</Filter>
+        <Filter active={sort === 'oldest'} onClick={() => { setSort('oldest'); setPage(1); }}>{t('review.oldest')}</Filter>
       </div>
 
       {count === 0 ? (
         <div className="mt-6">
-          <EmptyState icon={<Star className="h-5 w-5" />} title={t('review.empty')} body={t('review.emptyBody')} />
+          <EmptyState icon={<Star className="h-5 w-5" />} title={t('review.emptyCustomer')} body={t('review.reviewsDesc')} />
+        </div>
+      ) : items.length === 0 ? (
+        <div className="mt-6">
+          <EmptyState icon={<Star className="h-5 w-5" />} title={t('review.filterEmpty')} body={t('review.filterEmptyBody')} />
         </div>
       ) : (
         <div className={`mt-4 ${itemListClass}`}>
@@ -160,8 +161,11 @@ export function ContractorReviewsPage() {
                     <p className="font-semibold text-navy-800">{row.customerName || t('public.customer')}</p>
                     <p className="text-xs text-ink-400">{new Date(row.createdAt).toLocaleDateString(dateTag)}</p>
                   </div>
-                  <p className="mt-1 text-copper-500">{'★'.repeat(row.rating)}{'☆'.repeat(5 - row.rating)}</p>
-                  {row.jobTitle ? <p className="mt-1 text-xs text-ink-400">{t('review.job')}: {row.jobTitle}</p> : null}
+                  <p className="mt-1 text-copper-500" aria-label={t('public.stars', { n: row.rating })}>{'★'.repeat(row.rating)}{'☆'.repeat(Math.max(0, 5 - row.rating))}</p>
+                  {row.orderCode ? <p className="mt-1 text-xs text-ink-400">{t('review.orderCode')}: {row.orderCode}</p> : null}
+                  {row.orderStatus === 'CUSTOMER_ACCEPTED' ? (
+                    <p className="mt-1 text-xs font-semibold text-navy-800">{t('review.confirmed')}</p>
+                  ) : null}
                   {row.comment ? <p className="mt-2 text-sm leading-6 text-ink-600">{row.comment}</p> : null}
                   {row.contractorReply ? (
                     <p className="mt-3 rounded-2xl bg-navy-800/5 px-3 py-2 text-sm leading-6 text-navy-800">{row.contractorReply}</p>
@@ -196,16 +200,14 @@ export function ContractorReviewsPage() {
           ))}
         </div>
       )}
+      {pageCount > 1 ? (
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <Button type="button" variant="outline" disabled={page <= 1 || loading} onClick={() => setPage((value) => Math.max(1, value - 1))}>{t('review.prev')}</Button>
+          <span className="text-sm text-ink-500">{page} / {pageCount}</span>
+          <Button type="button" variant="outline" disabled={page >= pageCount || loading} onClick={() => setPage((value) => value + 1)}>{t('review.next')}</Button>
+        </div>
+      ) : null}
     </PageTransition>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <Card hover={false} className="p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-navy-800">{value}</p>
-    </Card>
   );
 }
 

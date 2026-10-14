@@ -16,6 +16,8 @@ import { PartnerLocationSection } from '@/features/map/components/PartnerLocatio
 import { storeLocationPatch } from '@/features/map/lib/location';
 import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
 import { locationApi } from '@/features/map/services/location.api';
+import { reviewApi } from '@/features/reviews/services/review.api';
+import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
 import { api, getApiErrorMessage } from '@/lib/api';
 import { contractorApi } from '@/lib/partner-api';
@@ -88,6 +90,7 @@ export function ContractorPublicProfilePage() {
   const [areas, setAreas] = useState('');
   const [services, setServices] = useState<CatalogService[]>([]);
   const [highlights, setHighlights] = useState<PublicHighlights>({});
+  const [reputation, setReputation] = useState<ReputationSnapshot | null>(null);
   const [viewer, setViewer] = useState<{ slides: ViewerSlide[]; index: number } | null>(null);
 
   useEffect(() => {
@@ -118,6 +121,10 @@ export function ContractorPublicProfilePage() {
     locationApi
       .contractor(String(profile.contractorId))
       .then((res) => setHighlights(res.data.data.highlights || {}))
+      .catch(() => undefined);
+    reviewApi
+      .dashboard()
+      .then((res) => setReputation(res.data.data.reputation))
       .catch(() => undefined);
   }, [profile.contractorId]);
 
@@ -262,7 +269,7 @@ export function ContractorPublicProfilePage() {
             </Button>
           ) : null}
         </div>
-        <ContractorProfileShowcase profile={draft} services={services} highlights={highlights} preview />
+        <ContractorProfileShowcase profile={draft} services={services} highlights={highlights} reputation={reputation} preview />
       </PageTransition>
     );
   }
