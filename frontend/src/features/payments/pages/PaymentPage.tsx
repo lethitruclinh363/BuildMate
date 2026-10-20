@@ -25,6 +25,7 @@ export function PaymentPage() {
   const push = useToastStore((s) => s.push);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [termsOk, setTermsOk] = useState(false);
 
   if (orderLoading || loading) return <DashboardSkeleton />;
   if (orderError || error || !order || !data) {
@@ -40,7 +41,10 @@ export function PaymentPage() {
     try {
       let id = payable.id;
       if (canCheckout(payable.status)) {
-        const res = await paymentApi.checkout(payable.id);
+        const res = await paymentApi.checkout(payable.id, 'MOCK', {
+          termsAccepted: true,
+          termsVersion: 'CONTRACTOR_DEPOSIT_TERMS_V2_DRAFT',
+        });
         id = res.data.data.payment.id;
       }
       if (import.meta.env.DEV || import.meta.env.MODE !== 'production') {
@@ -72,9 +76,20 @@ export function PaymentPage() {
           {paid ? (
             <p className="text-sm text-ink-600">{t('pay.paidHint')}</p>
           ) : (
-            <Button variant="copper" onClick={() => setOpen(true)} disabled={!payable}>
-              {t('pay.cta')}
-            </Button>
+            <>
+              <label className="mb-4 flex items-start gap-3 text-sm text-ink-600">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={termsOk}
+                  onChange={(event) => setTermsOk(event.target.checked)}
+                />
+                <span>{t('pay.termsBox')}</span>
+              </label>
+              <Button variant="copper" onClick={() => setOpen(true)} disabled={!payable || !termsOk}>
+                {t('pay.cta')}
+              </Button>
+            </>
           )}
         </Card>
       </div>

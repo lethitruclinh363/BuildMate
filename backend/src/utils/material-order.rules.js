@@ -2,11 +2,14 @@ const crypto = require('crypto');
 const { ApiError } = require('./ApiError');
 const { roundVnd } = require('./material-checkout');
 
-const PLATFORM_FEE_RATE = 0.05;
-const DEPOSIT_RATE = 0.15;
+const PLATFORM_FEE_RATE = 0;
+const DEPOSIT_RATE = 0;
+const LEGACY_PLATFORM_FEE_RATE = 0.05;
+const LEGACY_DEPOSIT_RATE = 0.15;
 
 const MATERIAL_ORDER_STATUS = Object.freeze({
   PENDING_PAYMENT: 'PENDING_PAYMENT',
+  PENDING_CONFIRMATION: 'PENDING_CONFIRMATION',
   DEPOSIT_PAID: 'DEPOSIT_PAID',
   CONFIRMED: 'CONFIRMED',
   PREPARING: 'PREPARING',
@@ -34,6 +37,7 @@ const MATERIAL_ACTOR = Object.freeze({
 
 const TRANSITIONS = Object.freeze({
   PENDING_PAYMENT: Object.freeze(['DEPOSIT_PAID', 'CANCELLED']),
+  PENDING_CONFIRMATION: Object.freeze(['CONFIRMED', 'CANCELLED']),
   DEPOSIT_PAID: Object.freeze(['CONFIRMED', 'CANCELLED']),
   CONFIRMED: Object.freeze(['PREPARING', 'CANCELLED']),
   PREPARING: Object.freeze(['READY_FOR_DELIVERY', 'CANCELLED']),
@@ -52,6 +56,7 @@ const ACTOR_MOVES = Object.freeze({
   }),
   STORE: Object.freeze({
     PENDING_PAYMENT: Object.freeze(['CANCELLED']),
+    PENDING_CONFIRMATION: Object.freeze(['CONFIRMED', 'CANCELLED']),
     DEPOSIT_PAID: Object.freeze(['CONFIRMED', 'CANCELLED']),
     CONFIRMED: Object.freeze(['PREPARING', 'CANCELLED']),
     PREPARING: Object.freeze(['READY_FOR_DELIVERY', 'CANCELLED']),
@@ -61,11 +66,13 @@ const ACTOR_MOVES = Object.freeze({
   }),
   CUSTOMER: Object.freeze({
     PENDING_PAYMENT: Object.freeze(['CANCELLED']),
+    PENDING_CONFIRMATION: Object.freeze(['CANCELLED']),
     DELIVERED: Object.freeze(['CUSTOMER_RECEIVED']),
   }),
 });
 
 const STORE_FORWARD = Object.freeze({
+  PENDING_CONFIRMATION: MATERIAL_ORDER_STATUS.CONFIRMED,
   DEPOSIT_PAID: MATERIAL_ORDER_STATUS.CONFIRMED,
   CONFIRMED: MATERIAL_ORDER_STATUS.PREPARING,
   PREPARING: MATERIAL_ORDER_STATUS.READY_FOR_DELIVERY,
@@ -79,15 +86,34 @@ function nextStoreFulfillment(status) {
 
 function summarizeMaterialEarnings(orders) {
   const counted = (orders || []).filter(
-    (order) => order.status !== MATERIAL_ORDER_STATUS.PENDING_PAYMENT && order.status !== MATERIAL_ORDER_STATUS.CANCELLED
+    (order) =>
+      order.status !== MATERIAL_ORDER_STATUS.PENDING_PAYMENT
+      && order.status !== MATERIAL_ORDER_STATUS.PENDING_CONFIRMATION
+      && order.status !== MATERIAL_ORDER_STATUS.CANCELLED
   );
-  const sum = (key) => counted.reduce((total, order) => total + roundVnd(order[key]), 0);
+  const completed = counted.filter((order) =>
+    order.status === MATERIAL_ORDER_STATUS.COMPLETED || order.status === MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED
+  );
+  const inFlight = counted.filter((order) =>
+    ['CONFIRMED', 'PREPARING', 'READY_FOR_DELIVERY'].includes(order.status)
+  );
+  const delivering = counted.filter((order) => order.status === MATERIAL_ORDER_STATUS.DELIVERING);
+  const cancelled = (orders || []).filter((order) => order.status === MATERIAL_ORDER_STATUS.CANCELLED);
+  const sum = (list, key) => list.reduce((total, order) => total + roundVnd(order[key]), 0);
+  const collected = counted.filter((order) => order.paymentStatus === MATERIAL_PAYMENT_STATUS.PAID || order.remainingSettledOffline);
   return {
-    orderValue: sum('totalAmount'),
-    onlineDeposits: sum('depositAmount'),
-    platformFees: sum('platformFeeAmount'),
-    storeDeposits: sum('storeDepositAmount'),
-    directRemaining: sum('remainingAmount'),
+    orderCount: (orders || []).length,
+    processingCount: inFlight.length,
+    deliveringCount: delivering.length,
+    completedCount: completed.length,
+    cancelledCount: cancelled.length,
+    orderValue: sum(completed, 'totalAmount'),
+    collectedAmount: sum(collected, 'totalAmount'),
+    uncollectedAmount: Math.max(sum(counted, 'totalAmount') - sum(collected, 'totalAmount'), 0),
+    platformFees: 0,
+    onlineDeposits: 0,
+    storeDeposits: 0,
+    directRemaining: sum(counted, 'remainingAmount'),
   };
 }
 
@@ -123,11 +149,16 @@ function storeDepositShare(depositAmount, platformFeeAmount) {
 }
 
 function priceMaterialOrder({ materialSubtotal, shippingFee }) {
+  const { snapshotMaterialFree } = require('./contractor-finance');
+  return snapshotMaterialFree({ materialSubtotal, shippingFee });
+}
+
+function priceLegacyMaterialOrder({ materialSubtotal, shippingFee }) {
   const subtotal = roundVnd(materialSubtotal);
   const shipping = roundVnd(shippingFee);
   const totalAmount = subtotal + shipping;
-  const platformFeeAmount = roundVnd(subtotal * PLATFORM_FEE_RATE);
-  const depositAmount = roundVnd(totalAmount * DEPOSIT_RATE);
+  const platformFeeAmount = roundVnd(subtotal * LEGACY_PLATFORM_FEE_RATE);
+  const depositAmount = roundVnd(totalAmount * LEGACY_DEPOSIT_RATE);
   const share = storeDepositShare(depositAmount, platformFeeAmount);
   const storeDepositAmount = share.storeDepositAmount;
   const remainingAmount = totalAmount - depositAmount;
@@ -172,6 +203,9 @@ function assertMaterialStatusTransition(current, next, actor) {
 module.exports = {
   PLATFORM_FEE_RATE,
   DEPOSIT_RATE,
+  LEGACY_PLATFORM_FEE_RATE,
+  LEGACY_DEPOSIT_RATE,
+  priceLegacyMaterialOrder,
   MATERIAL_ORDER_STATUS,
   MATERIAL_PAYMENT_STATUS,
   MATERIAL_ACTOR,

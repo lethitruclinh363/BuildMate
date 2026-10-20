@@ -63,6 +63,19 @@ export function CustomerOrderDetailPage() {
                 <Link to={`/customer/payment/${order.id}`} state={back}>{t('pay.cta')}</Link>
               </Button>
             ) : null}
+            {order.status === 'DEPOSIT_PAID' || order.status === 'STARTED' || order.status === 'IN_PROGRESS' || order.status === 'COMPLETED' || order.status === 'CUSTOMER_ACCEPTED' ? (
+              <p className="text-sm text-ink-500">{t('pay.escrowHeld')}</p>
+            ) : null}
+            {order.status === 'COMPLETED' || order.status === 'CUSTOMER_ACCEPTED' ? (
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={busy}
+                onClick={() => void run(() => orderApi.confirmRemaining(order.id), t('materialOrder.remainingConfirmed'))}
+              >
+                {t('materialOrder.confirmRemaining')}
+              </Button>
+            ) : null}
             {order.status === 'CUSTOMER_ACCEPTED' ? (
               <Button asChild variant="copper" className="w-full">
                 <Link to={`/customer/orders/${order.id}/review`} state={back}>{t('review.write')}</Link>

@@ -65,6 +65,22 @@ async function computeAnalytics() {
   const commission = commissionAgg[0] || { platform: 0, contractor: 0, count: 0 };
   const reviews = reviewAgg[0] || { avg: 0, count: 0 };
 
+  let materialGmv = 0;
+  let materialCompleted = 0;
+  try {
+    const { MaterialOrder } = require('../repositories/materialOrderAccess');
+    const materialRows = await MaterialOrder.find({
+      status: { $in: ['COMPLETED', 'CUSTOMER_RECEIVED'] },
+    }).select('totalAmount platformFeeAmount');
+    materialCompleted = materialRows.length;
+    materialGmv = materialRows.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);
+  } catch (_err) {
+    materialGmv = 0;
+  }
+
+  const adminFinanceService = require('./adminFinanceService');
+  const ledger = await adminFinanceService.buildLedger();
+
   return {
     users: {
       total: totalUsers,
@@ -78,10 +94,15 @@ async function computeAnalytics() {
       cancelled: cancelledOrders,
     },
     finance: {
-      revenue: paid.revenue,
+      revenue: commission.platform,
+      capturedDeposits: paid.revenue,
       paidCount: paid.count,
       commission: commission.platform,
       contractorEarning: commission.contractor,
+      materialGmv: ledger.materialGmv,
+      materialCompleted,
+      materialPlatformRevenue: 0,
+      ledger,
     },
     reviews: {
       total: reviews.count,

@@ -1,6 +1,6 @@
 const { quoteDelivery } = require('./delivery-policy');
 
-const DEPOSIT_RATE = 0.15;
+const DEPOSIT_RATE = 0;
 
 function roundVnd(value) {
   return Math.round(Number(value) || 0);
@@ -43,8 +43,8 @@ function summarizeMaterialCheckout({ policy, distanceKm, materialSubtotal }) {
 
   const shippingFee = roundVnd(quoted.shippingFee);
   const orderTotal = subtotal + shippingFee;
-  const depositAmount = roundVnd(orderTotal * DEPOSIT_RATE);
-  const remainingAmount = orderTotal - depositAmount;
+  const depositAmount = 0;
+  const remainingAmount = orderTotal;
   const money = {
     chargeableDistanceKm: roundKm(quoted.chargeableDistanceKm),
     shippingFee,

@@ -1,6 +1,7 @@
 const { ORDER_STATUS } = require('../models/Order');
 const { PROGRESS_STATUS } = require('../models/ProgressUpdate');
-const { Order, ProgressUpdate, runInTransaction } = require('../repositories/commerceAccess');
+const { Order, Payment, ProgressUpdate, runInTransaction } = require('../repositories/commerceAccess');
+const { PAYMENT_TYPE } = require('../models/Payment');
 const { ApiError } = require('../utils/ApiError');
 const { isValidProgressTransition, orderStatusAfterProgress } = require('../utils/order.rules');
 const { contractorJobNotice } = require('../utils/contractor-notice');
@@ -36,8 +37,26 @@ async function addProgress(orderId, user, payload) {
   if (!String(payload.description || '').trim() && !images.length) {
     throw new ApiError(400, 'Description or images are required');
   }
-  if (!isValidProgressTransition(order.status, nextStatus)) {
-    throw new ApiError(409, 'Invalid progress transition');
+  let allowed = isValidProgressTransition(order.status, nextStatus);
+  if (!allowed && order.status === ORDER_STATUS.QUOTATION_ACCEPTED && nextStatus === PROGRESS_STATUS.STARTED) {
+    const legacy = await Payment.findOne({ orderId: order._id, type: PAYMENT_TYPE.FULL_PAYMENT });
+    allowed = Boolean(legacy);
+  }
+  if (!allowed) {
+    throw new ApiError(409, 'Deposit must be paid before work can start');
+  }
+  if (nextStatus === PROGRESS_STATUS.STARTED) {
+    const deposit = await Payment.findOne({ orderId: order._id, type: PAYMENT_TYPE.DEPOSIT });
+    if (deposit) {
+      const escrowService = require('./escrowService');
+      const { escrow } = escrowService.financeOf(deposit);
+      if (escrow.status === 'FROZEN') {
+        throw new ApiError(409, 'Work cannot start while escrow is frozen by a dispute');
+      }
+      if (escrow.status !== 'HELD') {
+        throw new ApiError(409, 'Deposit must be held in escrow before work can start');
+      }
+    }
   }
 
   const doc = {

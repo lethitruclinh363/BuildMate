@@ -24,6 +24,11 @@ export interface PaymentSummary {
   paidAmount: number;
   remainingAmount: number;
   due?: number;
+  depositAmount?: number | null;
+  platformFee?: number | null;
+  contractorHold?: number | null;
+  escrowStatus?: string | null;
+  mock?: boolean;
 }
 
 export interface OrderPaymentsPayload {

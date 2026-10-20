@@ -79,6 +79,8 @@ function toCard(doc, catalog) {
     verified: profile.verificationStatus === VERIFICATION_STATUS.APPROVED,
     rating: review && review.count ? Math.round(Number(review.avg) * 10) / 10 : 0,
     reviewCount: review && review.count ? review.count : 0,
+    reputationScore: doc.reputation?.published && doc.reputation.score != null ? doc.reputation.score : null,
+    reputationGrade: doc.reputation?.published ? doc.reputation.grade : null,
     completedProjects: completed?.count || 0,
     materialCategories: catalog === 'materials' ? listedMaterialCategories(profile) : [],
     ...presentDistance(doc.distanceMeters),
@@ -200,6 +202,11 @@ async function geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog }) {
     : [];
   const reviewByUser = new Map(reviewRows.map((row) => [String(row.target_user_id), row]));
   const ordersByUser = new Map(orderRows.map((row) => [String(row.contractor_user_id), row._count._all]));
+  const reputationService = require('./reputationService');
+  const ownerKeys = kept.map((item) => item.store.owner_user_id);
+  const reputationByOwner = catalog === 'materials'
+    ? await reputationService.scoresForMaterialOwners(ownerKeys)
+    : await reputationService.scoresForContractorOwners(ownerKeys);
 
   const cards = [];
   for (const item of kept) {
@@ -234,6 +241,7 @@ async function geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog }) {
         })),
       },
       reviewStats: review ? [{ count: review._count._all, avg: Number(review._avg.rating || 0) }] : [],
+      reputation: reputationByOwner.get(String(store.owner_user_id)) || null,
       completedStats: [{ count: ordersByUser.get(String(store.owner_user_id)) || 0 }],
       services: catalog === 'services'
         ? shelfRows.map((row) => ({

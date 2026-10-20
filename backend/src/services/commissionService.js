@@ -1,4 +1,5 @@
 const { COMMISSION_STATUS } = require('../models/Commission');
+const { PAYMENT_TYPE } = require('../models/Payment');
 const { CommissionRule, Commission } = require('../repositories/commerceAccess');
 const { ApiError } = require('../utils/ApiError');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
@@ -22,8 +23,8 @@ async function getActiveRule() {
 
 async function setActivePercentage(percentage, name = 'Platform fee') {
   const rate = Number(percentage);
-  if (!Number.isFinite(rate) || rate < 0 || rate > 30) {
-    throw new ApiError(422, 'Commission percentage must be between 0 and 30');
+  if (rate !== 5) {
+    throw new ApiError(422, 'BuildMate contractor platform fee is fixed at 5%');
   }
   await CommissionRule.updateMany({ active: true }, { active: false });
   const rule = await CommissionRule.create({
@@ -35,12 +36,18 @@ async function setActivePercentage(percentage, name = 'Platform fee') {
 }
 
 async function createForPaidPayment(payment, actorId = null, tx) {
+  if (payment.type === PAYMENT_TYPE.DEPOSIT) return null;
   const existing = await Commission.findOne({ paymentId: payment._id });
   if (existing) return existing;
 
   const rule = await getActiveRule();
-  const platformAmount = roundVnd((payment.amount * rule.percentage) / 100);
-  const contractorAmount = payment.amount - platformAmount;
+  const finance = payment.metadata && payment.metadata.finance;
+  const platformAmount = finance
+    ? roundVnd(finance.platformFee)
+    : roundVnd((payment.amount * rule.percentage) / 100);
+  const contractorAmount = finance
+    ? roundVnd(finance.contractorHold || finance.contractorTotalEarning)
+    : payment.amount - platformAmount;
 
   let doc;
   try {

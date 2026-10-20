@@ -18,9 +18,16 @@ function success(res, data = null, message = 'OK', statusCode = 200) {
 }
 
 function fail(res, message = 'Request failed', statusCode = 400, details = null) {
+  const extra = details && typeof details === 'object' && !Array.isArray(details)
+    ? {
+        ...(details.code ? { code: details.code } : {}),
+        ...(details.field ? { field: details.field } : {}),
+      }
+    : {};
   return res.status(statusCode).json({
     success: false,
     message,
+    ...extra,
     details,
     errors: details,
     data: null,

@@ -32,14 +32,27 @@ export function PaymentSummaryCard({
           <dd className="font-display text-2xl text-navy-800">{vnd(summary.amount)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-ink-400">{t('pay.paid')}</dt>
-          <dd className="font-display text-2xl text-navy-800">{vnd(summary.paidAmount)}</dd>
+          <dt className="text-xs text-ink-400">{t('pay.depositLine')}</dt>
+          <dd className="font-display text-2xl text-navy-800">{vnd(summary.depositAmount ?? summary.paidAmount)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-ink-400">{t('pay.due')}</dt>
+          <dt className="text-xs text-ink-400">{t('pay.remainingLine')}</dt>
           <dd className="font-display text-2xl text-copper-600">{vnd(summary.remainingAmount)}</dd>
         </div>
+        <div>
+          <dt className="text-xs text-ink-400">{t('pay.feeLine')}</dt>
+          <dd className="font-semibold text-navy-800">{vnd(summary.platformFee || 0)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-ink-400">{t('pay.holdLine')}</dt>
+          <dd className="font-semibold text-navy-800">{vnd(summary.contractorHold || 0)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-ink-400">{t('pay.escrowHeld')}</dt>
+          <dd className="font-semibold text-navy-800">{summary.escrowStatus || '—'}</dd>
+        </div>
       </dl>
+      <p className="mt-4 text-xs text-ink-400">{t('pay.mockNote')}</p>
     </Card>
   );
 }

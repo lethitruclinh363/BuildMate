@@ -1,0 +1,35 @@
+# Isolated PostgreSQL for BuildMate integration tests.
+# Does not use, mount, or replace the local postgresql-x64-18 service on :5432.
+# Start: npm run test:db:up --prefix backend
+# Stop:  npm run test:db:down --prefix backend
+
+name: buildmate-test
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: buildmate-test-pg
+    restart: "no"
+    ports:
+      - "127.0.0.1:55432:5432"
+    environment:
+      POSTGRES_USER: buildmate_test
+      POSTGRES_PASSWORD: ${TEST_PGPASSWORD:?Set TEST_PGPASSWORD via backend/.env.test.docker}
+      POSTGRES_DB: BuilMate_test
+    volumes:
+      - buildmate_test_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U buildmate_test -d BuilMate_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - buildmate_test_net
+
+volumes:
+  buildmate_test_pgdata:
+    name: buildmate_test_pgdata
+
+networks:
+  buildmate_test_net:
+    name: buildmate_test_net

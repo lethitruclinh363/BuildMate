@@ -5,14 +5,15 @@ import { PolicyConsent } from '@/components/auth/PolicyConsent';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { BackButton } from '@/components/navigation/BackButton';
 import { useAuth } from '@/context/AuthContext';
-import { getApiErrorMessage } from '@/lib/api';
+import { getApiErrorMessage, getApiErrorPayload } from '@/lib/api';
+import { isValidVnMobile, normalizeEmail, normalizeVnMobile } from '@/lib/identity';
+import { setOtpCooldown } from '@/lib/otp-cooldown';
 import { cn } from '@/lib/cn';
+import { PASSWORD_RE } from '@/lib/password';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^(03|05|07|08|09)\d{8}$/;
-const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 const ROLE_IDS = ['CUSTOMER', 'CONTRACTOR', 'MATERIAL_STORE_OWNER'] as const;
 
@@ -60,21 +61,28 @@ export default function Register() {
     confirm: false,
   });
   const [error, setError] = useState('');
+  const [emailTaken, setEmailTaken] = useState('');
+  const [phoneTaken, setPhoneTaken] = useState('');
   const [loading, setLoading] = useState(false);
 
   const nameMessage = fullName.trim() ? '' : t('auth.nameRequired');
-  const emailMessage = !email.trim()
-    ? t('auth.emailRequired')
-    : EMAIL_RE.test(email.trim())
-      ? ''
-      : t('auth.invalidEmail');
-  const phoneMessage = phoneRejected
-    ? t('auth.phoneInvalid')
-    : !phoneNumber || phoneNumber.length !== 10
-      ? t('auth.phoneLength')
-      : PHONE_RE.test(phoneNumber)
+  const emailMessage = emailTaken
+    || (!email.trim()
+      ? t('auth.emailRequired')
+      : EMAIL_RE.test(email.trim())
         ? ''
-        : t('auth.phoneInvalid');
+        : t('auth.invalidEmail'));
+  const normalizedPhone = normalizeVnMobile(phoneNumber);
+  const phoneMessage = phoneTaken
+    || (phoneRejected
+      ? t('auth.phoneInvalid')
+      : !phoneNumber
+        ? t('auth.phoneLength')
+        : isValidVnMobile(normalizedPhone)
+          ? ''
+          : phoneNumber.replace(/\D/g, '').length < 10
+            ? t('auth.phoneLength')
+            : t('auth.phoneInvalid'));
   const passwordMessage = !password
     ? t('auth.passwordRequired')
     : PASSWORD_RE.test(password)
@@ -100,10 +108,11 @@ export default function Register() {
   }
 
   function onPhoneChange(raw: string) {
-    const digits = raw.replace(/\D/g, '');
-    const illegal = /\D/.test(raw) && !PHONE_RE.test(digits);
+    const compact = raw.replace(/[^\d+]/g, '');
+    const illegal = /[^\d+\s().-]/.test(raw);
     setPhoneRejected(illegal);
-    setPhoneNumber(digits);
+    setPhoneTaken('');
+    setPhoneNumber(compact);
     markTouched('phone');
   }
 
@@ -118,11 +127,13 @@ export default function Register() {
     if (!acceptedPolicy || !formValid) return;
 
     setLoading(true);
+    setEmailTaken('');
+    setPhoneTaken('');
     try {
       const data = await register({
         name: fullName.trim(),
-        email: email.trim(),
-        phoneNumber,
+        email: normalizeEmail(email),
+        phoneNumber: normalizeVnMobile(phoneNumber),
         password,
         role,
         acceptedPolicy: true,
@@ -134,10 +145,20 @@ export default function Register() {
         title: t('auth.accountCreated'),
         body: sent === false ? t('auth.smtpMissing') : t('auth.checkOtp'),
       });
+      setOtpCooldown(email.trim(), 60);
       navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
     } catch (err) {
-      const message = getApiErrorMessage(err);
-      setError(message);
+      const payload = getApiErrorPayload(err);
+      const message = payload.message || getApiErrorMessage(err);
+      if (payload.fields.includes('email') || payload.code === 'EMAIL_ALREADY_EXISTS') {
+        setEmailTaken(t('auth.emailTaken'));
+        markTouched('email');
+      }
+      if (payload.fields.includes('phone') || payload.code === 'PHONE_ALREADY_EXISTS') {
+        setPhoneTaken(t('auth.phoneTaken'));
+        markTouched('phone');
+      }
+      if (!payload.fields.length) setError(message);
       pushToast({ kind: 'error', title: t('auth.registerFailTitle'), body: message });
     } finally {
       setLoading(false);
@@ -208,6 +229,7 @@ export default function Register() {
             onBlur={() => markTouched('email')}
             onChange={(e) => {
               setEmail(e.target.value);
+              setEmailTaken('');
               markTouched('email');
             }}
           />
@@ -229,7 +251,11 @@ export default function Register() {
             aria-invalid={phoneStatus === 'error' || undefined}
             aria-describedby={phoneStatus === 'error' ? 'register-phone-error' : undefined}
             value={phoneNumber}
-            onBlur={() => markTouched('phone')}
+            onBlur={() => {
+              markTouched('phone');
+              const next = normalizeVnMobile(phoneNumber);
+              if (next) setPhoneNumber(next);
+            }}
             onChange={(e) => onPhoneChange(e.target.value)}
           />
           {phoneStatus === 'error' ? (

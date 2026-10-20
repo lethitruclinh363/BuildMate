@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Admin E2E Auth Helper</title>
+<script>
+if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  window.location.replace('/login');
+}
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
+const next = params.get('next') || '/orders';
+const lang = params.get('lang');
+
+if (token) {
+  localStorage.setItem('buildmate-admin-auth', JSON.stringify({
+    state: {
+      token: token,
+      user: {
+        id: '4',
+        email: 'demo.admin@buildmate.test',
+        role: 'ADMIN',
+        name: 'Demo Admin'
+      }
+    },
+    version: 0
+  }));
+}
+if (lang) {
+  localStorage.setItem('i18nextLng', lang);
+}
+window.location.replace(next);
+</script>
+</head>
+<body>Loading Admin E2E session...</body>
+</html>

@@ -248,9 +248,11 @@ async function registeredCategories(profile) {
 async function getMaterialPublicProfile(userId) {
   const { profile, store } = await loadApprovedMaterialStore(userId);
   const { Material } = require('../repositories/offeringAccess');
-  const [materials, reviews] = await Promise.all([
+  const reputationService = require('./reputationService');
+  const [materials, reviews, reputation] = await Promise.all([
     Material.find({ storeId: store._id }).sort({ name: 1 }),
     reviewService.listForUser(userId, 'MATERIAL_STORE'),
+    reputationService.forMaterialStore(userId),
   ]);
   return {
     publicProfile: presentMaterialPublic(store),
@@ -259,8 +261,10 @@ async function getMaterialPublicProfile(userId) {
     reviews: {
       average: reviews.average,
       count: reviews.count,
+      distribution: reviews.distribution,
       items: reviews.items.slice(0, 8),
     },
+    reputation,
     verified: {
       businessName: profile.businessName || '',
       representativeName: profile.representativeName || '',

@@ -14,6 +14,8 @@ export const orderApi = {
   get: (id: string) => api.get<ApiResponse<OrderDetail>>(`/orders/${id}`),
   progress: (id: string) => api.get<ApiResponse<ProgressUpdate[]>>(`/orders/${id}/progress`),
   complete: (id: string) => api.post<ApiResponse<{ order: Order }>>(`/orders/${id}/complete`),
+  confirmRemaining: (id: string) => api.post<ApiResponse<{ order: Order }>>(`/orders/${id}/remaining-received`),
+  settleEscrow: (id: string) => api.post<ApiResponse<{ order: Order }>>(`/orders/${id}/settle-escrow`),
   cancel: (id: string, reason?: string) =>
     api.post<ApiResponse<Order>>(`/orders/${id}/cancel`, { reason }),
   addProgress: (id: string, body: { status: ProgressStatus; description: string; images?: File[] }) => {

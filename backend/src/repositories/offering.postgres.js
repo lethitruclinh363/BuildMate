@@ -728,7 +728,11 @@ function categoryWhere(filter) {
     } else if (key === '_id') {
       const id = relationLegacy(value);
       if (id == null) return null;
-      where.legacy_mongo_id = id;
+      if (/^\d+$/.test(id)) {
+        where.OR = [{ legacy_mongo_id: id }, { id: BigInt(id) }];
+      } else {
+        where.legacy_mongo_id = id;
+      }
     } else if (key === 'type') {
       const kind = enumClause(value);
       if (kind == null) return null;

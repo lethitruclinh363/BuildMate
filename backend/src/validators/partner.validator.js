@@ -267,6 +267,7 @@ const submitSchema = z.object({
 
 const catalogReviewSchema = z.object({
   decision: z.enum(['approve', 'reject']),
+  reason: z.string().trim().max(500).optional(),
 });
 
 const serviceSuggestionSchema = z.object({

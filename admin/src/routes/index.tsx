@@ -10,6 +10,7 @@ import { AdminVerificationPage } from '@/pages/verification/AdminVerificationPag
 import { OrdersPage } from '@/orders/OrdersPage';
 import { OrderDetailPage } from '@/orders/OrderDetailPage';
 import { PaymentsPage } from '@/payments/PaymentsPage';
+import { EscrowPage } from '@/finance/EscrowPage';
 import { CommissionPage } from '@/commissions/CommissionPage';
 import { ReviewsPage } from '@/reviews/ReviewsPage';
 import { ComplaintsPage } from '@/complaints/ComplaintsPage';
@@ -24,6 +25,7 @@ import { PolicyHistoryPage } from '@/policies/PolicyHistoryPage';
 import { ForbiddenPage } from '@/components/ForbiddenPage';
 import { NotFoundPage } from '@/components/NotFoundPage';
 import { ServiceCatalogPage } from '@/pages/catalog/ServiceCatalogPage';
+import { AdminNotificationsPage } from '@/pages/notifications/AdminNotificationsPage';
 
 export function AppRouter() {
   return (
@@ -49,6 +51,7 @@ export function AppRouter() {
             <Route path="/services" element={<ServiceCatalogPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/escrow" element={<EscrowPage />} />
             <Route path="/commission" element={<CommissionPage />} />
             <Route path="/reviews" element={<ReviewsPage />} />
             <Route path="/complaints" element={<ComplaintsPage />} />
@@ -56,6 +59,7 @@ export function AppRouter() {
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/audit" element={<AuditPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/notifications" element={<AdminNotificationsPage />} />
             <Route path="/policies" element={<PolicyListPage />} />
             <Route path="/policies/new" element={<PolicyFormPage mode="create" />} />
             <Route path="/policies/:id/edit" element={<PolicyFormPage mode="edit" />} />

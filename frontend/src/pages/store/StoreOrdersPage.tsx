@@ -9,13 +9,13 @@ import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
 import { useMaterialOrderLiveStore } from '@/features/material-orders/material-order-live';
 import { getApiErrorMessage } from '@/lib/api';
-import { materialStoreOrderApi } from '@/lib/material-order-api';
+import { isLegacyMaterialOrder, materialStoreOrderApi } from '@/lib/material-order-api';
 import type { MaterialOrder } from '@/lib/material-order-api';
 import { vnd } from '@/lib/partner-api';
 import { useReturnState } from '@/lib/navigation';
 import { useI18n } from '@/locales';
 
-const FILTERS = ['all', 'DEPOSIT_PAID', 'CONFIRMED', 'PREPARING', 'DELIVERING', 'DELIVERED', 'COMPLETED', 'CANCELLED'] as const;
+const FILTERS = ['all', 'PENDING_CONFIRMATION', 'DEPOSIT_PAID', 'CONFIRMED', 'PREPARING', 'DELIVERING', 'DELIVERED', 'COMPLETED', 'CANCELLED'] as const;
 
 function when(value?: string) {
   if (!value) return '';
@@ -93,14 +93,29 @@ export function StoreOrdersPage() {
                     <dt className="text-ink-400">{t('materialOrder.total')}</dt>
                     <dd className="font-semibold text-navy-800">{vnd(order.totalAmount)}</dd>
                   </div>
-                  <div>
-                    <dt className="text-ink-400">{t('materialOrder.deposit', { rate: order.depositRateSnapshot })}</dt>
-                    <dd className="font-semibold text-navy-800">{vnd(order.depositAmount)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-ink-400">{t('materialOrder.remaining')}</dt>
-                    <dd className="font-semibold text-navy-800">{vnd(order.remainingAmount)}</dd>
-                  </div>
+                  {isLegacyMaterialOrder(order) ? (
+                    <>
+                      <div>
+                        <dt className="text-ink-400">{t('materialOrder.deposit', { rate: order.depositRateSnapshot })}</dt>
+                        <dd className="font-semibold text-navy-800">{vnd(order.depositAmount)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-ink-400">{t('materialOrder.remaining')}</dt>
+                        <dd className="font-semibold text-navy-800">{vnd(order.remainingAmount)}</dd>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <dt className="text-ink-400">{t('materialOrder.shipping')}</dt>
+                        <dd className="font-semibold text-navy-800">{vnd(order.shippingFee)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-ink-400">{t(`materialOrder.payment.${order.paymentStatus}`)}</dt>
+                        <dd className="font-semibold text-navy-800">COD</dd>
+                      </div>
+                    </>
+                  )}
                 </dl>
                 <p className="text-sm font-semibold text-navy-800">{t(`materialOrder.status.${order.status}`)}</p>
             </Link>

@@ -13,6 +13,7 @@ import ForgotPassword from '@/pages/auth/ForgotPassword';
 import StoreDashboard, { StoreLayout } from '@/pages/store/StoreDashboard';
 import PartnerOnboardingPage from '@/pages/partner/PartnerOnboardingPage';
 import PartnerStatusPage from '@/pages/partner/PartnerStatusPage';
+import { CustomerSurface } from '@/routes/CustomerSurface';
 import ProtectedRoute, { GuestOnly } from '@/routes/ProtectedRoute';
 import { CustomerDashboardPage } from '@/pages/CustomerDashboardPage';
 import { ContractorDashboardPage } from '@/pages/ContractorDashboardPage';
@@ -125,12 +126,14 @@ export function App() {
   return (
     <Suspense fallback={<ScreenLoader />}>
       <Routes>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/explore" element={<ExplorePage />} />
-            <Route path="/contractors/:id" element={<ContractorPublicPage />} />
-            <Route path="/stores/:id/materials/:materialId" element={<PublicMaterialPage />} />
-            <Route path="/stores/:id" element={<StorePublicPage />} />
+          <Route element={<CustomerSurface />}>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/explore" element={<ExplorePage />} />
+              <Route path="/contractors/:id" element={<ContractorPublicPage />} />
+              <Route path="/stores/:id/materials/:materialId" element={<PublicMaterialPage />} />
+              <Route path="/stores/:id" element={<StorePublicPage />} />
+            </Route>
           </Route>
 
           <Route element={<ProtectedRoute roles={['CUSTOMER']} />}>

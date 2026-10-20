@@ -26,7 +26,7 @@ async function fetchAdminDirectory() {
 
   const users = composeUsers(verifications, complaints);
   const orderIds = collectOrderIds(complaints, audit);
-  const orders = await settleAll(orderIds.slice(0, 8).map((id) => adminApi.getOrder(id)));
+  const orders = await settleAll(orderIds.slice(0, 30).map((id) => adminApi.getOrder(id)));
   const paymentBundles = await settleAll(orders.map((order) => adminApi.getOrderPayments(order.id)));
   const payments = paymentBundles.flatMap((bundle) => bundle.items);
 
@@ -94,7 +94,7 @@ export function collectOrderIds(complaints: Complaint[], audit: AuditLog[]) {
   }
   for (const row of audit) {
     if (row.entityType === 'Order' && row.entityId) ids.add(String(row.entityId));
-    const metaOrder = row.meta?.orderId;
+    const metaOrder = row.meta?.orderId || row.meta?.materialOrderId;
     if (typeof metaOrder === 'string' && metaOrder) ids.add(metaOrder);
   }
   return [...ids];

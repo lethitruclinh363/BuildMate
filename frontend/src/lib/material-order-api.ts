@@ -33,6 +33,7 @@ export interface MaterialOrder {
   paymentStatus: 'UNPAID' | 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
   status:
     | 'PENDING_PAYMENT'
+    | 'PENDING_CONFIRMATION'
     | 'DEPOSIT_PAID'
     | 'CONFIRMED'
     | 'PREPARING'
@@ -68,9 +69,17 @@ export interface MaterialEarnings {
   platformFees: number;
   storeDeposits: number;
   directRemaining: number;
+  orderCount?: number;
+  processingCount?: number;
+  deliveringCount?: number;
+  completedCount?: number;
+  cancelledCount?: number;
+  collectedAmount?: number;
+  uncollectedAmount?: number;
 }
 
 const NEXT_STORE_STATUS: Partial<Record<MaterialOrder['status'], MaterialOrder['status']>> = {
+  PENDING_CONFIRMATION: 'CONFIRMED',
   DEPOSIT_PAID: 'CONFIRMED',
   CONFIRMED: 'PREPARING',
   PREPARING: 'READY_FOR_DELIVERY',
@@ -80,6 +89,10 @@ const NEXT_STORE_STATUS: Partial<Record<MaterialOrder['status'], MaterialOrder['
 
 export function nextStoreStatus(status: MaterialOrder['status']) {
   return NEXT_STORE_STATUS[status] || null;
+}
+
+export function isLegacyMaterialOrder(order: Pick<MaterialOrder, 'depositRateSnapshot' | 'depositAmount'>) {
+  return Number(order.depositRateSnapshot || 0) > 0 || Number(order.depositAmount || 0) > 0;
 }
 
 export const materialOrderApi = {
@@ -110,5 +123,7 @@ export const materialStoreOrderApi = {
   get: (id: string) => api.get<{ data: MaterialOrder }>(`/material-store/orders/${id}`, { silent: true }),
   updateStatus: (id: string, status: MaterialOrder['status']) =>
     api.patch<{ data: MaterialOrder }>(`/material-store/orders/${id}`, { status }, { silent: true }),
+  collectPayment: (id: string) =>
+    api.post<{ data: MaterialOrder }>(`/material-store/orders/${id}/collected`, {}, { silent: true }),
   earnings: () => api.get<{ data: MaterialEarnings }>('/material-store/earnings', { silent: true }),
 };

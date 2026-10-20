@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/Input';
 import { quotationApi } from '@/features/chat/services/sprint4.api';
 import { QuotationCard } from '@/features/quotation/components/QuotationCard';
 import { getApiErrorMessage } from '@/lib/api';
+import { contractorQuoteSplit } from '@/lib/contractor-finance';
+import { vnd } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { Quotation } from '@/types/sprint4';
@@ -26,6 +28,7 @@ export function CustomerQuotationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<'accept' | 'reject' | null>(null);
+  const [termsOk, setTermsOk] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -46,6 +49,7 @@ export function CustomerQuotationPage() {
   if (error || !quote) return <ErrorState body={error || undefined} onRetry={load} />;
 
   const awaiting = quote.status === 'SENT';
+  const split = contractorQuoteSplit(quote.totalCost);
 
   const act = async (fn: () => Promise<unknown>, successTitle: string) => {
     setBusy(true);
@@ -67,6 +71,30 @@ export function CustomerQuotationPage() {
       <PageHeader eyebrow={t('quote.pageEyebrow')} title={t('quote.title')} description={t('quote.pageDesc')} />
       <div className="mx-auto grid max-w-3xl gap-6">
         <QuotationCard quote={quote} />
+        {awaiting ? (
+          <dl className="space-y-2 rounded-[22px] border border-navy-800/8 bg-white p-5 text-sm">
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-500">{t('quote.deposit')}</dt>
+              <dd className="font-semibold text-navy-800">{vnd(split.depositAmount)}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-500">{t('quote.remainingDirect')}</dt>
+              <dd className="font-semibold text-navy-800">{vnd(split.remainingAmount)}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-500">{t('quote.platformFee')}</dt>
+              <dd className="font-semibold text-navy-800">{vnd(split.platformFee)}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-500">{t('quote.contractorHold')}</dt>
+              <dd className="font-semibold text-navy-800">{vnd(split.contractorHold)}</dd>
+            </div>
+            <label className="mt-3 flex items-start gap-2 text-sm text-ink-600">
+              <input type="checkbox" className="mt-1" checked={termsOk} onChange={(e) => setTermsOk(e.target.checked)} />
+              <span>{t('quote.terms')}</span>
+            </label>
+          </dl>
+        ) : null}
         {quote.modificationNote ? (
           <p className="text-sm text-ink-600">{t('quote.lastNote', { note: quote.modificationNote })}</p>
         ) : null}
@@ -80,7 +108,7 @@ export function CustomerQuotationPage() {
         ) : awaiting ? (
           <div className="space-y-3 rounded-[22px] border border-navy-800/8 bg-white p-6">
             <div className="flex flex-wrap gap-2">
-              <Button className="bg-emerald-700 hover:bg-emerald-600" disabled={busy} onClick={() => setConfirm('accept')}>
+              <Button className="bg-emerald-700 hover:bg-emerald-600" disabled={busy || !termsOk} onClick={() => setConfirm('accept')}>
                 {t('quote.accept')}
               </Button>
               <Button
@@ -120,7 +148,7 @@ export function CustomerQuotationPage() {
       <ConfirmModal
         open={confirm === 'accept'}
         title={t('quote.accept')}
-        description={t('quote.pageDesc')}
+        description={t('quote.acceptBody')}
         busy={busy}
         onOpenChange={(open) => !open && setConfirm(null)}
         onConfirm={() => void act(() => quotationApi.accept(quote.id), t('feedback.quoteAccepted'))}

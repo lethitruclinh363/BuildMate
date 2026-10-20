@@ -8,6 +8,7 @@ import { MediaFrame } from '@/components/media/ProfileMedia';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
 import { catalogCategoryLabel } from '@/data/contractor-services';
 import { formatDistance } from '@/features/map/lib/distance';
+import { exploreTrustText } from '@/features/map/lib/trustLine';
 import { useI18n } from '@/locales';
 import type { NearbyPlace } from '@/types/marketplace';
 
@@ -73,7 +74,7 @@ export function ContractorResultCard({
         </p>
         <p className="inline-flex items-center gap-1 font-semibold text-navy-800">
           <Star className="h-4 w-4 fill-copper-400 text-copper-400" />
-          {place.reviewCount > 0 ? `${place.rating.toFixed(1)} (${place.reviewCount})` : t('explore.noRating')}
+          {exploreTrustText(place, t)}
         </p>
         <p>{t('explore.completedJobs', { n: place.completedProjects || 0 })}</p>
       </div>

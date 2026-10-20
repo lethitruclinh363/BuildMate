@@ -58,6 +58,11 @@ const settleRemaining = asyncHandler(async (req, res) => {
   return success(res, data, 'Direct remaining payment recorded');
 });
 
+const settleCollected = asyncHandler(async (req, res) => {
+  const data = await orderService.settleCollected(req.store, req.user, req.params.id);
+  return success(res, data, 'Direct store collection recorded');
+});
+
 const updateStoreStatus = asyncHandler(async (req, res) => {
   const data = await orderService.updateStoreStatus(req.store, req.user, req.params.id, req.body);
   return success(res, data, 'Material order status updated');
@@ -75,5 +80,6 @@ module.exports = {
   getStore,
   earnings,
   settleRemaining,
+  settleCollected,
   updateStoreStatus,
 };

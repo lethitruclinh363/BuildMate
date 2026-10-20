@@ -26,8 +26,30 @@ export function foldCategoryName(value: string) {
     .replace(/\p{M}/gu, '');
 }
 
-export function materialCategoryKey(item: { name?: string }) {
-  return foldCategoryName(item.name || '');
+export function materialCategoryKey(item: { name?: string; categoryId?: string | null; type?: string }) {
+  if (item.categoryId) return `${item.type || 'CAT'}:${item.categoryId}`;
+  return `${item.type || 'CAT'}:${foldCategoryName(item.name || '')}`;
+}
+
+export function isCategorySelected(target: MaterialCategoryPick, selected: MaterialCategoryPick[]): boolean {
+  const targetId = target.categoryId ? String(target.categoryId) : '';
+  const targetFolded = foldCategoryName(target.name || '');
+  const targetAliases = (target.aliases || []).map(foldCategoryName);
+
+  return selected.some((item) => {
+    const itemId = item.categoryId ? String(item.categoryId) : '';
+    if (targetId && itemId && targetId === itemId) return true;
+    if (target.type !== item.type) return false;
+
+    const itemFolded = foldCategoryName(item.name || '');
+    if (targetFolded && itemFolded && targetFolded === itemFolded) return true;
+
+    if (target.type === 'SYSTEM') {
+      const itemAliases = (item.aliases || []).map(foldCategoryName);
+      if (targetAliases.includes(itemFolded) || itemAliases.includes(targetFolded)) return true;
+    }
+    return false;
+  });
 }
 
 export function isMaterialCategoryPick(value: unknown): value is MaterialCategoryPick {

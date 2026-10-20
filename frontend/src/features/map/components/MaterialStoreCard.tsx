@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { MediaFrame } from '@/components/media/ProfileMedia';
 import { categoryDisplayLabel } from '@/data/material-categories';
 import { formatDistance } from '@/features/map/lib/distance';
+import { exploreTrustText } from '@/features/map/lib/trustLine';
 import { useI18n } from '@/locales';
 import type { NearbyPlace } from '@/types/marketplace';
 
@@ -78,9 +79,9 @@ export function StoreResultCard({
           <span>{formatDistance(place.distanceMeters ?? place.distance * 1000)}</span>
           {place.city ? <span>· {place.city}</span> : null}
         </p>
-        <p className="inline-flex items-center gap-1 font-semibold text-navy-800">
+        <p className="inline-flex flex-wrap items-center gap-1 font-semibold text-navy-800">
           <Star className="h-4 w-4 fill-copper-400 text-copper-400" />
-          {place.reviewCount > 0 ? `${place.rating.toFixed(1)} (${place.reviewCount})` : t('explore.noRating')}
+          {exploreTrustText(place, t)}
         </p>
         {materials ? <p className="line-clamp-2 leading-6">{t('explore.materialLine')}: {materials}</p> : null}
       </div>

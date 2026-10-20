@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { startTestServer, api } = require('./helpers/http');
 const { createParty, cleanupParty, createUser, deleteFixtureUsers, ROLES } = require('./helpers/party');
 const { testDatabaseReady } = require('./helpers/pg-cleanup');
+const { depositCheckoutBody } = require('./helpers/finance-http');
 const { signToken } = require('../services/authService');
 
 describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
@@ -10,7 +11,9 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
   let server;
   let party;
   let orderId;
+  let paymentId;
   let admin;
+  const extraIds = [];
 
   before(async () => {
     dbReady = testDatabaseReady();
@@ -20,6 +23,7 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
     const { customerAction } = require('../services/quotationService');
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
     orderId = accepted.order.id;
+    paymentId = accepted.payment.id;
     admin = await createUser({
       name: 'E2E Admin',
       email: `e2e.admin.${Date.now()}@buildmate.test`,
@@ -31,10 +35,20 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
   after(async () => {
     if (server) await server.close();
     await cleanupParty(party);
-    if (admin) await deleteFixtureUsers([admin._id]);
+    if (admin) extraIds.push(admin._id);
+    if (extraIds.length) await deleteFixtureUsers(extraIds);
   });
 
-  it('enforces customer / contractor / admin permissions over HTTP', async (t) => {
+  async function progress(token, status = 'STARTED') {
+    return api(server.origin, {
+      method: 'POST',
+      path: `/api/orders/${orderId}/progress`,
+      token,
+      body: { status, description: `Site ${status}` },
+    });
+  }
+
+  it('refuses STARTED before deposit and refuses the wrong actors', async (t) => {
     if (!dbReady) {
       t.skip('PostgreSQL test database is not available');
       return;
@@ -54,24 +68,27 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
     const strangerDetail = await api(origin, { path: `/api/orders/${orderId}`, token: stranger });
     assert.equal(strangerDetail.status, 403);
 
-    const customerProgress = await api(origin, {
-      method: 'POST',
-      path: `/api/orders/${orderId}/progress`,
-      token: customer,
-      body: { status: 'STARTED', description: 'Should not work' },
-    });
+    const anonymous = await progress(undefined);
+    assert.equal(anonymous.status, 401);
+
+    const customerProgress = await progress(customer);
     assert.equal(customerProgress.status, 403);
 
-    const contractorList = await api(origin, { path: '/api/orders/contractor', token: contractor });
-    assert.equal(contractorList.status, 200);
+    const unpaidStart = await progress(contractor);
+    assert.equal(unpaidStart.status, 409);
 
-    const contractorProgress = await api(origin, {
-      method: 'POST',
-      path: `/api/orders/${orderId}/progress`,
-      token: contractor,
-      body: { status: 'STARTED', description: 'Contractor started the job' },
+    const adminStart = await progress(adminToken);
+    assert.equal(adminStart.status, 403);
+
+    const storeOwner = await createUser({
+      name: 'E2E Store',
+      email: `e2e.store.${Date.now()}@buildmate.test`,
+      password: 'Demo@1234',
+      role: ROLES.MATERIAL_STORE_OWNER,
     });
-    assert.equal(contractorProgress.status, 201);
+    extraIds.push(storeOwner._id);
+    const storeStart = await progress(signToken(storeOwner));
+    assert.equal(storeStart.status, 403);
 
     const otherContractor = await createUser({
       name: 'Other Co',
@@ -79,9 +96,40 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
       password: 'Demo@1234',
       role: ROLES.CONTRACTOR,
     });
+    extraIds.push(otherContractor._id);
     const otherToken = signToken(otherContractor);
     const otherSees = await api(origin, { path: `/api/orders/${orderId}`, token: otherToken });
     assert.equal(otherSees.status, 403);
+    const otherStart = await progress(otherToken);
+    assert.equal(otherStart.status, 403);
+
+    const checkout = await api(origin, {
+      method: 'POST',
+      path: `/api/payments/${paymentId}/checkout`,
+      token: customer,
+      body: depositCheckoutBody(),
+    });
+    assert.equal(checkout.status, 200, checkout.json?.message);
+    const paid = await api(origin, {
+      method: 'POST',
+      path: `/api/payments/${paymentId}/mock-success`,
+      token: customer,
+    });
+    assert.equal(paid.status, 200, paid.json?.message);
+    assert.equal(paid.json.data.escrow.status, 'HELD');
+
+    const contractorList = await api(origin, { path: '/api/orders/contractor', token: contractor });
+    assert.equal(contractorList.status, 200);
+
+    const contractorProgress = await progress(contractor);
+    assert.equal(contractorProgress.status, 201, contractorProgress.json?.message);
+
+    const stillCustomer = await progress(customer);
+    assert.equal(stillCustomer.status, 403);
+    const stillOther = await progress(otherToken);
+    assert.equal(stillOther.status, 403);
+    const stillStore = await progress(signToken(storeOwner));
+    assert.equal(stillStore.status, 403);
 
     const customerAdmin = await api(origin, { path: '/api/admin/audit-logs', token: customer });
     assert.equal(customerAdmin.status, 403);
@@ -93,12 +141,6 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
     const adminVerify = await api(origin, { path: '/api/admin/verifications', token: adminToken });
     assert.equal(adminVerify.status, 200);
 
-    const storeOwner = await createUser({
-      name: 'E2E Store',
-      email: `e2e.store.${Date.now()}@buildmate.test`,
-      password: 'Demo@1234',
-      role: ROLES.MATERIAL_STORE_OWNER,
-    });
     const customers = await api(origin, { path: '/api/admin/customers', token: adminToken });
     assert.equal(customers.status, 200);
     const customerIds = customers.json.data.map((row) => String(row.id));
@@ -127,7 +169,5 @@ describe('Sprint 5.3 RBAC audit', { timeout: 90000 }, () => {
       token: adminToken,
     });
     assert.equal(storeDetail.status, 404);
-
-    await deleteFixtureUsers([storeOwner._id, otherContractor._id]);
   });
 });

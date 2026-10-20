@@ -31,10 +31,11 @@ export function PaymentsPage() {
   if (error || !data) return <ErrorState body={error || undefined} onRetry={reload} />;
 
   const refund = async (id: string) => {
+    if (!window.confirm(`${t('pages.mockWarning')}\n\n${t('pages.confirmRefund')}`)) return;
     setBusy(true);
     try {
       await adminApi.refundPayment(id, reason || t('pages.adminRefund'));
-      push('success', t('pages.refundPosted'));
+      push('success', t('pages.mockRefundPosted'));
       await reload();
     } catch (err) {
       push('error', getApiErrorMessage(err));
@@ -51,7 +52,7 @@ export function PaymentsPage() {
         description={t('pages.paymentsDesc')}
       />
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatCard label={t('pages.revenue')} value={vnd(data.analytics.finance.revenue)} />
+        <StatCard label={t('pages.revenue')} value={vnd(data.analytics.finance.commission)} />
         <StatCard label={t('pages.paidCount')} value={data.analytics.finance.paidCount} />
         <StatCard label={t('pages.visibleRows')} value={data.payments.length} />
       </div>

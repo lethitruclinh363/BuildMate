@@ -2,6 +2,7 @@ const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { createParty, cleanupParty } = require('./helpers/party');
 const { testDatabaseReady } = require('./helpers/pg-cleanup');
+const { payMockDeposit } = require('./helpers/finance-http');
 
 describe('Sprint 5.3 E2E journeys A/B/C', { timeout: 90000 }, () => {
   let dbReady = false;
@@ -15,7 +16,7 @@ describe('Sprint 5.3 E2E journeys A/B/C', { timeout: 90000 }, () => {
     await cleanupParty(party);
   });
 
-  it('runs customer → contractor progress → handover without duplicating the order', async (t) => {
+  it('blocks STARTED until the 15% deposit is held, then completes handover once', async (t) => {
     if (!dbReady) {
       t.skip('PostgreSQL test database is not available');
       return;
@@ -30,6 +31,7 @@ describe('Sprint 5.3 E2E journeys A/B/C', { timeout: 90000 }, () => {
     const { Quotation, RepairRequest } = require('../repositories/conversationAccess');
     const { Order, Payment, ProgressUpdate } = require('../repositories/commerceAccess');
     const { Notification } = require('../repositories/systemAccess');
+    const { PAYMENT_TYPE } = require('../models/Payment');
 
     party = await createParty();
 
@@ -37,6 +39,7 @@ describe('Sprint 5.3 E2E journeys A/B/C', { timeout: 90000 }, () => {
     assert.equal(accepted.quotation.status, QUOTATION_STATUS.ACCEPTED);
     assert.equal(accepted.order.status, 'QUOTATION_ACCEPTED');
     assert.equal(accepted.payment.status, 'UNPAID');
+    assert.equal(accepted.payment.type, PAYMENT_TYPE.DEPOSIT);
     assert.equal(accepted.notification.type, NOTIFICATION_TYPE.ORDER_CREATED);
 
     const quote = await Quotation.findById(party.quotation._id);
@@ -55,6 +58,19 @@ describe('Sprint 5.3 E2E journeys A/B/C', { timeout: 90000 }, () => {
     assert.equal(contractorOrders.length, 1);
 
     const actor = { id: party.contractor._id, role: 'CONTRACTOR' };
+    await assert.rejects(
+      () => progressService.addProgress(accepted.order.id, actor, {
+        status: 'STARTED',
+        description: 'Must not start before deposit',
+      }),
+      (err) => err.statusCode === 409
+    );
+    assert.equal(await ProgressUpdate.countDocuments({ orderId: accepted.order.id }), 0);
+
+    const paid = await payMockDeposit(party.customer, accepted.payment.id);
+    assert.equal(paid.payment.status, 'PAID');
+    assert.equal(paid.escrow.status, 'HELD');
+
     for (const status of ['STARTED', 'IN_PROGRESS', 'COMPLETED']) {
       await progressService.addProgress(accepted.order.id, actor, {
         status,

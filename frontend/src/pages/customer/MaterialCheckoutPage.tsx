@@ -241,14 +241,7 @@ export function MaterialCheckoutPage() {
                   <dt className="text-ink-500">{t('cart.orderTotal')}</dt>
                   <dd className="font-display text-lg text-navy-800">{shownMoney(quote?.orderTotal ?? null)}</dd>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-ink-500">{t('cart.deposit')}</dt>
-                  <dd className="font-semibold text-navy-800">{shownMoney(quote?.depositAmount ?? null)}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-ink-500">{t('cart.remaining')}</dt>
-                  <dd className="font-semibold text-navy-800">{shownMoney(quote?.remainingAmount ?? null)}</dd>
-                </div>
+                <p className="text-xs text-ink-500">{t('cart.codHint')}</p>
               </dl>
 
               <TextArea
@@ -262,7 +255,7 @@ export function MaterialCheckoutPage() {
               />
 
               <Button className="mt-5" disabled={!quote?.ok || quoting || submitting} loading={submitting} onClick={() => void placeOrder()}>
-                {t('cart.placeDeposit')}
+                {t('cart.placeOrder')}
               </Button>
               <Button asChild variant="outline" className="mt-3">
                 <Link to="/cart">{t('cart.back')}</Link>

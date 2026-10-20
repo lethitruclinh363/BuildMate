@@ -67,6 +67,10 @@ function eligibleOrder(order) {
 }
 
 function deadlineFor(order) {
+  if (order.deadlineAt) {
+    const confirmed = new Date(order.deadlineAt).getTime();
+    if (Number.isFinite(confirmed)) return confirmed;
+  }
   const days = Number(order.estimatedDays);
   const created = order.createdAt ? new Date(order.createdAt).getTime() : NaN;
   if (!Number.isFinite(days) || days < 1 || !Number.isFinite(created)) return null;
@@ -76,7 +80,7 @@ function deadlineFor(order) {
 /**
  * @param {{ orders?: object[], reviews?: object[], complaints?: object[] }} input
  * orders: { id, status, customerId, contractorId, cancelledBy, cancelReason, customerEmail,
- *           orderCode, title, createdAt, completedAt, updatedAt, estimatedDays }
+ *           orderCode, title, createdAt, completedAt, updatedAt, estimatedDays, deadlineAt }
  * reviews: { orderId, rating, createdAt }
  * complaints: { orderId, status, updatedAt }
  */
@@ -182,6 +186,83 @@ function scoreReputation(input = {}) {
   };
 }
 
+const MATERIAL_COMPLETED = new Set(['CUSTOMER_RECEIVED', 'COMPLETED']);
+const PAID_STATUSES = new Set(['PAID', 'REFUNDED']);
+const ISSUE_NOTE = /^ISSUE:(OPEN|PROCESSING|RESOLVED|REJECTED)$/i;
+
+function confirmedDeadline(note) {
+  const text = String(note || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text)) return null;
+  const time = new Date(text).getTime();
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
+
+function hasMaterialTransaction(row) {
+  if (PAID_STATUSES.has(row.payment_status)) return true;
+  return (row.material_order_status_history || []).some((item) => item.status === 'DEPOSIT_PAID');
+}
+
+/**
+ * Maps material-order rows into the shared score input.
+ * A confirmed delivery time is an ISO timestamp stored on the CONFIRMED history note.
+ * Each order contributes at most one complaint, taken from the latest ISSUE: status note.
+ */
+function materialScoreInput(rows, reviewRows) {
+  const orders = [];
+  const complaints = [];
+  for (const row of rows || []) {
+    if (!hasMaterialTransaction(row)) continue;
+    const history = [...(row.material_order_status_history || [])].sort(
+      (left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+    );
+    const cancel = [...history].reverse().find((item) => item.status === 'CANCELLED');
+    const delivered = history.find((item) => item.status === 'DELIVERED')
+      || history.find((item) => item.status === 'CUSTOMER_RECEIVED')
+      || history.find((item) => item.status === 'COMPLETED');
+    const deadlineAt = history.map((item) => (item.status === 'CONFIRMED' ? confirmedDeadline(item.note) : null)).find(Boolean) || null;
+    const ownerId = String(row.store_owner_user_id);
+    const customerId = String(row.customer_user_id);
+    let cancelledBy = null;
+    if (row.status === 'CANCELLED' && cancel) {
+      if (cancel.actor_role === 'STORE') cancelledBy = ownerId;
+      else if (cancel.actor_role === 'CUSTOMER') cancelledBy = customerId;
+    }
+    const issues = history.filter((item) => ISSUE_NOTE.test(String(item.note || '').trim()));
+    if (issues.length) {
+      const latest = issues[issues.length - 1];
+      complaints.push({
+        orderId: String(row.id),
+        status: String(latest.note).trim().split(':')[1].toUpperCase(),
+        updatedAt: latest.created_at,
+      });
+    }
+    orders.push({
+      id: String(row.id),
+      status: MATERIAL_COMPLETED.has(row.status) ? 'CUSTOMER_ACCEPTED' : row.status,
+      customerId,
+      contractorId: ownerId,
+      cancelledBy,
+      cancelReason: String(cancel?.note || '').trim().toUpperCase() === 'FRAUD' ? 'FRAUD' : '',
+      customerEmail: row.users_material_orders_customer_user_idTousers?.email || row.customer_email || '',
+      orderCode: row.order_code || '',
+      title: row.customer_note || '',
+      createdAt: row.created_at,
+      completedAt: delivered?.created_at || null,
+      updatedAt: row.updated_at,
+      deadlineAt,
+    });
+  }
+  return {
+    orders,
+    reviews: (reviewRows || []).map((row) => ({
+      orderId: String(row.material_order_id),
+      rating: row.rating,
+      createdAt: row.created_at,
+    })),
+    complaints,
+  };
+}
+
 module.exports = {
   PRIOR_REVIEWS,
   PRIOR_STARS,
@@ -193,6 +274,7 @@ module.exports = {
   gradeFor,
   starComponent,
   scoreReputation,
+  materialScoreInput,
   isTestOrder,
   isFraudOrder,
 };

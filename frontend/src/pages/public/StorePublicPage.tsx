@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { StoreProfileShowcase } from '@/pages/public/StoreProfileShowcase';
 import type { MaterialCategoryPick } from '@/data/material-categories';
+import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 import { locationApi } from '@/features/map/services/location.api';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
@@ -44,6 +45,7 @@ export function StorePublicPage() {
     categories?: MaterialCategoryPick[];
     visibility?: 'LIVE' | 'INACTIVE' | 'PAUSED';
     reviews?: { average: number; count: number; items: PublicStoreReview[] } | null;
+    reputation?: ReputationSnapshot | null;
     services: CatalogService[];
     materials: CatalogMaterial[];
   } | null>(null);
@@ -102,6 +104,7 @@ export function StorePublicPage() {
           categories={payload.categories || []}
           materials={materials}
           reviews={payload.reviews}
+          reputation={payload.reputation}
         />
       </PageTransition>
     );

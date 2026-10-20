@@ -1,25 +1,29 @@
-function databaseName(url) {
-  try {
-    return decodeURIComponent(new URL(url).pathname.replace(/^\//, ''));
-  } catch {
-    return '';
-  }
-}
+const {
+  databaseName,
+  isBlockedDatabaseName,
+  requireIsolatedTestDatabase,
+} = require('./database-safety');
 
 function testDatabaseReady() {
-  if (process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || process.env.PGHOST) return true;
-  return false;
+  try {
+    requireIsolatedTestDatabase();
+    return process.env.BUILDMATE_TEST_DATABASE === 'isolated';
+  } catch {
+    return false;
+  }
 }
 
 function assertTestDatabase() {
-  if (!testDatabaseReady()) {
-    throw new Error('PostgreSQL is not configured for tests');
+  const expected = requireIsolatedTestDatabase();
+  if (process.env.BUILDMATE_TEST_DATABASE !== 'isolated') {
+    throw new Error('Refusing to create or delete fixtures without an isolated TEST_DATABASE_URL');
   }
-  if (process.env.BUILDMATE_TEST_DATABASE !== 'isolated') return;
   const current = databaseName(process.env.DATABASE_URL || '');
-  const expected = databaseName(process.env.TEST_DATABASE_URL || '');
-  const productionName = (process.env.PGDATABASE || 'BuilMate').toLowerCase();
-  if (!current || current.toLowerCase() !== expected.toLowerCase() || current.toLowerCase() === 'builmate' || current.toLowerCase() === productionName) {
+  if (
+    !current
+    || current.toLowerCase() !== databaseName(expected).toLowerCase()
+    || isBlockedDatabaseName(current)
+  ) {
     throw new Error('Refusing to create or delete fixtures on production database BuilMate');
   }
 }
@@ -113,10 +117,12 @@ async function deleteFixtureUsers(legacyIds) {
     await prisma.locations.deleteMany({ where: { id: { in: locationIds } } }).catch(() => {});
   }
   await prisma.audit_logs.deleteMany({ where: { actor_user_id: { in: userIds } } });
+  await prisma.contractor_profiles.deleteMany({ where: { user_id: { in: userIds } } });
   await prisma.users.deleteMany({ where: { id: { in: userIds } } });
 }
 
 async function captureCommissionRules() {
+  assertTestDatabase();
   const { prisma } = require('../../config/prisma');
   const rows = await prisma.commission_rules.findMany({ select: { id: true, is_active: true } });
   const maxId = rows.reduce((max, row) => (row.id > max ? row.id : max), 0n);
@@ -125,6 +131,7 @@ async function captureCommissionRules() {
 
 async function restoreCommissionRules(snapshot) {
   if (!snapshot) return;
+  assertTestDatabase();
   const { prisma } = require('../../config/prisma');
   await prisma.commission_rules.deleteMany({ where: { id: { gt: snapshot.maxId } } });
   for (const row of snapshot.rows) {

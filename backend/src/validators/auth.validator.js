@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { ROLES } = require('../models/user.model');
+const { normalizeEmail, normalizeVnMobile, isValidVnMobile } = require('../utils/identity');
 
 const PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 const PASSWORD_MESSAGE =
@@ -11,32 +12,24 @@ const phoneNumberSchema = z
     invalid_type_error: 'Invalid phone number',
   })
   .trim()
-  .superRefine((value, ctx) => {
-  if (!value || !/^\d+$/.test(value) || value.length !== 10) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: /^\d*$/.test(value || '')
-        ? 'Please enter a valid 10-digit phone number'
-        : 'Invalid phone number',
-    });
-    return;
-  }
-  if (!/^(03|05|07|08|09)\d{8}$/.test(value)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Invalid phone number',
-    });
-  }
-});
+  .transform((value) => normalizeVnMobile(value))
+  .refine((value) => isValidVnMobile(value), {
+    message: 'Invalid phone number',
+  });
+
+const passwordSchema = z
+  .string({
+    required_error: 'Password is required',
+    invalid_type_error: 'Password is required',
+  })
+  .min(1, 'Password is required')
+  .max(72, 'Password is too long')
+  .refine((value) => PASSWORD_RULE.test(value), PASSWORD_MESSAGE);
 
 const registerSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(80),
-  email: z.string().trim().min(1, 'Email is required').email('Enter a valid email').toLowerCase(),
-  password: z
-    .string()
-    .min(1, 'Password is required')
-    .max(72, 'Password is too long')
-    .refine((value) => PASSWORD_RULE.test(value), PASSWORD_MESSAGE),
+  email: z.string().trim().min(1, 'Email is required').email('Enter a valid email').transform((value) => normalizeEmail(value)),
+  password: passwordSchema,
   phoneNumber: phoneNumberSchema,
   acceptedPolicy: z.literal(true, {
     errorMap: () => ({ message: 'You must accept the terms and privacy policy' }),
@@ -83,13 +76,13 @@ const resetPasswordSchema = z.object({
     .string()
     .trim()
     .regex(/^\d{6}$/, 'Code must be 6 digits'),
-  newPassword: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(72, 'Password is too long'),
+  newPassword: passwordSchema,
 });
 
 module.exports = {
+  PASSWORD_RULE,
+  PASSWORD_MESSAGE,
+  passwordSchema,
   registerSchema,
   loginSchema,
   verifyEmailSchema,

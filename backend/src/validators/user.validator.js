@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { ROLES } = require('../models/user.model');
+const { normalizeEmail, normalizeVnMobile, isValidVnMobile } = require('../utils/identity');
 
 const publicRoles = [
   ROLES.CUSTOMER,
@@ -11,8 +12,15 @@ const createUserSchema = z
   .object({
     fullName: z.string().trim().min(2, 'Name must be at least 2 characters').max(80).optional(),
     name: z.string().trim().min(2, 'Name must be at least 2 characters').max(80).optional(),
-    email: z.string().trim().email('Enter a valid email').toLowerCase(),
-    phone: z.string().trim().max(20).optional().or(z.literal('')),
+    email: z.string().trim().email('Enter a valid email').transform((value) => normalizeEmail(value)),
+    phone: z
+      .string()
+      .trim()
+      .max(20)
+      .optional()
+      .or(z.literal(''))
+      .transform((value) => (value ? normalizeVnMobile(value) : value))
+      .refine((value) => !value || isValidVnMobile(value), { message: 'Invalid phone number' }),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
@@ -30,7 +38,13 @@ const profileSchema = z
   .object({
     fullName: z.string().trim().min(2).max(80).optional(),
     name: z.string().trim().min(2).max(80).optional(),
-    phone: z.string().trim().max(20).optional(),
+    phone: z
+      .string()
+      .trim()
+      .max(20)
+      .optional()
+      .transform((value) => (value ? normalizeVnMobile(value) : value))
+      .refine((value) => !value || isValidVnMobile(value), { message: 'Invalid phone number' }),
     preferredLanguage: z.enum(['vi', 'en']).optional(),
   })
   .strict();

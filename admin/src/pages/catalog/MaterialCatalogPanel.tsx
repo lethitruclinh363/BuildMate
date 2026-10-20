@@ -74,6 +74,26 @@ export function MaterialCatalogPanel() {
     return new Date(value).toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'vi-VN');
   }
 
+  async function review(item: AdminMaterialCategory, decision: 'approve' | 'reject') {
+    if (!item.id) return;
+    let reason: string | undefined;
+    if (decision === 'reject') {
+      const promptRes = window.prompt(t('catalog.materials.rejectReasonPrompt'));
+      if (promptRes === null) return;
+      reason = promptRes.trim();
+    }
+    setBusy(true);
+    try {
+      await adminApi.reviewMaterialCategory(item.id, decision, reason);
+      push('success', decision === 'approve' ? t('catalog.materials.approvedToast') : t('catalog.materials.rejectedToast'));
+      await load();
+    } catch (error) {
+      push('error', categoryError(error, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <GlassCard>
@@ -166,6 +186,7 @@ export function MaterialCatalogPanel() {
                   <th>{t('catalog.materials.type')}</th>
                   <th>{t('catalog.materials.status')}</th>
                   <th>{t('catalog.materials.created')}</th>
+                  <th>{t('catalog.materials.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,6 +197,28 @@ export function MaterialCatalogPanel() {
                     <td>{t('verify.customBadge')}</td>
                     <td>{statusLabel(item)}</td>
                     <td>{createdLabel(item.createdAt)}</td>
+                    <td>
+                      {item.status === 'PENDING_APPROVAL' && item.id ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            variant="outline"
+                            className="px-3 py-1.5 text-xs text-emerald-400 hover:text-emerald-300"
+                            disabled={busy}
+                            onClick={() => void review(item, 'approve')}
+                          >
+                            {t('catalog.materials.approve')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="px-3 py-1.5 text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+                            disabled={busy}
+                            onClick={() => void review(item, 'reject')}
+                          >
+                            {t('catalog.materials.reject')}
+                          </Button>
+                        </div>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -4,6 +4,12 @@ const { REQUEST_STATUS } = require('../models/RepairRequest');
 const { RepairRequest, ChatRoom, Quotation } = require('../repositories/conversationAccess');
 const { ApiError } = require('../utils/ApiError');
 const { CANCELLABLE_ORDER_STATUSES, generateOrderCode } = require('../utils/order.rules');
+const {
+  snapshotContractorQuote,
+  defaultEscrowRecord,
+} = require('../utils/contractor-finance');
+const { PAYMENT_TYPE } = require('../models/Payment');
+const escrowService = require('./escrowService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const { emitToUser, emitToRoom } = require('./socketService');
@@ -47,15 +53,20 @@ async function createFromQuotation(quotation, request, actorId, outerTx) {
       status: ORDER_STATUS.QUOTATION_ACCEPTED,
       paymentStatus: PAYMENT_STATUS.UNPAID,
     }, tx);
+    const finance = snapshotContractorQuote(quotation.totalCost);
     const payment = await Payment.create({
       orderId: order._id,
       customerId: quotation.customerId,
       contractorId: quotation.contractorId,
-      amount: quotation.totalCost,
-      type: 'FULL_PAYMENT',
+      amount: finance.depositAmount,
+      type: PAYMENT_TYPE.DEPOSIT,
       status: PAYMENT_STATUS.UNPAID,
       provider: 'mock',
-      metadata: {},
+      metadata: {
+        finance,
+        escrow: defaultEscrowRecord(finance),
+        mock: true,
+      },
     }, tx);
     const notification = await notify({
       userId: quotation.contractorId,
@@ -73,6 +84,7 @@ async function createFromQuotation(quotation, request, actorId, outerTx) {
       entityId: order._id,
       meta: { quotationId: String(quotation._id), amount: order.amount },
     });
+    await escrowService.ensureEscrowRow(payment, tx);
     return { order, payment, notification };
   };
 
@@ -114,12 +126,66 @@ async function assertParty(order, user) {
 
 async function getOrder(id, user) {
   const order = await Order.findById(id);
-  if (!order) throw new ApiError(404, 'Order not found');
+  if (!order) {
+    const { MaterialOrder } = require('../repositories/materialOrderAccess');
+    const { Store, findUsersByIds } = require('../repositories/partnerAccess');
+    const materialOrder = await MaterialOrder.findById(id);
+    if (!materialOrder) throw new ApiError(404, 'Order not found');
+    const uid = String(user.id);
+    if (user.role !== 'ADMIN' && String(materialOrder.customerId) !== uid && String(materialOrder.storeOwnerId) !== uid) {
+      throw new ApiError(403, 'You cannot view this order');
+    }
+    const [customerUsers, store] = await Promise.all([
+      findUsersByIds([materialOrder.customerId]),
+      Store.findById(materialOrder.storeId),
+    ]);
+    const customer = customerUsers[0] || null;
+    return {
+      id: String(materialOrder._id),
+      _id: String(materialOrder._id),
+      orderCode: materialOrder.orderCode,
+      title: `Vật liệu: ${store?.name || 'Cửa hàng vật liệu'}`,
+      description: `Đơn hàng vật liệu COD - Giao tới: ${materialOrder.deliveryAddress}`,
+      amount: Number(materialOrder.totalAmount),
+      status: materialOrder.status,
+      paymentStatus: materialOrder.remainingSettledOffline ? 'PAID' : materialOrder.paymentStatus,
+      customerId: String(materialOrder.customerId),
+      customerName: customer?.name || customer?.email || '',
+      contractorId: String(materialOrder.storeOwnerId),
+      storeId: String(materialOrder.storeId),
+      storeName: store?.name || '',
+      createdAt: materialOrder.createdAt,
+      updatedAt: materialOrder.updatedAt,
+      completedAt: materialOrder.status === 'COMPLETED' ? materialOrder.updatedAt : null,
+      statusHistory: materialOrder.statusHistory || [],
+      items: materialOrder.items || [],
+      isMaterialOrder: true,
+      deliveryAddress: materialOrder.deliveryAddress,
+      materialSubtotal: Number(materialOrder.materialSubtotal),
+      shippingFee: Number(materialOrder.shippingFee),
+      totalAmount: Number(materialOrder.totalAmount),
+      remainingSettledOffline: materialOrder.remainingSettledOffline,
+      payment: {
+        id: `cod-${materialOrder._id}`,
+        type: 'COD',
+        amount: Number(materialOrder.totalAmount),
+        status: materialOrder.remainingSettledOffline ? 'PAID' : 'UNPAID',
+        provider: 'COD',
+      },
+      finance: null,
+      escrow: null,
+      assignments: [],
+    };
+  }
   await assertParty(order, user);
-  const payment = await Payment.findOne({ orderId: order._id });
+  const payment = await Payment.findOne({ orderId: order._id, type: PAYMENT_TYPE.DEPOSIT })
+    || await Payment.findOne({ orderId: order._id });
+  const extra = payment && payment.type === PAYMENT_TYPE.DEPOSIT ? escrowService.financeOf(payment) : {};
   return {
     ...order.toPublic(),
     payment: payment ? payment.toPublic() : null,
+    finance: extra.finance || null,
+    escrow: extra.escrow || null,
     assignments: [],
   };
 }
@@ -143,9 +209,6 @@ async function completeOrder(id, customerId) {
   if (order.status !== ORDER_STATUS.COMPLETED) {
     throw new ApiError(409, 'Order is not waiting for customer acceptance');
   }
-  // Handover does not require PAID.
-  // Payment UNPAID + customer acceptance is valid (COD / pay-after-work).
-  // Commission / earnings only exist after Payment PAID.
 
   order.status = ORDER_STATUS.CUSTOMER_ACCEPTED;
   order.completedAt = new Date();
@@ -153,6 +216,7 @@ async function completeOrder(id, customerId) {
     await order.save(tx);
     await RepairRequest.findByIdAndUpdate(order.requestId, { status: REQUEST_STATUS.COMPLETED }, tx);
   });
+  await escrowService.maybeMarkReleasePending(order._id);
 
   const notification = await notify({
     userId: order.contractorId,
@@ -185,11 +249,24 @@ async function cancelOrder(id, user, reason = '') {
     throw new ApiError(409, 'Order can no longer be cancelled');
   }
 
-  order.status = ORDER_STATUS.CANCELLED;
-  order.cancelReason = reason || 'Cancelled';
-  order.cancelledBy = user.id;
-  order.cancelledAt = new Date();
   await runInTransaction(async (tx) => {
+    const deposit = await Payment.findOne({ orderId: order._id, type: PAYMENT_TYPE.DEPOSIT });
+    const actorIsCustomer = String(order.customerId) === uid;
+    const actorIsContractor = String(order.contractorId) === uid;
+    if (deposit && deposit.status === PAYMENT_STATUS.PAID) {
+      if (actorIsContractor) {
+        await escrowService.refundDeposit(order._id, user.id, reason || 'Contractor cancelled');
+      } else if (actorIsCustomer) {
+        await escrowService.holdAfterCustomerCancel(order._id, user, reason || 'Customer cancelled after deposit');
+      }
+    } else if (deposit) {
+      await escrowService.holdAfterCustomerCancel(order._id, user, reason || 'Cancelled before deposit');
+    }
+
+    order.status = ORDER_STATUS.CANCELLED;
+    order.cancelReason = reason || 'Cancelled';
+    order.cancelledBy = user.id;
+    order.cancelledAt = new Date();
     await order.save(tx);
     await RepairRequest.findByIdAndUpdate(order.requestId, { status: REQUEST_STATUS.CANCELLED }, tx);
   });

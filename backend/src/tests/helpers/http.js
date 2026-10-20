@@ -2,6 +2,8 @@ const http = require('http');
 const { createApp } = require('../../app');
 
 async function startTestServer() {
+  const { ensureDefaultPolicies } = require('../../services/policy.service');
+  await ensureDefaultPolicies();
   const app = createApp();
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

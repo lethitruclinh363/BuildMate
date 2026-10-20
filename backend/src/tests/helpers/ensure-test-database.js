@@ -258,20 +258,16 @@ async function prepareTestSchema() {
 }
 
 async function main() {
-  loadEnv();
-  if (process.env.PGDATABASE === TEST_DATABASE) {
-    throw new Error('PGDATABASE must stay on the runtime database. The test database is created separately.');
-  }
-  try {
-    await prepareSeparateDatabase();
-  } catch (error) {
-    if (!/permission denied to create database/i.test(String(error.message))) throw error;
-    await prepareTestSchema();
-  }
+  throw new Error(
+    'ensure-test-database.js is disabled. It loaded .env.migration and copied catalog rows from the team database. Use scripts/bootstrap-isolated-test-db.js with local TEST_PG* only.'
+  );
 }
 
-main().catch((error) => {
-  const message = String(error.message || error).replace(process.env.PGPASSWORD || '', '');
-  console.error(message);
-  process.exit(1);
-});
+if (require.main === module) {
+  console.error(
+    'DISABLED: this helper must not dump or copy BuilMate. Use npm run test:db:bootstrap after Docker or backend/.env.test.admin is set.'
+  );
+  process.exit(2);
+}
+
+module.exports = { TEST_DATABASE, main };

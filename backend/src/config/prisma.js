@@ -1,10 +1,18 @@
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 
+const isolatedUrl = process.env.TEST_DATABASE_URL && process.env.BUILDMATE_TEST_DATABASE === 'isolated'
+  ? process.env.TEST_DATABASE_URL
+  : '';
+
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env.migration'), override: true });
 
-if (process.env.TEST_DATABASE_URL && process.env.BUILDMATE_TEST_DATABASE === 'isolated') {
+if (isolatedUrl) {
+  process.env.TEST_DATABASE_URL = isolatedUrl;
+  process.env.DATABASE_URL = isolatedUrl;
+  process.env.BUILDMATE_TEST_DATABASE = 'isolated';
+} else if (process.env.TEST_DATABASE_URL && process.env.BUILDMATE_TEST_DATABASE === 'isolated') {
   process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 }
 

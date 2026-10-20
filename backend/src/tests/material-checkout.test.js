@@ -24,23 +24,23 @@ describe('material checkout distance and deposit', () => {
     assert.ok(Math.abs(km - 1) < 0.02);
   });
 
-  it('quotes the phase 1 fee and a 15 percent deposit from the server subtotal', () => {
+  it('quotes shipping with zero platform deposit for new material orders', () => {
     const quote = summarizeMaterialCheckout({ policy, distanceKm: 7, materialSubtotal: 200000 });
     assert.equal(quote.ok, true);
     assert.equal(quote.chargeableDistanceKm, 5);
     assert.equal(quote.shippingFee, 70000);
     assert.equal(quote.orderTotal, 270000);
-    assert.equal(quote.depositAmount, 40500);
-    assert.equal(quote.remainingAmount, 229500);
+    assert.equal(quote.depositAmount, 0);
+    assert.equal(quote.remainingAmount, 270000);
     assert.equal(quote.depositAmount + quote.remainingAmount, quote.orderTotal);
   });
 
-  it('rounds a fractional shipping fee to whole VND', () => {
+  it('rounds a fractional shipping fee to whole VND and still charges no deposit', () => {
     const quote = summarizeMaterialCheckout({ policy, distanceKm: 2.126, materialSubtotal: 200000 });
     assert.equal(quote.shippingFee, 31008);
     assert.equal(quote.orderTotal, 231008);
-    assert.equal(quote.depositAmount, 34651);
-    assert.equal(quote.remainingAmount, quote.orderTotal - quote.depositAmount);
+    assert.equal(quote.depositAmount, 0);
+    assert.equal(quote.remainingAmount, quote.orderTotal);
   });
 
   it('blocks delivery outside the service radius', () => {

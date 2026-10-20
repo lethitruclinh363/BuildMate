@@ -3,6 +3,7 @@ import { useReturnState } from '@/lib/navigation';
 import { Navigation, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatDistance } from '@/features/map/lib/distance';
+import { exploreTrustText } from '@/features/map/lib/trustLine';
 import { openGoogleMapsDirections } from '@/features/map/lib/location';
 import { catalogCategoryLabel } from '@/data/contractor-services';
 import { chatApi } from '@/features/chat/services/sprint4.api';
@@ -75,7 +76,7 @@ export function ExplorePopup({
       </div>
       <p className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-navy-800">
         <Star className="h-4 w-4 fill-copper-400 text-copper-400" />
-        {place.reviewCount > 0 ? `${place.rating.toFixed(1)} (${place.reviewCount})` : t('explore.noRating')}
+        {exploreTrustText(place, t)}
         {distance ? <span className="font-normal text-ink-500">· {distance}</span> : null}
       </p>
       {kind === 'contractor' && categories.length ? (

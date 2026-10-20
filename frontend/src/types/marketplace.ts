@@ -102,6 +102,8 @@ export interface NearbyPlace {
   verified: boolean;
   rating: number;
   reviewCount: number;
+  reputationScore?: number | null;
+  reputationGrade?: string | null;
   completedProjects?: number;
   distance: number;
   distanceMeters?: number;

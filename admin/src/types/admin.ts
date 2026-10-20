@@ -131,7 +131,29 @@ export interface AdminStats {
 export interface AnalyticsPayload {
   users: { total: number; customer: number; contractor: number; admin: number };
   orders: { total: number; completed: number; cancelled: number };
-  finance: { revenue: number; paidCount: number; commission: number; contractorEarning: number };
+  finance: {
+    revenue: number;
+    paidCount: number;
+    commission: number;
+    contractorEarning: number;
+    capturedDeposits?: number;
+    materialGmv?: number;
+    materialCompleted?: number;
+    materialPlatformRevenue?: number;
+    ledger?: {
+      acceptedQuoteTotal: number;
+      capturedDeposit: number;
+      heldAmount: number;
+      disputedAmount: number;
+      refundPendingAmount: number;
+      refundedAmount: number;
+      payoutPendingAmount: number;
+      paidOutAmount: number;
+      platformFeePosted: number;
+      materialGmv: number;
+      mock?: boolean;
+    };
+  };
   reviews: { total: number; average: number };
   complaints: { total: number; open: number; processing: number; resolved: number; rejected: number };
 }
@@ -217,6 +239,10 @@ export interface OrderPaymentsPayload {
     paidAmount: number;
     remainingAmount: number;
     due?: number;
+    escrowStatus?: string | null;
+    depositAmount?: number | null;
+    platformFee?: number | null;
+    contractorHold?: number | null;
   };
   items: Payment[];
 }
@@ -224,6 +250,11 @@ export interface OrderPaymentsPayload {
 export interface OrderDetail extends Order {
   payment: Payment | null;
   assignments: [];
+  isMaterialOrder?: boolean;
+  storeName?: string;
+  customerName?: string;
+  deliveryAddress?: string;
+  statusHistory?: Array<{ status: string; actorRole?: string; createdAt?: string; note?: string }>;
 }
 
 export interface Review {

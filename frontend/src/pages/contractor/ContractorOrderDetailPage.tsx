@@ -18,7 +18,7 @@ import { getApiErrorMessage } from '@/lib/api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 
-const READY_TO_START: OrderStatus[] = ['QUOTATION_ACCEPTED', 'DEPOSIT_PAID'];
+const READY_TO_START: OrderStatus[] = ['DEPOSIT_PAID'];
 
 export function ContractorOrderDetailPage() {
   const { id } = useParams();
@@ -47,6 +47,32 @@ export function ContractorOrderDetailPage() {
             {request?.roomId ? (
               <Button asChild variant="outline" className="w-full">
                 <Link to={`/contractor/chat/${request.roomId}`} state={back}>{t('quote.backChat')}</Link>
+              </Button>
+            ) : null}
+            {order.status === 'QUOTATION_ACCEPTED' ? (
+              <p className="text-sm text-ink-500">{t('materialOrder.waitDeposit')}</p>
+            ) : null}
+            {order.status === 'DEPOSIT_PAID' || order.status === 'STARTED' || order.status === 'IN_PROGRESS' ? (
+              <p className="text-sm text-ink-500">{t('materialOrder.escrowHeld')}</p>
+            ) : null}
+            {order.status === 'COMPLETED' || order.status === 'CUSTOMER_ACCEPTED' ? (
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={busy}
+                onClick={() => {
+                  setBusy(true);
+                  void orderApi
+                    .confirmRemaining(order.id)
+                    .then(() => {
+                      push({ kind: 'success', title: t('materialOrder.remainingConfirmed') });
+                      reload();
+                    })
+                    .catch((err) => push({ kind: 'error', title: te(getApiErrorMessage(err)) }))
+                    .finally(() => setBusy(false));
+                }}
+              >
+                {t('materialOrder.confirmRemaining')}
               </Button>
             ) : null}
             {READY_TO_START.includes(order.status) ? (

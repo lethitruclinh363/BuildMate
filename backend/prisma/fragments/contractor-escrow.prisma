@@ -1,0 +1,79 @@
+// PREPARED Prisma mapping for contractor escrow tables.
+// Do not merge into schema.prisma until the SQL has been applied on an isolated
+// test database. Merging now would let `prisma db push` create tables on BuilMate.
+// After PHASE 1 prepares BuilMate_test, copy these models into schema.prisma,
+// run `npx prisma generate` only, never `prisma db push` against BuilMate.
+
+model service_order_escrows {
+  id                     BigInt    @id @default(autoincrement())
+  service_order_id       BigInt    @unique
+  payment_id             BigInt    @unique
+  contractor_user_id     BigInt
+  gross_amount           Decimal   @db.Decimal(14, 2)
+  platform_fee_amount    Decimal   @db.Decimal(14, 2)
+  contractor_hold_amount Decimal   @db.Decimal(14, 2)
+  released_amount        Decimal   @default(0) @db.Decimal(14, 2)
+  refunded_amount        Decimal   @default(0) @db.Decimal(14, 2)
+  // SQL: GENERATED ALWAYS AS (gross_amount - released_amount - refunded_amount) STORED
+  available_amount       Decimal   @default(dbgenerated("(gross_amount - released_amount) - refunded_amount")) @db.Decimal(14, 2)
+  status                 String    @default("NOT_FUNDED") @db.VarChar(30)
+  payout_status          String    @default("NONE") @db.VarChar(20)
+  remaining_settled      Boolean   @default(false)
+  remaining_settled_at   DateTime? @db.Timestamptz(6)
+  remaining_settled_by   BigInt?
+  held_at                DateTime? @db.Timestamptz(6)
+  frozen_at              DateTime? @db.Timestamptz(6)
+  released_at            DateTime? @db.Timestamptz(6)
+  refunded_at            DateTime? @db.Timestamptz(6)
+  cancel_case            String?   @db.VarChar(40)
+  mock                   Boolean   @default(true)
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model contractor_payouts {
+  id                 BigInt    @id @default(autoincrement())
+  escrow_id          BigInt    @unique
+  contractor_user_id BigInt
+  amount             Decimal   @db.Decimal(14, 2)
+  status             String    @default("PENDING") @db.VarChar(20)
+  reference_code     String    @unique @db.VarChar(80)
+  processed_by       BigInt?
+  processed_at       DateTime? @db.Timestamptz(6)
+  mock               Boolean   @default(true)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model escrow_ledger {
+  id              BigInt   @id @default(autoincrement())
+  escrow_id       BigInt
+  entry_type      String   @db.VarChar(30)
+  amount          Decimal  @db.Decimal(14, 2)
+  actor_user_id   BigInt?
+  idempotency_key String   @unique @db.VarChar(80)
+  note            String   @default("") @db.VarChar(500)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model escrow_refunds {
+  id              BigInt    @id @default(autoincrement())
+  escrow_id       BigInt    @unique
+  amount          Decimal   @db.Decimal(14, 2)
+  status          String    @default("PENDING") @db.VarChar(20)
+  reason          String    @default("") @db.VarChar(500)
+  cancel_case     String?   @db.VarChar(40)
+  idempotency_key String    @unique @db.VarChar(80)
+  mock            Boolean   @default(true)
+  processed_at    DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model escrow_cancellations {
+  id         BigInt   @id @default(autoincrement())
+  escrow_id  BigInt   @unique
+  cancel_case String  @db.VarChar(40)
+  reason     String   @default("") @db.VarChar(500)
+  mock       Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+}

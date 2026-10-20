@@ -2,6 +2,7 @@ const { userRepository } = require('../repositories/userRepository');
 const { syncUserProfileStatus } = require('./profileStatusService');
 const { ApiError } = require('../utils/ApiError');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
+const { assertAccountIdentityAvailable, throwIfIdentityUniqueConflict } = require('./accountIdentity');
 
 async function getProfile(userId) {
   const user = await userRepository.findById(userId);
@@ -13,13 +14,29 @@ async function getProfile(userId) {
 }
 
 async function updateProfile(userId, payload, actor) {
-  const allowed = ['name', 'fullName', 'phone', 'preferredLanguage'];
+  const allowed = ['name', 'fullName', 'phone', 'phoneNumber', 'email', 'preferredLanguage'];
   const updates = {};
   for (const key of allowed) {
     if (payload[key] !== undefined) updates[key] = payload[key];
   }
 
-  const user = await userRepository.updateById(userId, updates);
+  const current = await userRepository.findById(userId);
+  if (!current) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  await assertAccountIdentityAvailable({
+    email: updates.email,
+    phone: updates.phoneNumber || updates.phone,
+    excludeUserId: userId,
+  });
+
+  let user;
+  try {
+    user = await userRepository.updateById(userId, updates);
+  } catch (err) {
+    throwIfIdentityUniqueConflict(err);
+  }
   if (!user) {
     throw new ApiError(404, 'User not found');
   }

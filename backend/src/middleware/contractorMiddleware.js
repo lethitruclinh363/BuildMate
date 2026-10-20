@@ -5,10 +5,14 @@ const { asyncHandler } = require('../utils/asyncHandler');
 
 async function ensureContractorProfile(userId) {
   let profile = await ContractorProfile.findOne({ userId });
-  if (!profile) {
-    profile = await ContractorProfile.create({ userId });
+  if (profile) return profile;
+  try {
+    return await ContractorProfile.create({ userId });
+  } catch (err) {
+    profile = await ContractorProfile.findOne({ userId });
+    if (profile) return profile;
+    throw err;
   }
-  return profile;
 }
 
 const loadContractorProfile = asyncHandler(async (req, _res, next) => {

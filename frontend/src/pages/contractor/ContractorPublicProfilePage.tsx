@@ -263,11 +263,6 @@ export function ContractorPublicProfilePage() {
       <PageTransition>
         <div className="mb-4 flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => setPreview(false)}>{t('publicProfile.backToEdit')}</Button>
-          {profile.contractorId ? (
-            <Button asChild variant="ghost">
-              <Link to={`/contractors/${profile.contractorId}`}>{t('publicProfile.viewPublic')}</Link>
-            </Button>
-          ) : null}
         </div>
         <ContractorProfileShowcase profile={draft} services={services} highlights={highlights} reputation={reputation} preview />
       </PageTransition>
@@ -286,11 +281,7 @@ export function ContractorPublicProfilePage() {
           description={t('publicProfile.description')}
           actions={
             <div className="flex flex-wrap gap-2">
-              {profile.contractorId ? (
-                <Button asChild type="button" variant="outline">
-                  <Link to={`/contractors/${profile.contractorId}`}>{t('publicProfile.viewPublic')}</Link>
-                </Button>
-              ) : null}
+              <Button type="button" variant="outline" onClick={() => setPreview(true)}>{t('publicProfile.viewPublic')}</Button>
               <Button type="button" variant="ghost" onClick={() => setPreview(true)}>{t('publicProfile.preview')}</Button>
             </div>
           }

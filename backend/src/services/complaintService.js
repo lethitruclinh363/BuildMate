@@ -59,6 +59,9 @@ async function createComplaint(user, payload) {
     meta: { orderId: String(order._id), reason: payload.reason },
   });
 
+  const escrowService = require('./escrowService');
+  await escrowService.freezeIfComplaint(order._id);
+
   return complaint.toPublic();
 }
 

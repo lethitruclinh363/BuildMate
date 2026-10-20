@@ -35,10 +35,25 @@ export function AnalyticsPage() {
   if (error || !data) return <ErrorState body={error || undefined} onRetry={reload} />;
 
   const openOrders = Math.max(data.orders.total - data.orders.completed - data.orders.cancelled, 0);
+  const ledger = data.finance.ledger;
 
   return (
     <div>
       <PageHeader eyebrow={t('pages.insights')} title={t('pages.analytics')} description={t('pages.analyticsDesc')} />
+      {ledger ? (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <StatCard label={t('pages.ledgerA')} value={vnd(ledger.acceptedQuoteTotal)} />
+          <StatCard label={t('pages.ledgerB')} value={vnd(ledger.capturedDeposit)} />
+          <StatCard label={t('pages.ledgerC')} value={vnd(ledger.heldAmount)} />
+          <StatCard label={t('pages.ledgerD')} value={vnd(ledger.disputedAmount)} />
+          <StatCard label={t('pages.ledgerE')} value={vnd(ledger.refundPendingAmount)} />
+          <StatCard label={t('pages.ledgerF')} value={vnd(ledger.refundedAmount)} />
+          <StatCard label={t('pages.ledgerG')} value={vnd(ledger.payoutPendingAmount)} />
+          <StatCard label={t('pages.ledgerH')} value={vnd(ledger.paidOutAmount)} />
+          <StatCard label={t('pages.ledgerI')} value={vnd(ledger.platformFeePosted)} />
+          <StatCard label={t('pages.ledgerJ')} value={vnd(ledger.materialGmv)} />
+        </div>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('pages.users')} value={data.users.total} />
         <StatCard label={t('pages.customers')} value={data.users.customer} />
@@ -46,8 +61,9 @@ export function AnalyticsPage() {
         <StatCard label={t('pages.orders')} value={data.orders.total} />
         <StatCard label={t('pages.completed')} value={data.orders.completed} />
         <StatCard label={t('pages.cancelled')} value={data.orders.cancelled} />
-        <StatCard label={t('pages.gmv')} value={vnd(data.finance.revenue)} />
         <StatCard label={t('pages.commission')} value={vnd(data.finance.commission)} />
+        <StatCard label={t('pages.gmv')} value={vnd(data.finance.capturedDeposits || 0)} />
+        <StatCard label={t('pages.materialGmv')} value={vnd(data.finance.materialGmv || 0)} />
         <StatCard label={t('pages.earning')} value={vnd(data.finance.contractorEarning)} />
         <StatCard label={t('pages.rating')} value={data.reviews.average.toFixed(1)} />
         <StatCard label={t('pages.openComplaints')} value={data.complaints.open} />
@@ -57,9 +73,10 @@ export function AnalyticsPage() {
           <p className="mb-4 text-xs uppercase tracking-[0.18em] text-copper-400">{t('pages.financeMix')}</p>
           <MixBars
             items={[
-              { label: t('pages.gmv'), value: data.finance.revenue },
-              { label: t('pages.commission'), value: data.finance.commission },
-              { label: t('pages.earning'), value: data.finance.contractorEarning },
+              { label: t('pages.ledgerI'), value: ledger?.platformFeePosted || data.finance.commission },
+              { label: t('pages.ledgerB'), value: ledger?.capturedDeposit || data.finance.capturedDeposits || 0 },
+              { label: t('pages.ledgerJ'), value: ledger?.materialGmv || data.finance.materialGmv || 0 },
+              { label: t('pages.ledgerH'), value: ledger?.paidOutAmount || 0 },
             ]}
           />
         </GlassCard>

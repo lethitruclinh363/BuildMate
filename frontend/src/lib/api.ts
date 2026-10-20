@@ -13,8 +13,32 @@ export const api = axios.create({
   timeout: 8000,
 });
 
+type ApiErrorBody = {
+  message?: string;
+  code?: string;
+  field?: string | string[];
+  details?: { code?: string; field?: string | string[]; conflicts?: Array<{ code?: string; field?: string; message?: string }> };
+};
+
+export function getApiErrorPayload(error: unknown) {
+  const ax = error as AxiosError<ApiErrorBody>;
+  const data = ax.response?.data;
+  const field = data?.field ?? data?.details?.field;
+  const fields = Array.isArray(field) ? field : field ? [field] : [];
+  const conflicts = data?.details?.conflicts || [];
+  for (const item of conflicts) {
+    if (item.field && !fields.includes(item.field)) fields.push(item.field);
+  }
+  return {
+    message: getApiErrorMessage(error),
+    code: data?.code || data?.details?.code || '',
+    field: fields[0] || '',
+    fields,
+  };
+}
+
 export function getApiErrorMessage(error: unknown) {
-  const ax = error as AxiosError<{ message?: string }>;
+  const ax = error as AxiosError<ApiErrorBody>;
   if (ax.code === 'ECONNABORTED' || ax.code === 'ERR_NETWORK' || !ax.response) {
     return t('feedback.network');
   }

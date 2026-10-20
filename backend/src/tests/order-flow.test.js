@@ -98,10 +98,18 @@ describe('Sprint 5.1 order execution flow', { timeout: 60000 }, () => {
     const orderCount = await Order.countDocuments({ quotationId: quotation._id });
     assert.equal(orderCount, 1);
 
-    const progressed = await progressService.addProgress(first.order.id, {
-      id: contractor._id,
-      role: ROLES.CONTRACTOR,
-    }, {
+    const actor = { id: contractor._id, role: ROLES.CONTRACTOR };
+    await assert.rejects(
+      () => progressService.addProgress(first.order.id, actor, {
+        status: 'STARTED',
+        description: 'Opened the wet wall and started pipe replacement.',
+        images: [],
+      }),
+      (err) => err.statusCode === 409
+    );
+    const { payMockDeposit } = require('./helpers/finance-http');
+    await payMockDeposit(customer, first.payment.id);
+    const progressed = await progressService.addProgress(first.order.id, actor, {
       status: 'STARTED',
       description: 'Opened the wet wall and started pipe replacement.',
       images: [],

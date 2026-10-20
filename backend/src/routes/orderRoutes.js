@@ -11,6 +11,8 @@ router.use(authenticate);
 router.get('/customer', allowRole('CUSTOMER'), orderController.listCustomer);
 router.get('/contractor', authorize('CONTRACTOR'), orderController.listContractor);
 router.post('/:id/complete', allowRole('CUSTOMER'), orderController.complete);
+router.post('/:id/remaining-received', orderController.confirmRemaining);
+router.post('/:id/settle-escrow', allowRole('ADMIN'), orderController.settleEscrow);
 router.post('/:id/cancel', validate(cancelOrderSchema), orderController.cancel);
 router.get('/:id', orderController.getOne);
 
