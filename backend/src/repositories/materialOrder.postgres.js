@@ -420,7 +420,23 @@ function model(loader, Factory, persist, scope) {
       return query;
     },
     findById(id) {
-      return this.findOne({ _id: id });
+      const query = this.find();
+      const exec = query.then.bind(query);
+      query.then = (resolve, reject) =>
+        exec(
+          (rows) =>
+            resolve(
+              rows.find(
+                (r) =>
+                  String(r._id) === String(id) ||
+                  String(r.pgId) === String(id) ||
+                  String(r.id) === String(id) ||
+                  r.orderCode === id
+              ) || null
+            ),
+          reject
+        );
+      return query;
     },
     async create(data) {
       try {

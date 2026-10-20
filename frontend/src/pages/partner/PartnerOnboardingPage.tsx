@@ -15,7 +15,7 @@ import {
   picksFromStoredNames,
   type MaterialCategoryPick,
 } from '@/data/material-categories';
-import { homeForUser, useAuth } from '@/context/AuthContext';
+import { getDefaultRouteByRole, homeForUser, useAuth } from '@/context/AuthContext';
 import {
   maxReachableStep,
   normalizeCompleted,
@@ -711,10 +711,10 @@ export default function PartnerOnboardingPage() {
     <div className="min-h-screen bg-paper-100">
       <header className="sticky top-0 z-20 border-b border-navy-800/8 bg-paper-100/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <Logo />
+          <Logo to={getDefaultRouteByRole(currentUser)} />
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher variant="light" placement="auth-form" />
-            <button type="button" className="text-sm font-semibold text-navy-800" onClick={() => void logout()}>
+            <button type="button" className="text-sm font-semibold text-navy-800" onClick={() => void logout().then(() => navigate('/login', { replace: true }))}>
               {t('auth.onboardLogout')}
             </button>
           </div>

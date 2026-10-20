@@ -20,6 +20,7 @@ const paid = {
 
 describe('material order management', () => {
   it('moves a store order one step at a time', () => {
+    assert.equal(nextStoreFulfillment('PENDING_CONFIRMATION'), 'CONFIRMED');
     assert.equal(nextStoreFulfillment('DEPOSIT_PAID'), 'CONFIRMED');
     assert.equal(nextStoreFulfillment('CONFIRMED'), 'PREPARING');
     assert.equal(nextStoreFulfillment('PREPARING'), 'READY_FOR_DELIVERY');
@@ -49,18 +50,19 @@ describe('material order management', () => {
     );
   });
 
-  it('sums recorded order amounts and leaves unpaid or cancelled orders out', () => {
+  it('sums completed material GMV and does not treat it as platform revenue', () => {
     const summary = summarizeMaterialEarnings([
       paid,
       { ...paid, status: 'COMPLETED' },
+      { ...paid, status: 'PENDING_CONFIRMATION' },
       { ...paid, status: 'PENDING_PAYMENT' },
       { ...paid, status: 'CANCELLED' },
     ]);
-    assert.equal(summary.orderValue, 4400000);
-    assert.equal(summary.onlineDeposits, 660000);
-    assert.equal(summary.platformFees, 200000);
-    assert.equal(summary.storeDeposits, 460000);
-    assert.equal(summary.directRemaining, 3740000);
+    assert.equal(summary.orderValue, 2_200_000);
+    assert.equal(summary.onlineDeposits, 0);
+    assert.equal(summary.platformFees, 0);
+    assert.equal(summary.storeDeposits, 0);
+    assert.equal(summary.directRemaining, 3_740_000);
   });
 
   it('notifies the other party only on the agreed steps', () => {

@@ -3,7 +3,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { BackButton } from '@/components/navigation/BackButton';
-import { homeForUser, useAuth } from '@/context/AuthContext';
+import { getDefaultRouteByRole, isPartnerRole, useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/lib/api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
@@ -31,9 +31,8 @@ export default function Login() {
       const session = await login(email, password);
       const next = params.get('next');
       const safeNext = Boolean(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\'));
-      const home = homeForUser(session.user);
-      const partnerRole = session.user.role === 'CONTRACTOR' || session.user.role === 'MATERIAL_STORE_OWNER';
-      const dest = home === '/partner/onboarding' || partnerRole ? home : safeNext && next ? next : home;
+      const home = getDefaultRouteByRole(session.user);
+      const dest = isPartnerRole(session.user.role) ? home : safeNext && next ? next : home;
       pushToast({ kind: 'success', title: t('auth.loginSuccess') });
       navigate(dest, { replace: true });
     } catch (err) {

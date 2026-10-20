@@ -69,6 +69,47 @@ export interface AdminCatalogWrite {
   acknowledgeSimilar?: boolean;
 }
 
+export interface AdminFinanceLedger {
+  acceptedQuoteTotal: number;
+  capturedDeposit: number;
+  heldAmount: number;
+  disputedAmount: number;
+  refundPendingAmount: number;
+  refundedAmount: number;
+  payoutPendingAmount: number;
+  paidOutAmount: number;
+  platformFeePosted: number;
+  materialGmv: number;
+  mock?: boolean;
+}
+
+export interface AdminEscrowRow {
+  orderId: string;
+  orderCode: string | null;
+  customerId: string;
+  contractorId: string;
+  workStatus: string | null;
+  accepted: boolean;
+  paymentId: string;
+  paymentStatus: string;
+  paymentType: string;
+  quoteTotal: number;
+  depositAmount: number;
+  platformFee: number;
+  contractorHold: number;
+  remainingAmount: number;
+  remainingSettled: boolean;
+  escrowStatus: string;
+  payoutStatus: string;
+  refundedAmount: number;
+  releasedAmount: number;
+  cancelCase?: string | null;
+  cancelReason?: string | null;
+  openComplaint: boolean;
+  mock: boolean;
+  actions: { canPayout: boolean; canRefund: boolean; payoutBlock: string | null; refundBlock: string | null };
+}
+
 function unwrap<T>(payload: ApiResponse<T>) {
   return payload.data;
 }
@@ -155,6 +196,9 @@ export const adminApi = {
   updateMaterialCategory: async (id: string, name: string) =>
     bustCache(unwrap((await api.patch<ApiResponse<AdminMaterialCategory>>(`/admin/material-categories/${id}`, { name })).data)),
 
+  reviewMaterialCategory: async (id: string, decision: 'approve' | 'reject', reason?: string) =>
+    bustCache(unwrap((await api.post<ApiResponse<AdminMaterialCategory>>(`/admin/material-categories/${id}/review`, { decision, reason })).data)),
+
   auditLogs: (params?: { action?: string; limit?: number }) =>
     cached(`admin-audit:${JSON.stringify(params || {})}`, 60_000, async () =>
       unwrap((await api.get<ApiResponse<AuditLog[]>>('/admin/audit-logs', { params })).data)
@@ -183,6 +227,18 @@ export const adminApi = {
   refundPayment: async (id: string, reason?: string) =>
     bustCache(
       unwrap((await api.post<ApiResponse<{ id: string; status: string }>>(`/admin/payments/${id}/refund`, { reason })).data)
+    ),
+
+  financeSummary: async () => unwrap((await api.get<ApiResponse<AdminFinanceLedger>>('/admin/finance/summary')).data),
+
+  listEscrows: async () => unwrap((await api.get<ApiResponse<AdminEscrowRow[]>>('/admin/finance/escrow')).data),
+
+  settleEscrow: async (orderId: string) =>
+    bustCache(unwrap((await api.post<ApiResponse<{ mock: boolean }>>(`/admin/orders/${orderId}/escrow/settle`)).data)),
+
+  refundEscrow: async (orderId: string, reason?: string) =>
+    bustCache(
+      unwrap((await api.post<ApiResponse<{ mock: boolean }>>(`/admin/orders/${orderId}/escrow/refund`, { reason })).data)
     ),
 
   getOrder: async (id: string) => unwrap((await api.get<ApiResponse<OrderDetail>>(`/orders/${id}`)).data),
@@ -224,6 +280,12 @@ export const adminApi = {
 
   markNotificationsRead: async () =>
     bustCache(unwrap((await api.patch<ApiResponse<{ unread: number }>>('/notifications/read-all')).data)),
+
+  markNotificationRead: async (id: string) => {
+    const data = unwrap((await api.patch<ApiResponse<unknown>>(`/notifications/${id}/read`)).data);
+    invalidateCache('admin-notifications');
+    return data;
+  },
 
   logout: async () => {
     await api.post('/admin/auth/logout');

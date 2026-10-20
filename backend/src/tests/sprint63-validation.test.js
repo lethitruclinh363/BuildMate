@@ -8,6 +8,7 @@ const { Order, Payment, Commission } = require('../repositories/commerceAccess')
 const { signToken } = require('../services/authService');
 const commissionService = require('../services/commissionService');
 const { invalidateAnalyticsCache } = require('../services/analyticsService');
+const { depositCheckoutBody } = require('./helpers/finance-http');
 
 async function progressAll(origin, token, orderId) {
   for (const status of ['STARTED', 'IN_PROGRESS', 'COMPLETED']) {
@@ -59,6 +60,9 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
     const party = await createParty(`flow63-${Date.now()}`);
     trash.push(party);
     const origin = server.origin;
+    invalidateAnalyticsCache();
+    const initialAnalytics = await api(origin, { path: '/api/admin/analytics', token: adminToken });
+    const baselineRevenue = initialAnalytics.json?.data?.finance?.revenue || 0;
 
     const login = await api(origin, {
       method: 'POST',
@@ -92,7 +96,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
       method: 'POST',
       path: `/api/payments/${paymentId}/checkout`,
       token: customer,
-      body: { method: 'MOCK' },
+      body: depositCheckoutBody(),
     });
     assert.equal(checkout.status, 200);
     const paid = await api(origin, {
@@ -102,7 +106,8 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
     });
     assert.equal(paid.status, 200);
     assert.equal(paid.json.data.payment.status, 'PAID');
-    assert.equal(paid.json.data.commission.status, 'POSTED');
+    assert.equal(paid.json.data.commission, null);
+    assert.equal(paid.json.data.escrow.status, 'HELD');
 
     await progressAll(origin, party.tokens.contractor, orderId);
 
@@ -143,8 +148,8 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
 
     const earnings = await api(origin, { path: '/api/contractor/earnings', token: party.tokens.contractor });
     assert.equal(earnings.status, 200);
-    assert.equal(earnings.json.data.netEarning, 712500);
-    assert.equal(earnings.json.data.totalCommission, 37500);
+    assert.equal(earnings.json.data.netEarning, 0);
+    assert.equal(earnings.json.data.totalCommission, 0);
 
     const reputation = await api(origin, { path: `/api/reviews/user/${party.contractor._id}` });
     assert.equal(reputation.status, 200);
@@ -154,7 +159,8 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
     invalidateAnalyticsCache();
     const analytics = await api(origin, { path: '/api/admin/analytics', token: adminToken });
     assert.equal(analytics.status, 200);
-    assert.ok(analytics.json.data.finance.revenue >= 750000);
+    assert.equal(analytics.json.data.finance.revenue, baselineRevenue);
+    assert.ok(analytics.json.data.finance.capturedDeposits >= 112500);
 
     const adminPay = await api(origin, { path: `/api/payments/order/${orderId}`, token: adminToken });
     assert.equal(adminPay.status, 200);
@@ -177,7 +183,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
     assert.equal(resolved.json.data.status, 'RESOLVED');
   });
 
-  it('finance: double checkout blocked; mock-success idempotent; refund reverses commission', async (t) => {
+  it('finance: double checkout blocked; mock-success idempotent; deposit refund has no commission', async (t) => {
     if (!dbReady) {
       t.skip('PostgreSQL test database is not available');
       return;
@@ -197,13 +203,13 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
       method: 'POST',
       path: `/api/payments/${paymentId}/checkout`,
       token: party.tokens.customer,
-      body: { method: 'MOCK' },
+      body: depositCheckoutBody(),
     });
     const twice = await api(origin, {
       method: 'POST',
       path: `/api/payments/${paymentId}/checkout`,
       token: party.tokens.customer,
-      body: { method: 'MOCK' },
+      body: depositCheckoutBody(),
     });
     assert.equal(twice.status, 409);
 
@@ -221,7 +227,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
     assert.equal(second.status, 200);
     assert.equal(second.json.data.duplicated, true);
     assert.equal(await Payment.countDocuments({ orderId, status: 'PAID' }), 1);
-    assert.equal(await Commission.countDocuments({ paymentId }), 1);
+    assert.equal(await Commission.countDocuments({ paymentId }), 0);
 
     const refund = await api(origin, {
       method: 'POST',
@@ -231,8 +237,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
     });
     assert.equal(refund.status, 200);
     assert.equal(refund.json.data.status, 'REFUNDED');
-    const commission = await Commission.findOne({ paymentId });
-    assert.equal(commission.status, 'REVERSED');
+    assert.equal(await Commission.findOne({ paymentId }), null);
 
     const again = await api(origin, {
       method: 'POST',
@@ -262,15 +267,13 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
     const orderId = accept.json.data.order.id;
     assert.equal(accept.json.data.payment.status, 'UNPAID');
 
-    await progressAll(origin, party.tokens.contractor, orderId);
-
-    const done = await api(origin, {
+    const blocked = await api(origin, {
       method: 'POST',
-      path: `/api/orders/${orderId}/complete`,
-      token: party.tokens.customer,
+      path: `/api/orders/${orderId}/progress`,
+      token: party.tokens.contractor,
+      body: { status: 'STARTED', description: 'Must not start before deposit' },
     });
-    assert.equal(done.status, 200);
-    assert.equal(done.json.data.order.status, ORDER_STATUS.CUSTOMER_ACCEPTED);
+    assert.equal(blocked.status, 409);
     const order = await Order.findById(orderId);
     assert.equal(order.paymentStatus, 'UNPAID');
     assert.equal(await Commission.countDocuments({ orderId }), 0);

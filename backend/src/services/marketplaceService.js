@@ -114,11 +114,14 @@ async function getPublicStore(id) {
       ? await seedMaterialPublicProfile(store, profile)
       : await seedPublicProfile(store, profile)
     : store;
-  const [services, materials, reviews] = await Promise.all([
+  const [services, materials, reviews, reputation] = await Promise.all([
     Service.find({ storeId: published._id, ...publicPricedServiceMatch() }).sort({ category: 1 }),
     Material.find({ storeId: published._id }).sort({ category: 1 }),
     published.storeType === 'MATERIALS'
       ? reviewService.listForUser(published.contractorId, 'MATERIAL_STORE')
+      : Promise.resolve(null),
+    published.storeType === 'MATERIALS'
+      ? reputationService.forMaterialStore(published.contractorId)
       : Promise.resolve(null),
   ]);
   const categories = published.storeType === 'MATERIALS' && profile
@@ -131,8 +134,21 @@ async function getPublicStore(id) {
     publicProfile: presentPublicProfile(published),
     categories,
     reviews: reviews
-      ? { average: reviews.average, count: reviews.count, items: reviews.items.slice(0, 8) }
+      ? {
+          average: reviews.average,
+          count: reviews.count,
+          distribution: reviews.distribution,
+          items: reviews.items.slice(0, 8).map((row) => ({
+            id: row.id,
+            rating: row.rating,
+            comment: row.comment || '',
+            createdAt: row.createdAt,
+            customerName: row.customerName || '',
+            contractorReply: row.contractorReply || '',
+          })),
+        }
       : null,
+    reputation,
     services: services.map((s) => s.toPublic()),
     materials: materials.map((m) => m.toPublic()),
   };

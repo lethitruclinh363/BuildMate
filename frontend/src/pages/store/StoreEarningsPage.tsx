@@ -10,7 +10,8 @@ import { materialStoreOrderApi, type MaterialEarnings } from '@/lib/material-ord
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 
-const ROWS = ['orderValue', 'onlineDeposits', 'platformFees', 'storeDeposits', 'directRemaining'] as const;
+const COUNTS = ['orderCount', 'processingCount', 'deliveringCount', 'completedCount', 'cancelledCount'] as const;
+const MONEY = ['orderValue', 'collectedAmount', 'uncollectedAmount'] as const;
 
 export function StoreEarningsPage() {
   const { t } = useI18n();
@@ -43,22 +44,33 @@ export function StoreEarningsPage() {
   if (loading) return <DashboardSkeleton />;
   if (error || !data) return <ErrorState body={error || undefined} onRetry={() => window.location.reload()} />;
 
-  const labels: Record<(typeof ROWS)[number], string> = {
+  const countLabels: Record<(typeof COUNTS)[number], string> = {
+    orderCount: t('materialOrder.orderCount'),
+    processingCount: t('materialOrder.processingCount'),
+    deliveringCount: t('materialOrder.deliveringCount'),
+    completedCount: t('materialOrder.completedCount'),
+    cancelledCount: t('materialOrder.cancelledCount'),
+  };
+  const moneyLabels: Record<(typeof MONEY)[number], string> = {
     orderValue: t('materialOrder.orderValue'),
-    onlineDeposits: t('materialOrder.onlineDeposits'),
-    platformFees: t('materialOrder.platformFees'),
-    storeDeposits: t('materialOrder.storeDeposits'),
-    directRemaining: t('materialOrder.directRemainingTotal'),
+    collectedAmount: t('materialOrder.collectedAmount'),
+    uncollectedAmount: t('materialOrder.uncollectedAmount'),
   };
 
   return (
     <PageTransition>
       <PageHeader eyebrow={t('nav.store.earnings')} title={t('materialOrder.earningsTitle')} description={t('materialOrder.earningsBody')} />
-      <div className="grid gap-3 md:grid-cols-2">
-        {ROWS.map((key) => (
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {COUNTS.map((key) => (
           <Card key={key} hover={false} className="p-4">
-            <p className="text-sm text-ink-500">{labels[key]}</p>
-            <p className="mt-1 text-2xl font-semibold text-navy-800">{vnd(data[key])}</p>
+            <p className="text-sm text-ink-500">{countLabels[key]}</p>
+            <p className="mt-1 text-2xl font-semibold text-navy-800">{data[key] ?? 0}</p>
+          </Card>
+        ))}
+        {MONEY.map((key) => (
+          <Card key={key} hover={false} className="p-4">
+            <p className="text-sm text-ink-500">{moneyLabels[key]}</p>
+            <p className="mt-1 text-2xl font-semibold text-navy-800">{vnd(data[key] || 0)}</p>
           </Card>
         ))}
       </div>

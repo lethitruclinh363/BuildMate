@@ -1,21 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, MapPin, Phone, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
-import { ReputationSummary } from '@/features/reviews/components/ReputationSummary';
-import { reviewApi } from '@/features/reviews/services/review.api';
+import { PublicReviewList } from '@/features/reviews/components/PublicReviewList';
+import { PublicTrustPanel } from '@/features/reviews/components/PublicTrustPanel';
 import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
-import { mediaUrl, vnd } from '@/lib/partner-api';
+import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
 import { withAuthRedirect } from '@/types/sprint4';
 import type { CatalogService } from '@/types/partner';
 import type { PublicContractorProfile, PublicHighlights } from '@/types/marketplace';
-import type { Review } from '@/features/reviews/types/review.types';
 import { ImageViewer, MediaFrame, type ViewerSlide } from '@/components/media/ProfileMedia';
 import { LocationViewer } from '@/features/map/components/LocationViewer';
 import { MapPlaceActions } from '@/features/map/components/MapPlaceActions';
@@ -46,30 +45,13 @@ export function ContractorProfileShowcase({
   reputation?: ReputationSnapshot | null;
   preview?: boolean;
 }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const user = useAuthStore((state) => state.user);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [average, setAverage] = useState(profile.rating || 0);
-  const [total, setTotal] = useState(profile.reviewCount || 0);
-  const [star, setStar] = useState<number | 'all'>('all');
   const [viewer, setViewer] = useState<{ slides: ViewerSlide[]; index: number } | null>(null);
   const owner = !preview && Boolean(user && user.role === 'CONTRACTOR' && user.id === String(profile.contractorId));
   const publicPath = `/contractors/${profile.contractorId}`;
-  const dateTag = locale === 'en' ? 'en-US' : 'vi-VN';
-
-  useEffect(() => {
-    if (!profile.contractorId) return;
-    reviewApi
-      .forUser(String(profile.contractorId), 'CONTRACTOR')
-      .then((res) => {
-        setReviews(res.data.data.items || []);
-        setAverage(res.data.data.average || 0);
-        setTotal(res.data.data.count || 0);
-      })
-      .catch(() => undefined);
-  }, [profile.contractorId]);
-
-  const visibleReviews = reviews.filter((row) => star === 'all' || row.rating === star);
+  const average = profile.rating || 0;
+  const total = profile.reviewCount || 0;
   const facts = [
     profile.yearsExperience > 0 ? { label: t('public.experience'), value: t('public.experienceYears', { n: profile.yearsExperience }) } : null,
     profile.workerCount > 0 ? { label: t('public.crewSize'), value: t('public.crewCount', { n: profile.workerCount }) } : null,
@@ -167,11 +149,6 @@ export function ContractorProfileShowcase({
                     </span>
                   ) : null}
                 </p>
-                {reputation ? (
-                  <div className="mt-3">
-                    <ReputationSummary reputation={reputation} t={t} />
-                  </div>
-                ) : null}
                 {profile.slogan ? <p className="mt-2 max-w-xl text-base text-ink-600">{profile.slogan}</p> : null}
               </div>
             </div>
@@ -215,6 +192,16 @@ export function ContractorProfileShowcase({
           </div>
         </div>
       </section>
+
+      <PublicTrustPanel
+        name={profile.displayName}
+        verified={profile.verified}
+        reputation={reputation}
+        reviewAverage={total > 0 ? average : null}
+        reviewCount={total}
+        completionLabel={t('reputation.contractorCardCompletion')}
+        onTimeLabel={t('reputation.contractorCardOnTime')}
+      />
 
       <section>
         <h2 className="font-display text-2xl text-navy-800">{t('public.about')}</h2>
@@ -367,57 +354,7 @@ export function ContractorProfileShowcase({
         </section>
       ) : null}
 
-      <section>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-display text-2xl text-navy-800">{t('public.reviewsTitle')}</h2>
-            {total > 0 ? (
-              <p className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-navy-800">
-                <Star className="h-4 w-4 fill-copper-400 text-copper-400" />
-                {t('public.reviewScore', { score: average.toFixed(1) })}
-                <span className="font-normal text-ink-400">· {t('public.reviewTotal', { n: total })}</span>
-              </p>
-            ) : null}
-          </div>
-        </div>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          <FilterChip active={star === 'all'} onClick={() => setStar('all')}>{t('public.allStars')}</FilterChip>
-          {[5, 4, 3, 2, 1].map((value) => (
-            <FilterChip key={value} active={star === value} onClick={() => setStar(value)}>
-              {t('public.stars', { n: value })}
-            </FilterChip>
-          ))}
-        </div>
-        {visibleReviews.length ? (
-          <div className="mt-4 space-y-3">
-            {visibleReviews.map((row) => (
-              <Card key={row.id} hover={false}>
-                <div className="flex items-start gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-navy-800 text-sm text-paper-50">
-                    {row.customerAvatar ? (
-                      <img src={mediaUrl(row.customerAvatar)} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      (row.customerName || 'K').slice(0, 1)
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-semibold text-navy-800">{row.customerName || t('public.customer')}</p>
-                      <p className="text-xs text-ink-400">{new Date(row.createdAt).toLocaleDateString(dateTag)}</p>
-                    </div>
-                    <p className="mt-1 text-copper-500">{'★'.repeat(row.rating)}{'☆'.repeat(5 - row.rating)}</p>
-                    {row.jobTitle ? <p className="mt-1 text-xs text-ink-400">{row.jobTitle}</p> : null}
-                    {row.comment ? <p className="mt-2 text-sm leading-6 text-ink-600">{row.comment}</p> : null}
-                    {row.contractorReply ? <p className="mt-3 rounded-2xl bg-navy-800/5 px-3 py-2 text-sm leading-6 text-navy-800">{row.contractorReply}</p> : null}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-ink-400">{t('public.noReviews')}</p>
-        )}
-      </section>
+      {profile.contractorId ? <PublicReviewList targetUserId={String(profile.contractorId)} targetType="CONTRACTOR" /> : null}
 
       {!owner || preview ? (
         <section className="rounded-[22px] bg-navy-800 px-5 py-8 text-paper-50 sm:px-8">
@@ -442,17 +379,5 @@ export function ContractorProfileShowcase({
         onChange={(next) => setViewer((current) => (current ? { ...current, index: next } : current))}
       />
     </div>
-  );
-}
-
-function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${active ? 'bg-navy-800 text-white' : 'bg-white text-navy-800 ring-1 ring-navy-800/10'}`}
-    >
-      {children}
-    </button>
   );
 }

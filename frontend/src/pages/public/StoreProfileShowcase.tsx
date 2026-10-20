@@ -16,6 +16,9 @@ import { useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
 import type { CatalogMaterial } from '@/types/partner';
 import type { MaterialCategoryPick } from '@/data/material-categories';
+import { PublicReviewList } from '@/features/reviews/components/PublicReviewList';
+import { PublicTrustPanel } from '@/features/reviews/components/PublicTrustPanel';
+import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 
 export function StoreProfileShowcase({
@@ -23,12 +26,14 @@ export function StoreProfileShowcase({
   categories,
   materials,
   reviews,
+  reputation,
   preview = false,
 }: {
   profile: PublicStoreProfile;
   categories: MaterialCategoryPick[];
   materials: CatalogMaterial[];
   reviews?: { average: number; count: number; items: PublicStoreReview[] } | null;
+  reputation?: ReputationSnapshot | null;
   preview?: boolean;
 }) {
   const { t } = useI18n();
@@ -119,6 +124,16 @@ export function StoreProfileShowcase({
           </div>
         </div>
       </section>
+
+      <PublicTrustPanel
+        name={profile.displayName}
+        verified={Boolean(profile.verified)}
+        reputation={reputation}
+        reviewAverage={reviewCount > 0 ? rating : null}
+        reviewCount={reviewCount}
+        completionLabel={t('reputation.storeCardCompletion')}
+        onTimeLabel={t('reputation.storeCardOnTime')}
+      />
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
         <Card hover={false}>
@@ -222,7 +237,11 @@ export function StoreProfileShowcase({
                 />
                 <div className="p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">{categoryDisplayLabel({ name: item.category, type: 'SYSTEM' }, t)}</p>
-                  <Link to={`/stores/${profile.id}/materials/${item.id}`} className="mt-1 block font-display text-lg text-navy-800">{item.name}</Link>
+                  {preview ? (
+                    <p className="mt-1 font-display text-lg text-navy-800">{item.name}</p>
+                  ) : (
+                    <Link to={`/stores/${profile.id}/materials/${item.id}`} className="mt-1 block font-display text-lg text-navy-800">{item.name}</Link>
+                  )}
                   <p className="mt-2 font-display text-xl text-navy-800">{vnd(item.price)} <span className="text-sm font-sans font-normal text-ink-400">/ {item.unit}</span></p>
                   <div className="mt-2"><Badge tone={saleTone(saleState(item))}>{t(saleLabelKey(saleState(item)))}</Badge></div>
                   {preview ? null : (
@@ -259,29 +278,7 @@ export function StoreProfileShowcase({
         )}
       </section>
 
-      <section>
-        <h2 className="font-display text-2xl text-navy-800">{t('storePublic.reviews')}</h2>
-        {reviewCount > 0 ? (
-          <div className="mt-3">
-            <p className="font-display text-3xl text-navy-800">{rating.toFixed(1)}</p>
-            <p className="text-sm text-ink-500">{t('storePublic.reviewSummary', { score: rating.toFixed(1), count: reviewCount })}</p>
-            <ul className="mt-4 space-y-3">
-              {(reviews?.items || []).map((item) => (
-                <li key={item.id} className="rounded-2xl bg-white p-4 shadow-card">
-                  <p className="text-sm font-semibold text-navy-800">{item.customerName || t('storePublic.customer')}</p>
-                  <p className="text-sm text-copper-600">{item.rating}/5</p>
-                  <p className="mt-2 text-sm leading-6 text-ink-600">{item.comment}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <div className="mt-3">
-            <p className="font-display text-2xl text-navy-800">{t('storePublic.noReviews')}</p>
-            <p className="mt-1 text-sm text-ink-500">{t('storePublic.noReviewsBody')}</p>
-          </div>
-        )}
-      </section>
+      {profile.contractorId ? <PublicReviewList targetUserId={String(profile.contractorId)} targetType="MATERIAL_STORE" /> : null}
 
       <Card hover={false}>
         <h2 className="font-display text-xl text-navy-800">{t('storePublic.contactTitle')}</h2>

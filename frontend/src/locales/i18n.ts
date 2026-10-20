@@ -112,8 +112,94 @@ export function translate(locale: Locale, path: string, vars?: Vars): string {
   return i18n.t(key, { lng: locale, ns, ...vars });
 }
 
+const KNOWN_API_ERRORS: Record<string, { vi: string; en: string }> = {
+  'Please wait before requesting another verification code': {
+    vi: 'Vui lòng đợi trước khi yêu cầu mã xác thực mới.',
+    en: 'Please wait before requesting another verification code.',
+  },
+  'Too many incorrect verification codes. Request a new code later': {
+    vi: 'Bạn đã nhập sai mã xác thực quá nhiều lần. Vui lòng thử lại sau.',
+    en: 'Too many incorrect verification codes. Request a new code later.',
+  },
+  'Verification code has expired': {
+    vi: 'Mã xác thực đã hết hạn. Vui lòng gửi lại mã mới.',
+    en: 'Verification code has expired. Please request a new code.',
+  },
+  'Invalid verification code': {
+    vi: 'Mã xác thực không chính xác.',
+    en: 'Invalid verification code.',
+  },
+  'No verification code. Please request a new one': {
+    vi: 'Chưa có mã xác thực. Vui lòng gửi lại mã mới.',
+    en: 'No verification code. Please request a new one.',
+  },
+  'Email is already verified': {
+    vi: 'Email này đã được xác thực thành công.',
+    en: 'Email is already verified.',
+  },
+  'Account not found': {
+    vi: 'Không tìm thấy tài khoản với email này.',
+    en: 'Account not found.',
+  },
+  'Invalid email or password': {
+    vi: 'Email hoặc mật khẩu không chính xác.',
+    en: 'Invalid email or password.',
+  },
+  'Could not send verification email. Please try resend-code.': {
+    vi: 'Không thể gửi email xác thực. Vui lòng thử gửi lại mã.',
+    en: 'Could not send verification email. Please try resend-code.',
+  },
+  'Bạn thao tác quá nhanh. Vui lòng chờ vài giây.': {
+    vi: 'Bạn thao tác quá nhanh. Vui lòng chờ vài giây.',
+    en: 'Too many requests. Please wait a few seconds.',
+  },
+  'Please verify your email': {
+    vi: 'Vui lòng xác thực email của bạn trước khi đăng nhập.',
+    en: 'Please verify your email before logging in.',
+  },
+  'This account has been suspended': {
+    vi: 'Tài khoản này đã bị tạm ngưng.',
+    en: 'This account has been suspended.',
+  },
+  'Reset code has expired': {
+    vi: 'Mã xác thực đã hết hạn. Vui lòng gửi lại mã mới.',
+    en: 'Reset code has expired. Please request a new one.',
+  },
+  'Invalid reset code': {
+    vi: 'Mã xác thực không chính xác.',
+    en: 'Invalid reset code.',
+  },
+  'No reset code. Please request a new one': {
+    vi: 'Chưa có mã xác thực. Vui lòng gửi lại mã mới.',
+    en: 'No reset code. Please request a new one.',
+  },
+  'Too many incorrect reset codes. Request a new code later': {
+    vi: 'Bạn đã nhập sai mã xác thực quá nhiều lần. Vui lòng thử lại sau.',
+    en: 'Too many incorrect reset codes. Request a new code later.',
+  },
+  'Reset code expired or was already used': {
+    vi: 'Mã xác thực đã hết hạn hoặc đã được sử dụng.',
+    en: 'Reset code expired or was already used.',
+  },
+  'Password must be at least 8 characters and include uppercase, lowercase, and a number': {
+    vi: 'Mật khẩu tối thiểu 8 ký tự, gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 số',
+    en: 'Password must be at least 8 characters and include uppercase, lowercase, and a number',
+  },
+  'Password is required': {
+    vi: 'Vui lòng nhập mật khẩu',
+    en: 'Password is required',
+  },
+  'Password is too long': {
+    vi: 'Mật khẩu quá dài',
+    en: 'Password is too long',
+  },
+};
+
 export function translateApiError(message: string | undefined, locale: Locale = currentLocale()): string {
   if (!message) return translate(locale, 'errors.generic');
+  if (KNOWN_API_ERRORS[message]) {
+    return KNOWN_API_ERRORS[message][locale] || KNOWN_API_ERRORS[message].vi;
+  }
   const { ns, key } = resolveKey(`errors.api.${message}`);
   const hit = i18n.t(key, { lng: locale, ns, defaultValue: '' });
   if (!hit || hit === '—' || hit === key) return message;

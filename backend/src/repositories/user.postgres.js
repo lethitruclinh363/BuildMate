@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../config/prisma');
+const { normalizeEmail, storedVnMobile, phoneLookupValues } = require('../utils/identity');
 
 const PROFILE_STATUS = Object.freeze({ INCOMPLETE: 'INCOMPLETE' });
 
@@ -110,11 +111,15 @@ class PgUser {
       passwordHash = await bcrypt.hash(passwordHash, 12);
       this.password = passwordHash;
     }
-    const row = await prisma.users.update({
+    const phone = storedVnMobile(this.phoneNumber || this.phone);
+    let row;
+    try {
+      row = await prisma.users.update({
       where: { id: this.pgId },
       data: {
         full_name: this.fullName || this.name,
-        phone_number: this.phoneNumber || this.phone || null,
+        email: this.email ? normalizeEmail(this.email) : undefined,
+        phone_number: phone,
         password_hash: passwordHash,
         profile_status: this.profileStatus,
         token_version: this.tokenVersion,
@@ -134,6 +139,10 @@ class PgUser {
       },
       select: userSelect,
     });
+    } catch (err) {
+      const { throwIfIdentityUniqueConflict } = require('../services/accountIdentity');
+      throwIfIdentityUniqueConflict(err);
+    }
     return new PgUser(row);
   }
 }
@@ -149,15 +158,15 @@ async function findOneBy(where) {
 
 const userRepository = {
   async findByEmail(email) {
-    const value = String(email || '').trim();
+    const value = normalizeEmail(email);
     if (!value) return null;
     return findOneBy({ email: { equals: value, mode: 'insensitive' } });
   },
 
   async findByPhone(phoneNumber) {
-    const value = String(phoneNumber || '').trim();
-    if (!value) return null;
-    return findOneBy({ phone_number: value });
+    const variants = phoneLookupValues(phoneNumber);
+    if (!variants.length) return null;
+    return findOneBy({ phone_number: { in: variants } });
   },
 
   findByEmailWithPassword(email) {
@@ -187,13 +196,17 @@ const userRepository = {
       ? payload.password
       : await bcrypt.hash(payload.password, 12);
     const legacyId = crypto.randomBytes(12).toString('hex');
-    const row = await prisma.users.create({
+    const email = normalizeEmail(payload.email);
+    const phone = storedVnMobile(payload.phoneNumber || payload.phone);
+    let row;
+    try {
+      row = await prisma.users.create({
       data: {
         legacy_mongo_id: legacyId,
         role_id: role.id,
         full_name: payload.fullName || payload.name,
-        email: String(payload.email || '').trim().toLowerCase(),
-        phone_number: String(payload.phoneNumber || payload.phone || '').trim() || null,
+        email,
+        phone_number: phone,
         password_hash: passwordHash,
         accepted_policy: Boolean(payload.acceptedPolicy),
         accepted_policy_version: payload.acceptedPolicyVersion || '',
@@ -212,6 +225,10 @@ const userRepository = {
       },
       select: userSelect,
     });
+    } catch (err) {
+      const { throwIfIdentityUniqueConflict } = require('../services/accountIdentity');
+      throwIfIdentityUniqueConflict(err);
+    }
     return wrap(row);
   },
 
@@ -222,8 +239,9 @@ const userRepository = {
       current.fullName = updates.fullName || updates.name;
       current.name = current.fullName;
     }
+    if (updates.email !== undefined) current.email = normalizeEmail(updates.email);
     if (updates.phone !== undefined || updates.phoneNumber !== undefined) {
-      const phone = String(updates.phoneNumber || updates.phone || '').trim();
+      const phone = storedVnMobile(updates.phoneNumber || updates.phone);
       current.phone = phone;
       current.phoneNumber = phone;
     }

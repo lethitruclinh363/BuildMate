@@ -92,17 +92,43 @@ async function create(user, body) {
     storeDepositAmount: priced.storeDepositAmount,
     remainingAmount: priced.remainingAmount,
     paymentStatus: MATERIAL_PAYMENT_STATUS.UNPAID,
-    status: MATERIAL_ORDER_STATUS.PENDING_PAYMENT,
+    status: MATERIAL_ORDER_STATUS.PENDING_CONFIRMATION,
     customerNote: body.customerNote || '',
     statusHistory: [
       {
-        status: MATERIAL_ORDER_STATUS.PENDING_PAYMENT,
+        status: MATERIAL_ORDER_STATUS.PENDING_CONFIRMATION,
         actorId: user.id,
         actorRole: MATERIAL_ACTOR.CUSTOMER,
-        note: '',
+        note: 'COD / direct payment — no platform deposit',
       },
     ],
   });
+  const { writeAudit, AUDIT_ACTION } = require('./auditService');
+  await writeAudit({
+    actorId: user.id,
+    actorRole: 'CUSTOMER',
+    action: AUDIT_ACTION.ORDER_CREATED,
+    entityType: 'Order',
+    entityId: String(order._id),
+    meta: {
+      orderId: String(order._id),
+      orderCode: order.orderCode,
+      storeId: String(prepared.store._id),
+      storeName: prepared.store.name,
+      amount: priced.totalAmount,
+      isMaterialOrder: true,
+      paymentMethod: 'COD',
+    },
+  }).catch(() => null);
+
+  await notify({
+    userId: prepared.store.contractorId,
+    title: 'New material order',
+    message: order.orderCode,
+    type: NOTIFICATION_TYPE.ORDER_CREATED,
+    link: '/store/orders',
+    meta: { materialOrderId: String(order._id) },
+  }).catch(() => null);
 
   await locationCorrection.record({
     address: delivery.address,
@@ -166,7 +192,7 @@ async function getForStore(store, id) {
 
 async function earningsForStore(store) {
   const rows = await MaterialOrder.find({ storeId: store._id }).select(
-    'status totalAmount depositAmount platformFeeAmount storeDepositAmount remainingAmount'
+    'status totalAmount depositAmount platformFeeAmount storeDepositAmount remainingAmount paymentStatus remainingSettledOffline'
   );
   return summarizeMaterialEarnings(rows);
 }
@@ -199,6 +225,22 @@ async function transition(order, actor, actorId, status, note) {
       meta: { materialOrderId: String(order._id), status },
     });
   }
+  const { writeAudit, AUDIT_ACTION } = require('./auditService');
+  await writeAudit({
+    actorId,
+    actorRole: actor,
+    action: status === 'CONFIRMED' ? 'ORDER_CONFIRMED' : 'STATUS_UPDATED',
+    entityType: 'Order',
+    entityId: String(order._id),
+    meta: {
+      orderId: String(order._id),
+      orderCode: order.orderCode,
+      status,
+      isMaterialOrder: true,
+      note: note || '',
+    },
+  }).catch(() => null);
+
   const [presented] = await attachParties([order]);
   return presented;
 }
@@ -222,17 +264,55 @@ async function receiveMine(user, id) {
   return transition(order, MATERIAL_ACTOR.SYSTEM, user.id, MATERIAL_ORDER_STATUS.COMPLETED, '');
 }
 
+async function markDirectPaymentCollected(order) {
+  if (!order.remainingSettledOffline) {
+    order.remainingSettledOffline = true;
+    order.remainingSettledAt = new Date();
+  }
+  order.paymentStatus = MATERIAL_PAYMENT_STATUS.PAID;
+  await order.save();
+  const { writeAudit, AUDIT_ACTION } = require('./auditService');
+  await writeAudit({
+    actorId: order.storeOwnerId,
+    actorRole: 'STORE',
+    action: 'PAYMENT_COLLECTED',
+    entityType: 'Order',
+    entityId: String(order._id),
+    meta: {
+      orderId: String(order._id),
+      orderCode: order.orderCode,
+      paymentMethod: 'COD',
+      amount: order.totalAmount,
+      status: 'PAID',
+      isMaterialOrder: true,
+    },
+  }).catch(() => null);
+}
+
 async function settleRemaining(user, id) {
   const order = await MaterialOrder.findOne({ _id: id, customerId: user.id });
   if (!order) throw new ApiError(404, 'Material order not found');
   if (![MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED, MATERIAL_ORDER_STATUS.COMPLETED].includes(order.status)) {
     throw new ApiError(409, 'The remaining amount can be confirmed after you accept the delivery');
   }
-  if (!order.remainingSettledOffline) {
-    order.remainingSettledOffline = true;
-    order.remainingSettledAt = new Date();
-    await order.save();
+  await markDirectPaymentCollected(order);
+  const [presented] = await attachParties([order]);
+  return presented;
+}
+
+async function settleCollected(store, user, id) {
+  const order = await MaterialOrder.findOne({ _id: id, storeId: store._id });
+  if (!order) throw new ApiError(404, 'Material order not found');
+  if (
+    ![
+      MATERIAL_ORDER_STATUS.DELIVERED,
+      MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED,
+      MATERIAL_ORDER_STATUS.COMPLETED,
+    ].includes(order.status)
+  ) {
+    throw new ApiError(409, 'Direct payment can be confirmed after delivery');
   }
+  await markDirectPaymentCollected(order);
   const [presented] = await attachParties([order]);
   return presented;
 }
@@ -248,4 +328,5 @@ module.exports = {
   cancelMine,
   receiveMine,
   settleRemaining,
+  settleCollected,
 };

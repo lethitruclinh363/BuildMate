@@ -27,7 +27,7 @@ export function Topbar() {
   }, []);
 
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-[var(--admin-border)] bg-white/75 px-4 py-3 backdrop-blur-xl sm:px-6">
+    <header className="relative z-30 flex items-center justify-between gap-3 border-b border-[var(--admin-border)] bg-white/75 px-4 py-3 backdrop-blur-xl sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <button type="button" className="rounded-lg border border-[var(--admin-border)] bg-white/70 p-2 text-[var(--admin-text-soft)] lg:hidden" onClick={() => setMobileOpen(true)}>
           <Menu className="h-4 w-4" />

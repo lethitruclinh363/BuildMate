@@ -7,6 +7,7 @@ const { ORDER_STATUS } = require('../models/Order');
 const { Order, Payment, Commission } = require('../repositories/commerceAccess');
 const { signToken } = require('../services/authService');
 const { customerAction } = require('../services/quotationService');
+const { depositCheckoutBody } = require('./helpers/finance-http');
 const commissionService = require('../services/commissionService');
 const { invalidateAnalyticsCache } = require('../services/analyticsService');
 
@@ -40,7 +41,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
     if (server) await server.close();
   });
 
-  it('1. customer checkout own order → PENDING → PAID + commission 5%', async (t) => {
+  it('1. customer checkout own order → PENDING → PAID + escrow HELD, no deposit commission', async (t) => {
     if (!dbReady) {
       t.skip('PostgreSQL test database is not available');
       return;
@@ -55,7 +56,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
       method: 'POST',
       path: `/api/payments/${paymentId}/checkout`,
       token: party.tokens.customer,
-      body: { method: 'MOCK' },
+      body: depositCheckoutBody(),
     });
     assert.equal(checkout.status, 200);
     assert.equal(checkout.json.data.payment.status, 'PENDING');
@@ -67,12 +68,11 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
     });
     assert.equal(paid.status, 200);
     assert.equal(paid.json.data.payment.status, 'PAID');
-    assert.equal(paid.json.data.commission.rateSnapshot, 5);
-    assert.equal(paid.json.data.commission.platformAmount, 37500);
-    assert.equal(paid.json.data.commission.contractorAmount, 712500);
+    assert.equal(paid.json.data.commission, null);
+    assert.equal(paid.json.data.escrow.status, 'HELD');
 
     const commissions = await Commission.countDocuments({ paymentId });
-    assert.equal(commissions, 1);
+    assert.equal(commissions, 0);
   });
 
   it('2. checkout twice does not duplicate PAID or commission', async (t) => {
@@ -88,13 +88,13 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
       method: 'POST',
       path: `/api/payments/${paymentId}/checkout`,
       token: party.tokens.customer,
-      body: {},
+      body: depositCheckoutBody(),
     });
     const second = await api(server.origin, {
       method: 'POST',
       path: `/api/payments/${paymentId}/checkout`,
       token: party.tokens.customer,
-      body: {},
+      body: depositCheckoutBody(),
     });
     assert.equal(second.status, 409);
 
@@ -111,7 +111,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
     assert.equal(again.status, 200);
     assert.equal(again.json.data.duplicated, true);
     assert.equal(await Payment.countDocuments({ orderId: accepted.order.id, status: 'PAID' }), 1);
-    assert.equal(await Commission.countDocuments({ paymentId }), 1);
+    assert.equal(await Commission.countDocuments({ paymentId }), 0);
   });
 
   it('3. customer cannot checkout another customer payment (403)', async (t) => {
@@ -131,7 +131,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
     assert.equal(res.status, 403);
   });
 
-  it('commission snapshot stays 5 after fee changes to 8', async (t) => {
+  it('platform fee stays locked at 5% and deposit still posts no commission', async (t) => {
     if (!dbReady) {
       t.skip('PostgreSQL test database is not available');
       return;
@@ -145,31 +145,34 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
       method: 'POST',
       path: `/api/payments/${a.payment.id}/checkout`,
       token: first.tokens.customer,
-      body: {},
+      body: depositCheckoutBody(),
     });
     const paidA = await api(server.origin, {
       method: 'POST',
       path: `/api/payments/${a.payment.id}/mock-success`,
       token: first.tokens.customer,
     });
-    assert.equal(paidA.json.data.commission.rateSnapshot, 5);
+    assert.equal(paidA.json.data.commission, null);
+    assert.equal(paidA.json.data.escrow.status, 'HELD');
 
-    await commissionService.setActivePercentage(8, 'Snap 8');
+    await assert.rejects(
+      () => commissionService.setActivePercentage(8, 'Snap 8'),
+      (err) => err.statusCode === 422
+    );
     const b = await customerAction(second.quotation._id, second.customer._id, 'accept');
     await api(server.origin, {
       method: 'POST',
       path: `/api/payments/${b.payment.id}/checkout`,
       token: second.tokens.customer,
-      body: {},
+      body: depositCheckoutBody(),
     });
     const paidB = await api(server.origin, {
       method: 'POST',
       path: `/api/payments/${b.payment.id}/mock-success`,
       token: second.tokens.customer,
     });
-    assert.equal(paidB.json.data.commission.rateSnapshot, 8);
-    const old = await Commission.findOne({ paymentId: a.payment.id });
-    assert.equal(old.rateSnapshot, 5);
+    assert.equal(paidB.json.data.commission, null);
+    assert.equal(await Commission.countDocuments({ paymentId: a.payment.id }), 0);
   });
 
   it('review completed order once; unfinished and duplicate are 409', async (t) => {

@@ -24,7 +24,7 @@ function throwCategoryError(result) {
 }
 
 async function ownedCategories(userId) {
-  return MaterialCategory.find({ ownerId: userId, type: { $ne: 'SYSTEM' }, status: { $ne: CATEGORY_RECORD_STATUS.REJECTED } });
+  return MaterialCategory.find({ ownerId: userId, type: { $ne: 'SYSTEM' } });
 }
 
 async function systemCategories() {
@@ -35,17 +35,59 @@ function systemPickFromDoc(doc) {
   return {
     name: doc.name,
     type: 'SYSTEM',
-    categoryId: String(doc._id),
+    categoryId: String(doc._id || doc.id),
     status: 'APPROVED',
     aliases: [doc.name],
     createdAt: doc.createdAt || null,
   };
 }
 
+function mergeSystemCategories(extras) {
+  const merged = [];
+  const seenFolded = new Set();
+
+  for (const name of MATERIAL_CATEGORIES) {
+    const builtinPick = systemCategoryPick(name);
+    const folded = foldServiceName(name);
+    for (const alias of builtinPick.aliases) {
+      seenFolded.add(foldServiceName(alias));
+    }
+    seenFolded.add(folded);
+
+    const doc = extras.find((item) => {
+      return findSystemCategory(item.name) === name;
+    });
+
+    if (doc) {
+      merged.push({
+        ...builtinPick,
+        categoryId: String(doc._id || doc.id),
+        status: doc.status || 'APPROVED',
+        aliases: [...new Set([doc.name, ...builtinPick.aliases])],
+        createdAt: doc.createdAt || null,
+      });
+      seenFolded.add(foldServiceName(doc.name));
+    } else {
+      merged.push(builtinPick);
+    }
+  }
+
+  for (const doc of extras) {
+    if (findSystemCategory(doc.name)) continue;
+    const docFolded = doc.foldedName || foldServiceName(doc.name);
+    if (!seenFolded.has(docFolded)) {
+      merged.push(systemPickFromDoc(doc));
+      seenFolded.add(docFolded);
+    }
+  }
+
+  return merged;
+}
+
 async function listForOwner(userId) {
   const [custom, extras] = await Promise.all([ownedCategories(userId), systemCategories()]);
   return {
-    system: [...MATERIAL_CATEGORIES.map((name) => systemCategoryPick(name)), ...extras.map(systemPickFromDoc)],
+    system: mergeSystemCategories(extras),
     custom: custom.map((doc) => publicCustomCategory(doc)),
   };
 }
@@ -83,7 +125,7 @@ async function createCustomCategory({ name, userId }) {
     normalizedName: classified.normalizedName,
     foldedName: classified.foldedName,
     type: 'CUSTOM',
-    status: CATEGORY_RECORD_STATUS.APPROVED,
+    status: CATEGORY_RECORD_STATUS.PENDING_APPROVAL,
     ownerId: userId,
     storeId: store?._id || null,
   };
@@ -282,6 +324,56 @@ function systemAdminRow(doc) {
   };
 }
 
+function mergeAdminSystemRows(extras) {
+  const merged = [];
+  const seenFolded = new Set();
+
+  for (const name of MATERIAL_CATEGORIES) {
+    const folded = foldServiceName(name);
+    const aliases = [name, MATERIAL_CATEGORY_LABELS.vi[name], MATERIAL_CATEGORY_LABELS.en[name]].filter(Boolean);
+    for (const alias of aliases) {
+      seenFolded.add(foldServiceName(alias));
+    }
+    seenFolded.add(folded);
+
+    const doc = extras.find((item) => {
+      return findSystemCategory(item.name) === name;
+    });
+
+    if (doc) {
+      merged.push({
+        id: String(doc._id || doc.id),
+        name,
+        labels: {
+          vi: MATERIAL_CATEGORY_LABELS.vi[name] || name,
+          en: MATERIAL_CATEGORY_LABELS.en[name] || name,
+        },
+        group: 'Materials',
+        type: 'SYSTEM',
+        status: doc.status || 'APPROVED',
+        createdAt: doc.createdAt || null,
+        locked: true,
+        storeName: null,
+        ownerId: null,
+      });
+      seenFolded.add(foldServiceName(doc.name));
+    } else {
+      merged.push(builtinAdminRow(name));
+    }
+  }
+
+  for (const doc of extras) {
+    if (findSystemCategory(doc.name)) continue;
+    const docFolded = doc.foldedName || foldServiceName(doc.name);
+    if (!seenFolded.has(docFolded)) {
+      merged.push(systemAdminRow(doc));
+      seenFolded.add(docFolded);
+    }
+  }
+
+  return merged;
+}
+
 async function listForAdmin() {
   const [extras, customs] = await Promise.all([
     MaterialCategory.find({ type: 'SYSTEM' }).sort({ createdAt: -1 }),
@@ -293,19 +385,85 @@ async function listForAdmin() {
     : [];
   const storeName = new Map(profiles.map((profile) => [String(profile.userId), profile.businessName || '']));
   return {
-    system: [...MATERIAL_CATEGORIES.map(builtinAdminRow), ...extras.map(systemAdminRow)],
+    system: mergeAdminSystemRows(extras),
     custom: customs.map((doc) => ({
-      id: String(doc._id),
+      id: String(doc._id || doc.id),
       name: doc.name,
       labels: { vi: doc.name, en: doc.name },
       group: 'Materials',
       type: 'CUSTOM',
-      status: doc.status || 'APPROVED',
+      status: doc.status || 'PENDING_APPROVAL',
       createdAt: doc.createdAt || null,
-      locked: true,
+      locked: false,
       storeName: storeName.get(String(doc.ownerId)) || null,
       ownerId: doc.ownerId ? String(doc.ownerId) : null,
     })),
+  };
+}
+
+async function reviewMaterialCategory(id, decision, adminId, reason = '') {
+  const approve = decision === 'approve';
+  const reject = decision === 'reject';
+  if (!approve && !reject) {
+    throw new ApiError(400, 'Invalid decision');
+  }
+
+  const category = await MaterialCategory.findById(id);
+  if (!category) {
+    throw new ApiError(404, 'Material category not found');
+  }
+
+  category.status = approve ? CATEGORY_RECORD_STATUS.APPROVED : CATEGORY_RECORD_STATUS.REJECTED;
+  if (reason) {
+    category.statusNote = reason;
+  }
+  category.reviewedBy = adminId || null;
+  category.reviewedAt = new Date();
+  await category.save();
+
+  if (category.ownerId) {
+    const profile = await ContractorProfile.findOne({ userId: category.ownerId });
+    if (profile && Array.isArray(profile.materialCategories)) {
+      let modified = false;
+      profile.materialCategories = profile.materialCategories.map((item) => {
+        const idMatch = item.categoryId && String(item.categoryId) === String(category._id);
+        const nameMatch = item.type === 'CUSTOM' && foldServiceName(item.name) === category.foldedName;
+        if (idMatch || nameMatch) {
+          modified = true;
+          return {
+            ...item,
+            status: category.status,
+            categoryId: String(category._id),
+          };
+        }
+        return item;
+      });
+      if (modified) {
+        profile.markModified('materialCategories');
+        await profile.save();
+      }
+    }
+
+    try {
+      const { notify, NOTIFICATION_TYPE } = require('./notificationService');
+      await notify({
+        userId: category.ownerId,
+        title: approve ? 'Danh mục vật liệu đã được duyệt' : 'Đề xuất danh mục bị từ chối',
+        message: approve
+          ? `Danh mục "${category.name}" của bạn đã được quản trị viên phê duyệt.`
+          : `Đề xuất danh mục "${category.name}" của bạn đã bị từ chối.${reason ? ` Lý do: ${reason}` : ''}`,
+        type: NOTIFICATION_TYPE.STATUS_UPDATE,
+      });
+    } catch (err) {
+      console.warn('[notify] Failed to send category review notification:', err.message);
+    }
+  }
+
+  return {
+    id: String(category._id),
+    name: category.name,
+    type: category.type,
+    status: category.status,
   };
 }
 
@@ -384,4 +542,5 @@ module.exports = {
   listForAdmin,
   createAdminSystemCategory,
   updateAdminSystemCategory,
+  reviewMaterialCategory,
 };

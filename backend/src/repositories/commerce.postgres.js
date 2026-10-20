@@ -712,30 +712,6 @@ async function persistProgress(doc, tx) {
   }
 }
 
-let reviewLinksReady = false;
-
-async function ensureReviewLinks() {
-  if (reviewLinksReady) return;
-  await prisma.$executeRawUnsafe('ALTER TABLE reviews ALTER COLUMN service_order_id DROP NOT NULL');
-  await prisma.$executeRawUnsafe('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS material_order_id bigint');
-  await prisma.$executeRawUnsafe('ALTER TABLE reviews DROP CONSTRAINT IF EXISTS fk_reviews_material_order');
-  await prisma.$executeRawUnsafe(
-    'ALTER TABLE reviews ADD CONSTRAINT fk_reviews_material_order FOREIGN KEY (material_order_id) REFERENCES material_orders(id) ON DELETE CASCADE'
-  );
-  await prisma.$executeRawUnsafe('ALTER TABLE reviews DROP CONSTRAINT IF EXISTS chk_reviews_one_order');
-  await prisma.$executeRawUnsafe(
-    `ALTER TABLE reviews ADD CONSTRAINT chk_reviews_one_order CHECK (
-      (service_order_id IS NOT NULL AND material_order_id IS NULL)
-      OR (service_order_id IS NULL AND material_order_id IS NOT NULL)
-    )`
-  );
-  await prisma.$executeRawUnsafe('ALTER TABLE reviews DROP CONSTRAINT IF EXISTS uq_reviews_material_order');
-  await prisma.$executeRawUnsafe(
-    'ALTER TABLE reviews ADD CONSTRAINT uq_reviews_material_order UNIQUE (material_order_id)'
-  );
-  reviewLinksReady = true;
-}
-
 const reviewInclude = {
   service_orders: { select: { legacy_mongo_id: true, title: true, order_code: true, status: true } },
   material_orders: { select: { legacy_mongo_id: true, order_code: true, status: true } },
@@ -803,13 +779,11 @@ function reviewFromRow(row) {
 }
 
 async function allReviews() {
-  await ensureReviewLinks();
   return (await prisma.reviews.findMany({ include: reviewInclude })).map(reviewFromRow);
 }
 
 async function persistReview(doc, tx) {
   const db = client(tx);
-  await ensureReviewLinks();
   const customer = await userId(doc.customerId, tx);
   const target = await userId(doc.targetUserId, tx);
   let serviceOrderId = null;
@@ -1098,7 +1072,6 @@ module.exports = {
   Review: model(allReviews, PgReview, {
     where: reviewWhere,
     rows: async (where, state) => {
-      await ensureReviewLinks();
       const rows = await prisma.reviews.findMany({
         where,
         include: reviewInclude,
@@ -1107,10 +1080,7 @@ module.exports = {
       });
       return rows.map(reviewFromRow);
     },
-    count: async (where) => {
-      await ensureReviewLinks();
-      return prisma.reviews.count({ where });
-    },
+    count: (where) => prisma.reviews.count({ where }),
   }),
   Complaint: model(allComplaints, PgComplaint),
   runInTransaction,

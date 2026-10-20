@@ -561,8 +561,12 @@ async function persistProfile(profile, outerTx) {
     if (profile.pgId) {
       row = await tx.contractor_profiles.update({ where: { id: profile.pgId }, data });
     } else {
-      row = await tx.contractor_profiles.create({
-        data: {
+      // user_id is unique. Two first-time saves (React StrictMode fires the
+      // workspace request twice) must update the row that won the race.
+      row = await tx.contractor_profiles.upsert({
+        where: { user_id: owner.id },
+        update: data,
+        create: {
           ...data,
           legacy_mongo_id: profile._id || newId(),
           created_at: profile.createdAt || new Date(),
@@ -743,8 +747,10 @@ async function persistStore(store, outerTx) {
     if (store.pgId) {
       row = await tx.stores.update({ where: { id: store.pgId }, data });
     } else {
-      row = await tx.stores.create({
-        data: { ...data, legacy_mongo_id: store._id || newId(), created_at: store.createdAt || new Date() },
+      row = await tx.stores.upsert({
+        where: { owner_user_id: owner.id },
+        update: data,
+        create: { ...data, legacy_mongo_id: store._id || newId(), created_at: store.createdAt || new Date() },
       });
       store.pgId = row.id;
       store._id = row.legacy_mongo_id;

@@ -7,7 +7,13 @@ const { MockPaymentProvider } = require('../providers/MockPaymentProvider');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const commissionService = require('./commissionService');
+const escrowService = require('./escrowService');
 const { orderStatusAfterDeposit } = require('../utils/order.rules');
+const {
+  recordDepositTerms,
+  assertDepositTermsAccepted,
+  DEPOSIT_TERMS_VERSION,
+} = require('../utils/contractor-finance');
 const { env } = require('../config/env');
 
 const provider = new MockPaymentProvider();
@@ -51,7 +57,7 @@ async function assertPaymentAccess(payment, user, { customerOnly = false } = {})
   throw new ApiError(403, 'You cannot view this payment');
 }
 
-async function checkout(paymentId, user, { method = 'MOCK' } = {}) {
+async function checkout(paymentId, user, { method = 'MOCK', termsAccepted, termsVersion } = {}) {
   const payment = await Payment.findById(paymentId);
   if (!payment) throw new ApiError(404, 'Payment not found');
   await assertPaymentAccess(payment, user, { customerOnly: true });
@@ -76,6 +82,19 @@ async function checkout(paymentId, user, { method = 'MOCK' } = {}) {
   }
   if (payment.status === PAYMENT_STATUS.PENDING) {
     throw new ApiError(409, 'Checkout already in progress');
+  }
+
+  if (payment.type === PAYMENT_TYPE.DEPOSIT) {
+    const already = assertDepositTermsAccepted(payment.metadata);
+    if (!already.ok) {
+      if (termsAccepted !== true || (termsVersion && termsVersion !== DEPOSIT_TERMS_VERSION)) {
+        throw new ApiError(409, 'Accept the deposit terms before paying', { code: 'TERMS_NOT_ACCEPTED' });
+      }
+      payment.metadata = {
+        ...(payment.metadata || {}),
+        termsAcceptance: recordDepositTerms({ userId: user.id }),
+      };
+    }
   }
 
   const session = provider.createCheckout(payment);
@@ -107,6 +126,9 @@ async function checkout(paymentId, user, { method = 'MOCK' } = {}) {
 
 async function markPaid(payment, actorId, actorRole = 'SYSTEM') {
   if (payment.status === PAYMENT_STATUS.PAID) {
+    if (payment.type === PAYMENT_TYPE.DEPOSIT) {
+      return { payment: payment.toPublic(), commission: null, escrow: escrowService.financeOf(payment).escrow, duplicated: true };
+    }
     const commission = await commissionService.createForPaidPayment(payment, actorId);
     return { payment: payment.toPublic(), commission: commission ? commission.toPublic() : null, duplicated: true };
   }
@@ -126,11 +148,18 @@ async function markPaid(payment, actorId, actorRole = 'SYSTEM') {
         await paidOrder.save(tx);
       }
     }
-    const commission = await commissionService.createForPaidPayment(payment, actorId, tx);
+    let commission = null;
+    if (payment.type === PAYMENT_TYPE.DEPOSIT) {
+      await escrowService.markDepositHeld(payment, tx);
+    } else {
+      commission = await commissionService.createForPaidPayment(payment, actorId, tx);
+    }
     await notify({
       userId: payment.contractorId,
-      title: 'Payment received',
-      message: `${payment.amount.toLocaleString('vi-VN')}đ captured`,
+      title: payment.type === PAYMENT_TYPE.DEPOSIT ? 'Deposit held in escrow' : 'Payment received',
+      message: payment.type === PAYMENT_TYPE.DEPOSIT
+        ? `${payment.amount.toLocaleString('vi-VN')}đ is held by BuildMate (mock)`
+        : `${payment.amount.toLocaleString('vi-VN')}đ captured`,
       type: NOTIFICATION_TYPE.PAYMENT_SUCCESS,
       link: '/contractor/orders',
       meta: { paymentId: String(payment._id), orderId: String(payment.orderId) },
@@ -148,7 +177,8 @@ async function markPaid(payment, actorId, actorRole = 'SYSTEM') {
 
   return {
     payment: payment.toPublic(),
-    commission: captured.toPublic(),
+    commission: captured && captured.toPublic ? captured.toPublic() : null,
+    escrow: payment.type === PAYMENT_TYPE.DEPOSIT ? escrowService.financeOf(payment).escrow : null,
     duplicated: false,
   };
 }
@@ -166,6 +196,16 @@ async function refund(paymentId, adminId, reason = '') {
   if (!payment) throw new ApiError(404, 'Payment not found');
   if (payment.status !== PAYMENT_STATUS.PAID) {
     throw new ApiError(409, 'Only PAID payments can be refunded');
+  }
+  if (payment.type === PAYMENT_TYPE.DEPOSIT) {
+    const { CANCEL_CASE } = require('../utils/contractor-finance');
+    const updated = await escrowService.refundDeposit(
+      payment.orderId,
+      adminId,
+      reason || 'Admin mock refund',
+      CANCEL_CASE.MUTUAL
+    );
+    return updated.toPublic ? updated.toPublic() : updated;
   }
   await runInTransaction(async (tx) => {
     payment.status = PAYMENT_STATUS.REFUNDED;
@@ -197,8 +237,43 @@ async function refund(paymentId, adminId, reason = '') {
 }
 
 async function listForOrder(orderId, user) {
-  const order = await Order.findById(orderId);
-  if (!order) throw new ApiError(404, 'Order not found');
+  let order = await Order.findById(orderId);
+  if (!order) {
+    const { MaterialOrder } = require('../repositories/materialOrderAccess');
+    const materialOrder = await MaterialOrder.findById(orderId);
+    if (!materialOrder) throw new ApiError(404, 'Order not found');
+    const uid = String(user.id);
+    const allowed =
+      user.role === 'ADMIN' || uid === String(materialOrder.customerId) || uid === String(materialOrder.storeOwnerId);
+    if (!allowed) throw new ApiError(403, 'You cannot view these payments');
+    const isPaid = Boolean(materialOrder.remainingSettledOffline);
+    return {
+      summary: {
+        status: isPaid ? 'PAID' : 'UNPAID',
+        amount: Number(materialOrder.totalAmount),
+        paidAmount: isPaid ? Number(materialOrder.totalAmount) : 0,
+        remainingAmount: isPaid ? 0 : Number(materialOrder.totalAmount),
+        due: isPaid ? 0 : Number(materialOrder.totalAmount),
+        depositAmount: 0,
+        platformFee: 0,
+        contractorHold: 0,
+        escrowStatus: null,
+        mock: false,
+        paymentMethod: 'COD',
+      },
+      items: [
+        {
+          id: `cod-${materialOrder._id}`,
+          orderId: String(materialOrder._id),
+          type: 'COD',
+          amount: Number(materialOrder.totalAmount),
+          status: isPaid ? 'PAID' : 'UNPAID',
+          transactionCode: 'COD-DIRECT',
+          createdAt: materialOrder.createdAt,
+        },
+      ],
+    };
+  }
   const uid = String(user.id);
   const allowed =
     user.role === 'ADMIN' || uid === String(order.customerId) || uid === String(order.contractorId);
@@ -208,14 +283,22 @@ async function listForOrder(orderId, user) {
   const paidAmount = items
     .filter((row) => row.status === PAYMENT_STATUS.PAID)
     .reduce((sum, row) => sum + row.amount, 0);
-  const due = items.reduce((sum, row) => sum + row.amount, 0);
+  const deposit = items.find((row) => row.type === PAYMENT_TYPE.DEPOSIT);
+  const finance = deposit ? escrowService.financeOf(deposit).finance : null;
+  const escrow = deposit ? escrowService.financeOf(deposit).escrow : null;
+  const due = finance ? finance.depositAmount : items.reduce((sum, row) => sum + row.amount, 0);
   return {
     summary: {
       status: rollupStatus(items),
-      amount: order.amount,
+      amount: finance ? finance.totalAmount : order.amount,
       paidAmount,
-      remainingAmount: Math.max(order.amount - paidAmount, 0),
+      remainingAmount: finance ? finance.remainingAmount : Math.max(order.amount - paidAmount, 0),
       due,
+      depositAmount: finance ? finance.depositAmount : null,
+      platformFee: finance ? finance.platformFee : null,
+      contractorHold: finance ? finance.contractorHold : null,
+      escrowStatus: escrow ? escrow.status : null,
+      mock: true,
     },
     items: items.map((row) => row.toPublic()),
   };

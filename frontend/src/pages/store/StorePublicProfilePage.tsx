@@ -35,6 +35,7 @@ import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { ApiResponse } from '@/types/user';
 import type { CatalogMaterial } from '@/types/partner';
+import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 
 type EditKey = 'info' | 'contact' | 'address' | 'hours' | 'areas';
@@ -95,6 +96,7 @@ export function StorePublicProfilePage() {
   const [catalog, setCatalog] = useState<MaterialCategoryPick[]>([]);
   const [materials, setMaterials] = useState<CatalogMaterial[]>([]);
   const [reviews, setReviews] = useState<{ average: number; count: number; items: PublicStoreReview[] } | null>(null);
+  const [reputation, setReputation] = useState<ReputationSnapshot | null>(null);
   const [activeCategory, setActiveCategory] = useState('');
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [categoryName, setCategoryName] = useState('');
@@ -134,6 +136,7 @@ export function StorePublicProfilePage() {
         setCategories(res.data.data.categories || []);
         setMaterials(res.data.data.materials || []);
         setReviews(res.data.data.reviews || null);
+        setReputation(res.data.data.reputation || null);
       })
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setLoading(false));
@@ -312,17 +315,13 @@ export function StorePublicProfilePage() {
       <PageTransition>
         <div className="mb-4 flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => setPreview(false)}>{t('publicProfile.backToEdit')}</Button>
-          {profile.id ? (
-            <Button asChild>
-              <Link to={`/stores/${profile.id}`}>{t('storePublic.viewPublic')}</Link>
-            </Button>
-          ) : null}
         </div>
         <StoreProfileShowcase
           profile={{ ...profile, verified: true }}
           categories={categories}
           materials={materials}
           reviews={reviews}
+          reputation={reputation}
           preview
         />
       </PageTransition>
@@ -400,11 +399,7 @@ export function StorePublicProfilePage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {profile.id ? (
-                <Button asChild variant="outline">
-                  <Link to={`/stores/${profile.id}`}>{t('storePublic.viewPublic')}</Link>
-                </Button>
-              ) : null}
+              <Button type="button" variant="outline" onClick={() => setPreview(true)}>{t('storePublic.viewPublic')}</Button>
               <Button type="button" variant="copper" onClick={() => setPreview(true)}>{t('storePublic.preview')}</Button>
             </div>
           </div>

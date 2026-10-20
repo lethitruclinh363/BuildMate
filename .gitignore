@@ -8,6 +8,9 @@ node_modules/
 .env.local
 .env.*.local
 backend/.env
+backend/.env.test
+backend/.env.test.admin
+backend/.env.test.docker
 backend/.env.migration
 ekyc-service/.env
 backend/scripts/migration/output/*.json

@@ -1,6 +1,17 @@
+const { conflictFromUniqueError } = require('../services/accountIdentity');
+
 function classifyError(err, { isProd = false } = {}) {
   if (!err) {
     return { status: 500, message: 'Internal server error', details: null };
+  }
+
+  const identityConflict = conflictFromUniqueError(err);
+  if (identityConflict) {
+    return {
+      status: 409,
+      message: identityConflict.message,
+      details: identityConflict.details,
+    };
   }
 
   if (err.code === 'LIMIT_FILE_SIZE') {
@@ -16,14 +27,7 @@ function classifyError(err, { isProd = false } = {}) {
     return { status: 404, message: 'Resource not found', details: null };
   }
   if (err.code === 11000) {
-    const key = Object.keys(err.keyPattern || err.keyValue || {})[0];
-    if (key === 'email') {
-      return { status: 409, message: 'Email already exists', details: null };
-    }
-    if (key === 'phone' || key === 'phoneNumber') {
-      return { status: 409, message: 'Phone number already exists', details: null };
-    }
-    return { status: 409, message: 'Duplicate resource', details: err.keyValue || null };
+    return { status: 409, message: 'Duplicate resource', details: null };
   }
   if (err.name === 'ValidationError') {
     return { status: 400, message: err.message, details: err.errors || null };

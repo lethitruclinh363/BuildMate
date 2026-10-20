@@ -1,6 +1,7 @@
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const reviewService = require('../services/reviewService');
+const reputationService = require('../services/reputationService');
 
 const create = asyncHandler(async (req, res) => {
   const data = await reviewService.createReview(req.user.id, req.body);
@@ -17,7 +18,40 @@ const listStore = asyncHandler(async (req, res) => {
   return success(res, data, 'Reviews loaded');
 });
 
+const storeReputation = asyncHandler(async (req, res) => {
+  const reputation = await reputationService.forMaterialStore(req.user.id);
+  return success(res, { reputation }, 'Reputation loaded');
+});
+
+function publicReview(row) {
+  return {
+    id: row.id,
+    rating: row.rating,
+    comment: row.comment || '',
+    createdAt: row.createdAt,
+    customerName: row.customerName || '',
+    customerAvatar: row.customerAvatar || '',
+    contractorReply: row.contractorReply || '',
+    repliedAt: row.repliedAt || null,
+  };
+}
+
 const listForUser = asyncHandler(async (req, res) => {
+  const targetType = String(req.query.targetType || '');
+  if (targetType === 'CONTRACTOR' || targetType === 'MATERIAL_STORE') {
+    const data = targetType === 'CONTRACTOR'
+      ? await reviewService.listContractorReviews(req.params.id, req.query)
+      : await reviewService.listStoreReviews(req.params.id, req.query);
+    return success(res, {
+      average: data.average,
+      count: data.count,
+      distribution: data.distribution,
+      total: data.total,
+      page: data.page,
+      pageSize: data.pageSize,
+      items: (data.items || []).map(publicReview),
+    }, 'Reviews retrieved');
+  }
   const data = await reviewService.listForUser(req.params.id, req.query.targetType);
   return success(res, data, 'Reviews retrieved');
 });
@@ -32,4 +66,4 @@ const report = asyncHandler(async (req, res) => {
   return success(res, data, 'Review reported');
 });
 
-module.exports = { create, createMaterial, listStore, listForUser, reply, report };
+module.exports = { create, createMaterial, listStore, storeReputation, listForUser, reply, report };

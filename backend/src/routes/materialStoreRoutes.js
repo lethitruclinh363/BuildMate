@@ -92,6 +92,13 @@ router.post('/categories/register', ...owner, validate(materialCategoryNameSchem
 router.get('/orders', ...owner, loadStore, requireMaterialStore, materialOrderController.listStore);
 router.get('/earnings', ...owner, loadStore, requireMaterialStore, materialOrderController.earnings);
 router.get('/orders/:id', ...owner, loadStore, requireMaterialStore, materialOrderController.getStore);
+router.post(
+  '/orders/:id/collected',
+  ...owner,
+  loadStore,
+  requireMaterialStore,
+  materialOrderController.settleCollected
+);
 router.patch(
   '/orders/:id',
   ...owner,
@@ -102,6 +109,7 @@ router.patch(
 );
 
 router.get('/reviews', ...owner, validate(reviewListQuerySchema, 'query'), reviewController.listStore);
+router.get('/reputation', ...owner, reviewController.storeReputation);
 router.get('/materials', ...owner, loadStore, requireMaterialStore, materialController.list);
 router.post(
   '/materials',

@@ -18,7 +18,7 @@ async function createUser(fields) {
   });
 }
 
-async function createParty(stamp = Date.now()) {
+async function createParty(stamp = Date.now(), { totalCost = 750000 } = {}) {
   const customer = await createUser({
     name: 'E2E Customer',
     email: `e2e.customer.${stamp}@buildmate.test`,
@@ -52,11 +52,11 @@ async function createParty(stamp = Date.now()) {
     requestId: request._id,
     customerId: customer._id,
     contractorId: contractor._id,
-    items: [{ type: QUOTE_ITEM_TYPE.LABOR, name: 'Pipe repair', quantity: 1, unit: 'JOB', price: 750000 }],
+    items: [{ type: QUOTE_ITEM_TYPE.LABOR, name: 'Pipe repair', quantity: 1, unit: 'JOB', price: totalCost }],
     materialCost: 0,
-    laborCost: 750000,
+    laborCost: totalCost,
     transportCost: 0,
-    totalCost: 750000,
+    totalCost,
     estimatedDays: 1,
     status: QUOTATION_STATUS.SENT,
   });

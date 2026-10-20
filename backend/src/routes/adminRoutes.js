@@ -8,6 +8,7 @@ const adminController = require('../controllers/adminController');
 const contractorEkycController = require('../controllers/contractorEkycController');
 const paymentController = require('../controllers/paymentController');
 const complaintController = require('../controllers/complaintController');
+const orderController = require('../controllers/orderController');
 
 const router = express.Router();
 const adminOnly = [authenticate, allowRole('ADMIN')];
@@ -30,10 +31,15 @@ router.post('/service-catalog/:id/review', ...adminOnly, validate(catalogReviewS
 router.get('/material-categories', ...adminOnly, adminController.listMaterialCategories);
 router.post('/material-categories', ...adminOnly, validate(materialCategoryNameSchema), adminController.createMaterialCategory);
 router.patch('/material-categories/:id', ...adminOnly, validate(materialCategoryNameSchema), adminController.updateMaterialCategory);
+router.post('/material-categories/:id/review', ...adminOnly, validate(catalogReviewSchema), adminController.reviewMaterialCategory);
 router.get('/analytics', ...adminOnly, adminController.analytics);
+router.get('/finance/summary', ...adminOnly, adminController.financeSummary);
+router.get('/finance/escrow', ...adminOnly, adminController.listEscrows);
 router.get('/settings/commission', ...adminOnly, adminController.getCommissionRule);
 router.patch('/settings/commission', ...adminOnly, validate(commissionRuleSchema), adminController.setCommissionRule);
 router.post('/payments/:id/refund', ...adminOnly, validate(refundSchema), paymentController.refund);
+router.post('/orders/:id/escrow/settle', ...adminOnly, orderController.settleEscrow);
+router.post('/orders/:id/escrow/refund', ...adminOnly, validate(refundSchema), orderController.adminRefundEscrow);
 router.get('/complaints', ...adminOnly, complaintController.adminList);
 router.patch('/complaints/:id', ...adminOnly, validate(complaintPatchSchema), complaintController.adminPatch);
 

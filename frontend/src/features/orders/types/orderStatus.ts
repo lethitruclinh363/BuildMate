@@ -58,7 +58,6 @@ export function canCancelOrder(status: OrderStatus) {
 /** Statuses the contractor may submit from the current order status. Same value = another site note. */
 export function allowedProgressStatuses(status: OrderStatus): ProgressStatus[] {
   switch (status) {
-    case 'QUOTATION_ACCEPTED':
     case 'DEPOSIT_PAID':
       return ['STARTED'];
     case 'STARTED':

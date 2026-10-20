@@ -23,7 +23,9 @@ interface OrderDetailViewProps {
 
 export function OrderDetailView({ order, progress, request, quotation, actions, customerView }: OrderDetailViewProps) {
   const { t } = useI18n();
-  const party = request?.contractor?.name || request?.customer?.name;
+  const party = customerView
+    ? request?.contractor?.name || request?.customer?.name
+    : request?.customer?.name || request?.contractor?.name;
   const place = request?.address || request?.store?.address || t('orders.siteFallback');
   const site = placeFromRecord(request);
 
@@ -60,6 +62,18 @@ export function OrderDetailView({ order, progress, request, quotation, actions, 
               <dt className="text-xs text-ink-400">{t('orders.detail.amount')}</dt>
               <dd className="font-display text-2xl text-navy-800">{vnd(order.amount ?? 0)}</dd>
             </div>
+            {order.finance && typeof order.finance === 'object' ? (
+              <>
+                <div>
+                  <dt className="text-xs text-ink-400">{t('pay.depositLine')}</dt>
+                  <dd className="font-medium text-navy-800">{vnd(Number((order.finance as { depositAmount?: number }).depositAmount || 0))}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-400">{t('pay.remainingLine')}</dt>
+                  <dd className="font-medium text-navy-800">{vnd(Number((order.finance as { remainingAmount?: number }).remainingAmount || 0))}</dd>
+                </div>
+              </>
+            ) : null}
           </dl>
           {order.description ? <p className="mt-4 text-sm leading-6 text-ink-600">{order.description}</p> : null}
           {site ? (

@@ -7,9 +7,13 @@ import type { Review, ReviewListPayload, ReviewTargetType } from '../types/revie
 export const reviewApi = {
   create: (body: { orderId: string; targetUserId: string; targetType?: ReviewTargetType; rating: number; comment?: string }) =>
     api.post<ApiResponse<Review>>('/reviews', body),
-  forUser: (userId: string, targetType?: ReviewTargetType) =>
+  forUser: (
+    userId: string,
+    targetType?: ReviewTargetType,
+    params?: { rating?: number; sort?: 'newest' | 'oldest'; page?: number; pageSize?: number }
+  ) =>
     api.get<ApiResponse<ReviewListPayload>>(`/reviews/user/${userId}`, {
-      params: targetType ? { targetType } : undefined,
+      params: { ...(targetType ? { targetType } : {}), ...params },
     }),
   dashboard: () =>
     api.get<ApiResponse<{ reputation: ReputationSnapshot; highlights: PublicHighlights }>>('/contractor/reputation'),
@@ -17,6 +21,8 @@ export const reviewApi = {
     api.get<ApiResponse<ReviewListPayload>>('/contractor/reviews', { params }),
   storeReviews: (params: { rating?: number; sort?: 'newest' | 'oldest'; page?: number; pageSize?: number }) =>
     api.get<ApiResponse<ReviewListPayload>>('/material-store/reviews', { params }),
+  storeReputation: () =>
+    api.get<ApiResponse<{ reputation: ReputationSnapshot }>>('/material-store/reputation'),
   createMaterial: (body: { materialOrderId: string; rating: number; comment?: string }) =>
     api.post<ApiResponse<Review>>('/reviews/material-orders', body),
   reply: (id: string, reply: string) => api.post<ApiResponse<Review>>(`/reviews/${id}/reply`, { reply }),

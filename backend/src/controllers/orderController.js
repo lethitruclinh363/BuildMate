@@ -27,4 +27,37 @@ const cancel = asyncHandler(async (req, res) => {
   return success(res, data, 'Order cancelled');
 });
 
-module.exports = { listCustomer, listContractor, getOne, complete, cancel };
+const confirmRemaining = asyncHandler(async (req, res) => {
+  const escrowService = require('../services/escrowService');
+  const data = await escrowService.confirmRemaining(req.params.id, req.user);
+  return success(res, data, 'Direct remaining payment recorded');
+});
+
+const settleEscrow = asyncHandler(async (req, res) => {
+  const escrowService = require('../services/escrowService');
+  const data = await escrowService.settle(req.params.id, req.user);
+  return success(res, data, 'Mock escrow settlement recorded');
+});
+
+const adminRefundEscrow = asyncHandler(async (req, res) => {
+  const escrowService = require('../services/escrowService');
+  const data = await escrowService.adminRefund(
+    req.params.id,
+    req.user,
+    req.body.reason,
+    req.body.cancelCase,
+    req.body.amount
+  );
+  return success(res, data, 'Mock escrow refund recorded');
+});
+
+module.exports = {
+  listCustomer,
+  listContractor,
+  getOne,
+  complete,
+  cancel,
+  confirmRemaining,
+  settleEscrow,
+  adminRefundEscrow,
+};

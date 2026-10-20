@@ -206,7 +206,7 @@ export function DashboardShell({
                   label: t('common.logout'),
                   danger: true,
                   onSelect: () => {
-                    void logout().then(() => navigate('/login'));
+                    void logout().then(() => navigate('/login', { replace: true }));
                   },
                 },
               ]}
@@ -214,7 +214,7 @@ export function DashboardShell({
             <button
               type="button"
               className="hidden items-center gap-2 rounded-full px-2 text-sm font-medium text-ink-600 md:flex"
-              onClick={() => void logout().then(() => navigate('/login'))}
+              onClick={() => void logout().then(() => navigate('/login', { replace: true }))}
             >
               <LogOut className="h-4 w-4" />
             </button>

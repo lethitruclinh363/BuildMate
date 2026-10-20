@@ -59,16 +59,18 @@ export function CommissionPage() {
         <StatCard label={t('pages.earning')} value={vnd(data.analytics.finance.contractorEarning)} />
       </div>
       <GlassCard className="max-w-xl">
+        <p className="mb-4 text-sm text-white/70">{t('pages.commissionLock')}</p>
         <form className="space-y-4" onSubmit={onSubmit}>
           <Input
             id="pct"
             label={t('pages.percentage')}
             type="number"
-            min={0}
-            max={30}
-            step="0.1"
+            min={5}
+            max={5}
+            step="1"
             value={percentage}
-            placeholder={String(data.rule.percentage)}
+            placeholder="5"
+            disabled
             onChange={(e) => setPercentage(e.target.value)}
           />
           <Input
@@ -78,7 +80,7 @@ export function CommissionPage() {
             placeholder={data.rule.name}
             onChange={(e) => setName(e.target.value)}
           />
-          <Button type="submit" loading={busy}>
+          <Button type="submit" loading={busy} disabled>
             {t('pages.updateRule')}
           </Button>
         </form>

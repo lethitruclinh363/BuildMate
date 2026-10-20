@@ -1,24 +1,46 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@buildmate/shared': fileURLToPath(new URL('../shared', import.meta.url)),
+function excludeE2EAuthPlugin() {
+  return {
+    name: 'exclude-e2e-auth-from-build',
+    closeBundle() {
+      const distE2E = path.resolve(fileURLToPath(new URL('.', import.meta.url)), 'dist/e2e-auth.html');
+      if (fs.existsSync(distE2E)) {
+        fs.unlinkSync(distE2E);
+      }
     },
-  },
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': 'http://localhost:5000',
-      '/uploads': 'http://localhost:5000',
-      '/socket.io': {
-        target: 'http://localhost:5000',
-        ws: true,
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const isTest = mode === 'test' || process.argv.includes('5176') || process.argv.some(arg => String(arg).includes('5176'));
+  const effectiveMode = isTest ? 'test' : mode;
+  const env = loadEnv(effectiveMode, process.cwd(), '');
+  const defaultTarget = isTest ? 'http://127.0.0.1:5055' : 'http://localhost:5000';
+  const proxyTarget = env.VITE_PROXY_TARGET || env.BACKEND_URL || (env.VITE_API_URL ? new URL(env.VITE_API_URL).origin : defaultTarget);
+
+  return {
+    plugins: [react(), excludeE2EAuthPlugin()],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+        '@buildmate/shared': fileURLToPath(new URL('../shared', import.meta.url)),
       },
     },
-  },
+    server: {
+      port: 5173,
+      proxy: {
+        '/api': proxyTarget,
+        '/uploads': proxyTarget,
+        '/socket.io': {
+          target: proxyTarget,
+          ws: true,
+        },
+      },
+    },
+  };
 });

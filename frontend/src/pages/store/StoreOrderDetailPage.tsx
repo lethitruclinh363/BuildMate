@@ -12,7 +12,7 @@ import { SiteLocationCard } from '@/features/map/components/SiteLocationCard';
 import { placeFromRecord } from '@/features/map/lib/location';
 import { useMaterialOrderLiveStore } from '@/features/material-orders/material-order-live';
 import { getApiErrorMessage } from '@/lib/api';
-import { materialStoreOrderApi, nextStoreStatus, type MaterialOrder } from '@/lib/material-order-api';
+import { isLegacyMaterialOrder, materialStoreOrderApi, nextStoreStatus, type MaterialOrder } from '@/lib/material-order-api';
 import { mediaUrl, vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
@@ -85,6 +85,7 @@ export function StoreOrderDetailPage() {
   if (error || !order) return <ErrorState body={error || undefined} onRetry={() => void load(false)} />;
 
   const delivery = placeFromRecord(order);
+  const legacy = isLegacyMaterialOrder(order);
 
   return (
     <PageTransition>
@@ -141,20 +142,52 @@ export function StoreOrderDetailPage() {
               <dt className="text-ink-500">{t('materialOrder.total')}</dt>
               <dd className="font-semibold text-navy-800">{vnd(order.totalAmount)}</dd>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-500">{t('materialOrder.deposit', { rate: order.depositRateSnapshot })}</dt>
-              <dd className="font-semibold text-navy-800">{vnd(order.depositAmount)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-500">{t('materialOrder.platformFee', { rate: order.platformFeeRateSnapshot })}</dt>
-              <dd className="font-semibold text-navy-800">{vnd(order.platformFeeAmount)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-500">{t('materialOrder.remaining')}</dt>
-              <dd className="font-semibold text-navy-800">{vnd(order.remainingAmount)}</dd>
-            </div>
+            {legacy ? (
+              <>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink-500">{t('materialOrder.deposit', { rate: order.depositRateSnapshot })}</dt>
+                  <dd className="font-semibold text-navy-800">{vnd(order.depositAmount)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink-500">{t('materialOrder.platformFee', { rate: order.platformFeeRateSnapshot })}</dt>
+                  <dd className="font-semibold text-navy-800">{vnd(order.platformFeeAmount)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink-500">{t('materialOrder.remaining')}</dt>
+                  <dd className="font-semibold text-navy-800">{vnd(order.remainingAmount)}</dd>
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-between gap-3">
+                <dt className="text-ink-500">{t(`materialOrder.payment.${order.paymentStatus}`)}</dt>
+                <dd className="font-semibold text-navy-800">COD</dd>
+              </div>
+            )}
           </dl>
-          <p className="mt-4 text-sm text-ink-600">{t('materialOrder.directRemaining', { amount: vnd(order.remainingAmount) })}</p>
+          <p className="mt-4 text-sm text-ink-600">
+            {t('materialOrder.directRemaining', { amount: vnd(legacy ? order.remainingAmount : order.totalAmount) })}
+          </p>
+          {order.remainingSettledOffline ? <p className="mt-2 text-sm text-ink-500">{t('materialOrder.settled')}</p> : null}
+          {!order.remainingSettledOffline && ['DELIVERED', 'CUSTOMER_RECEIVED', 'COMPLETED'].includes(order.status) ? (
+            <Button
+              className="mt-4"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                void materialStoreOrderApi
+                  .collectPayment(id)
+                  .then((res) => {
+                    setOrder(res.data.data);
+                    pushToast({ kind: 'success', title: t('materialOrder.collected') });
+                  })
+                  .catch((err) => pushToast({ kind: 'error', title: getApiErrorMessage(err) }))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              {t('materialOrder.collectPayment')}
+            </Button>
+          ) : null}
           {next ? (
             <Button className="mt-4" variant="copper" disabled={busy} onClick={() => setConfirm(true)}>
               {t(`materialOrder.action.${next}`)}

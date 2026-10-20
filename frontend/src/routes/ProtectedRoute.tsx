@@ -1,14 +1,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ScreenLoader } from '@/components/motion/ScreenLoader';
-import { homeForUser, isPartnerRole, partnerGatePath, useAuth } from '@/context/AuthContext';
+import { getDefaultRouteByRole, isPartnerRole, partnerGatePath, useAuth } from '@/context/AuthContext';
 
 function normalizeRole(role: string) {
   if (role === 'MATERIAL_STORE_OWNER') return 'STORE';
   return role;
-}
-
-function homeFor(role: string, profileStatus?: string | null) {
-  return homeForUser({ role, profileStatus });
 }
 
 type ProtectedRouteProps = {
@@ -34,7 +30,7 @@ export default function ProtectedRoute({ roles }: ProtectedRouteProps) {
     const role = currentUser.role;
     const aliases = [role, normalizeRole(role)];
     const ok = roles.some((allowed) => aliases.includes(allowed));
-    if (!ok) return <Navigate to={homeFor(role, currentUser.profileStatus)} replace />;
+    if (!ok) return <Navigate to={getDefaultRouteByRole(currentUser)} replace />;
   }
 
   const gate = partnerGatePath(currentUser);
@@ -58,19 +54,15 @@ export default function ProtectedRoute({ roles }: ProtectedRouteProps) {
 }
 
 export function GuestOnly() {
-  const { currentUser, ready, dashboardPath } = useAuth();
+  const { currentUser, loading } = useAuth();
   const location = useLocation();
-  if (ready && currentUser) {
+  if (loading) return <ScreenLoader />;
+  if (currentUser) {
     const next = new URLSearchParams(location.search).get('next');
     const safeNext = Boolean(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\'));
-    const home = dashboardPath();
-    if (home === '/partner/onboarding' || home === '/partner/onboarding/status') {
-      return <Navigate to={home} replace />;
-    }
+    const home = getDefaultRouteByRole(currentUser);
     if (safeNext && next && !isPartnerRole(currentUser.role)) return <Navigate to={next} replace />;
-    if (home.startsWith('/customer') || home.startsWith('/contractor') || home.startsWith('/store') || home.startsWith('/partner')) {
-      return <Navigate to={home} replace />;
-    }
+    return <Navigate to={home} replace />;
   }
   return <Outlet />;
 }

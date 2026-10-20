@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getApiErrorMessage } from '@/lib/api';
+import { getOtpCooldown, setOtpCooldown } from '@/lib/otp-cooldown';
 import { useI18n } from '@/locales';
 import { authApi } from '@/services/auth.api';
 import { useToastStore } from '@/store/toast.store';
@@ -20,6 +21,30 @@ export default function VerifyEmail() {
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [countdown, setCountdown] = useState(() => getOtpCooldown(params.get('email') || ''));
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
+
+  useEffect(() => {
+    if (email) {
+      const remaining = getOtpCooldown(email);
+      if (remaining > 0 && remaining !== countdown) {
+        setCountdown(remaining);
+      }
+    }
+  }, [email]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -40,6 +65,7 @@ export default function VerifyEmail() {
   }
 
   async function onResend() {
+    if (resending || countdown > 0 || !email) return;
     setError('');
     setInfo('');
     setResending(true);
@@ -49,10 +75,14 @@ export default function VerifyEmail() {
       const body = sent === false ? t('auth.smtpMissing') : t('auth.checkMailbox');
       setInfo(body);
       pushToast({ kind: 'info', title: t('auth.resentTitle'), body });
+      setOtpCooldown(email, 60);
+      setCountdown(60);
     } catch (err) {
       const message = getApiErrorMessage(err);
       setError(message);
       pushToast({ kind: 'error', title: t('auth.resendFail'), body: message });
+      setOtpCooldown(email, 60);
+      setCountdown(60);
     } finally {
       setResending(false);
     }
@@ -103,11 +133,15 @@ export default function VerifyEmail() {
         </button>
         <button
           type="button"
-          disabled={resending || !email}
+          disabled={resending || countdown > 0 || !email}
           onClick={() => void onResend()}
-          className="flex h-11 w-full items-center justify-center rounded-full border border-navy-800/15 text-sm font-semibold text-navy-800 disabled:opacity-60"
+          className="flex h-11 w-full items-center justify-center rounded-full border border-navy-800/15 text-sm font-semibold text-navy-800 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {resending ? t('auth.resending') : t('auth.resend')}
+          {resending
+            ? t('auth.resending')
+            : countdown > 0
+              ? t('auth.resendCooldown', { seconds: countdown })
+              : t('auth.resend')}
         </button>
       </form>
 

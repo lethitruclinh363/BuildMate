@@ -11,14 +11,16 @@ class UserRepository extends BaseRepository {
   }
 
   findByEmail(email) {
-    return this.findOne({ email });
+    const { normalizeEmail } = require('../utils/identity');
+    return this.findOne({ email: normalizeEmail(email) });
   }
 
   findByPhone(phoneNumber) {
-    const value = String(phoneNumber || '').trim();
-    if (!value) return null;
+    const { phoneLookupValues } = require('../utils/identity');
+    const variants = phoneLookupValues(phoneNumber);
+    if (!variants.length) return null;
     return this.findOne({
-      $or: [{ phoneNumber: value }, { phone: value }],
+      $or: [{ phoneNumber: { $in: variants } }, { phone: { $in: variants } }],
     });
   }
 

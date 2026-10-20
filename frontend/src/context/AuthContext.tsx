@@ -83,6 +83,12 @@ export function homeForUser(user: { role?: string | null; profileStatus?: string
   return partnerGatePath(user) || dashboardPathFor(user.role);
 }
 
+/** Trang mở đầu theo vai trò. Khách hàng và khách vãng lai ở trang chủ; đối tác vào dashboard hoặc bước hồ sơ. */
+export function getDefaultRouteByRole(user: { role?: string | null; profileStatus?: string | null } | null | undefined) {
+  if (!user?.role || user.role === 'CUSTOMER') return '/';
+  return homeForUser(user);
+}
+
 function readStoredUser(): User | null {
   try {
     const raw = localStorage.getItem(USER_KEY);

@@ -4,10 +4,14 @@ const { REVIEW_TARGET } = require('../models/Review');
 
 const checkoutSchema = z.object({
   method: z.enum(['MOCK', 'COD', 'BANK_TRANSFER']).optional(),
+  termsAccepted: z.boolean().optional(),
+  termsVersion: z.string().max(80).optional(),
 });
 
 const refundSchema = z.object({
   reason: z.string().trim().max(500).optional().or(z.literal('')),
+  cancelCase: z.enum(['UNPAID', 'CUSTOMER_AFTER_DEPOSIT', 'CONTRACTOR_CANCEL', 'MUTUAL', 'DISPUTE']).optional(),
+  amount: z.coerce.number().int().positive().optional(),
 });
 
 const reviewReplySchema = z.object({

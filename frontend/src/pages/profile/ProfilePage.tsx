@@ -10,7 +10,8 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { Spinner } from '@/components/feedback/Spinner';
-import { api, getApiErrorMessage } from '@/lib/api';
+import { api, getApiErrorMessage, getApiErrorPayload } from '@/lib/api';
+import { isValidVnMobile, normalizeVnMobile } from '@/lib/identity';
 import { mediaUrl } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
@@ -38,6 +39,7 @@ export function ProfilePage() {
   const [loading, setLoading] = useState(!user);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
   const [pwdBusy, setPwdBusy] = useState(false);
 
   const applyUser = (next: User) => {
@@ -65,13 +67,24 @@ export function ProfilePage() {
   if (error || !user) return <ErrorState body={error || undefined} onRetry={load} />;
 
   const save = async () => {
+    const nextPhone = normalizeVnMobile(phone);
+    if (phone && !isValidVnMobile(nextPhone)) {
+      setPhoneError(t('auth.phoneInvalid'));
+      return;
+    }
     setSaving(true);
+    setPhoneError('');
     try {
-      const { data } = await api.patch<ApiResponse<User>>('/user/profile', { name, phone });
+      const { data } = await api.patch<ApiResponse<User>>('/user/profile', { name, phone: nextPhone || phone });
       applyUser(data.data);
       toast({ kind: 'success', title: t('feedback.saved') });
     } catch (err) {
-      toast({ kind: 'error', title: te(getApiErrorMessage(err)) });
+      const payload = getApiErrorPayload(err);
+      const message = te(payload.message);
+      if (payload.fields.includes('phone') || payload.code === 'PHONE_ALREADY_EXISTS') {
+        setPhoneError(t('auth.phoneTaken'));
+      }
+      toast({ kind: 'error', title: message });
     } finally {
       setSaving(false);
     }
@@ -163,7 +176,16 @@ export function ProfilePage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
-              <Input id="phone" label={t('profile.phone')} value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Input
+                id="phone"
+                label={t('profile.phone')}
+                value={phone}
+                error={phoneError}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  setPhoneError('');
+                }}
+              />
               <Input id="email" label={t('profile.email')} value={user.email} disabled />
               <Input id="role" label={t('profile.role')} value={labeled(t, 'role', user.role)} disabled />
             </div>

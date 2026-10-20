@@ -7,6 +7,8 @@ const { syncUserProfileStatus } = require('./profileStatusService');
 const { ApiError } = require('../utils/ApiError');
 const { signToken } = require('../utils/jwt');
 const { env } = require('../config/env');
+const { assertAccountIdentityAvailable, throwIfIdentityUniqueConflict } = require('./accountIdentity');
+const { normalizeEmail, normalizeVnMobile } = require('../utils/identity');
 
 const PUBLIC_ROLES = [
   ROLES.CUSTOMER,
@@ -68,44 +70,42 @@ async function issueAndSendOtp(user) {
 
 async function register({ name, fullName, email, password, phoneNumber, role, acceptedPolicy, policyLanguage }) {
   const displayName = fullName || name;
-  const normalizedPhone = String(phoneNumber || '').trim();
 
   if (!PUBLIC_ROLES.includes(role)) {
     throw new ApiError(400, 'Invalid role for self-registration');
-  }
-
-  const existing = await userRepository.findByEmail(email);
-  if (existing) {
-    throw new ApiError(409, 'Email already exists');
-  }
-
-  const existingPhone = await userRepository.findByPhone(normalizedPhone);
-  if (existingPhone) {
-    throw new ApiError(409, 'Phone number already exists');
   }
 
   if (acceptedPolicy !== true) {
     throw new ApiError(400, 'You must accept the terms and privacy policy');
   }
 
+  const identity = await assertAccountIdentityAvailable({
+    email: normalizeEmail(email),
+    phone: normalizeVnMobile(phoneNumber),
+  });
+
   const { acceptanceVersion } = await acceptanceForLanguage(policyLanguage || 'vi');
 
-  // Password để plaintext — User model pre-save hash bcrypt (12).
-  const user = await userRepository.create({
-    name: displayName,
-    fullName: displayName,
-    email,
-    password,
-    phone: normalizedPhone,
-    phoneNumber: normalizedPhone,
-    acceptedPolicy: true,
-    acceptedPolicyVersion: acceptanceVersion,
-    acceptedPolicyAt: new Date(),
-    profileStatus: role === ROLES.CUSTOMER ? 'APPROVED' : 'INCOMPLETE',
-    role,
-    status: USER_STATUS.PENDING_EMAIL,
-    emailVerified: false,
-  });
+  let user;
+  try {
+    user = await userRepository.create({
+      name: displayName,
+      fullName: displayName,
+      email: identity.email,
+      password,
+      phone: identity.phone,
+      phoneNumber: identity.phone,
+      acceptedPolicy: true,
+      acceptedPolicyVersion: acceptanceVersion,
+      acceptedPolicyAt: new Date(),
+      profileStatus: role === ROLES.CUSTOMER ? 'APPROVED' : 'INCOMPLETE',
+      role,
+      status: USER_STATUS.PENDING_EMAIL,
+      emailVerified: false,
+    });
+  } catch (err) {
+    throwIfIdentityUniqueConflict(err);
+  }
 
   const { emailSent } = await issueAndSendOtp(user);
 

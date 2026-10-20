@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>E2E Auth Helper</title>
+<script>
+if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  window.location.replace('/');
+}
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
+const role = params.get('role') || 'CUSTOMER';
+const email = params.get('email') || (role === 'MATERIAL_STORE_OWNER' ? 'demo.store@buildmate.test' : 'demo.customer@buildmate.test');
+const name = params.get('name') || (role === 'MATERIAL_STORE_OWNER' ? 'Demo Store Owner' : 'Demo Customer');
+const next = params.get('next') || '/';
+const cart = params.get('cart');
+const lang = params.get('lang') || 'vi';
+
+if (token) {
+  const user = {
+    id: role === 'MATERIAL_STORE_OWNER' ? 'demo-store-id' : 'demo-customer-id',
+    email,
+    role,
+    name,
+    fullName: name,
+    phone: '0901234567',
+  };
+  localStorage.setItem('buildmate-token', token);
+  localStorage.setItem('buildmate-user', JSON.stringify(user));
+  localStorage.setItem('buildmate-auth', JSON.stringify({
+    state: {
+      token,
+      user,
+      loading: false,
+    },
+    version: 0,
+  }));
+}
+if (cart) {
+  localStorage.setItem('buildmate-material-cart', JSON.stringify({
+    state: {
+      storeId: '82a98eb32f87abb362a131ba',
+      storeName: 'Demo Can Tho Materials',
+      items: [{
+        materialId: 'e329a4afbf00dd186a0aaaf9',
+        storeId: '82a98eb32f87abb362a131ba',
+        name: 'Demo Portland Cement',
+        image: '',
+        price: 2000000,
+        quantity: 1,
+        unit: 'bag',
+        minOrderQty: 1,
+        stock: 20,
+        purchasable: true
+      }]
+    },
+    version: 0
+  }));
+}
+if (lang) {
+  localStorage.setItem('buildmate-language', lang);
+  localStorage.setItem('buildmate-locale', lang);
+  document.documentElement.lang = lang;
+}
+window.location.replace(next);
+</script>
+</head>
+<body>Loading E2E session...</body>
+</html>

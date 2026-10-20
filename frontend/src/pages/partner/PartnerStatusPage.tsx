@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Clock3, X } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
-import { useAuth } from '@/context/AuthContext';
+import { getDefaultRouteByRole, useAuth } from '@/context/AuthContext';
 import { contractorApi, materialStoreApi } from '@/lib/partner-api';
 import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
@@ -96,10 +96,10 @@ export default function PartnerStatusPage() {
     <div className="min-h-screen bg-paper-100">
       <header className="sticky top-0 z-20 border-b border-navy-800/8 bg-paper-100/90 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <Logo />
+          <Logo to={getDefaultRouteByRole(currentUser)} />
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher variant="light" placement="auth-form" />
-            <button type="button" className="text-sm font-semibold text-navy-800" onClick={() => void logout()}>
+            <button type="button" className="text-sm font-semibold text-navy-800" onClick={() => void logout().then(() => navigate('/login', { replace: true }))}>
               {t('auth.onboardLogout')}
             </button>
           </div>

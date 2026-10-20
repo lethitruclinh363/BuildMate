@@ -4,6 +4,7 @@ const { ApiError } = require('../utils/ApiError');
 const { summarizeMaterialCheckout } = require('../utils/material-checkout');
 const {
   priceMaterialOrder,
+  priceLegacyMaterialOrder,
   storeDepositShare,
   assertMaterialStatusTransition,
   MATERIAL_ACTOR,
@@ -21,38 +22,48 @@ const policy = {
 };
 
 describe('material order pricing and status', () => {
-  it('takes a 5 percent platform fee from the material subtotal only', () => {
+  it('prices new material orders as goods plus shipping with zero platform fee', () => {
     const summary = summarizeMaterialCheckout({ policy, distanceKm: 7, materialSubtotal: 200000 });
     const priced = priceMaterialOrder(summary);
     assert.equal(priced.ok, true);
     assert.equal(priced.shippingFee, 70000);
     assert.equal(priced.totalAmount, 270000);
-    assert.equal(priced.platformFeeAmount, 10000);
-    assert.equal(priced.depositAmount, 40500);
-    assert.equal(priced.storeDepositAmount, 30500);
-    assert.equal(priced.remainingAmount, 229500);
-    assert.equal(priced.depositRateSnapshot, 15);
-    assert.equal(priced.platformFeeRateSnapshot, 5);
-    assert.equal(priced.depositAmount + priced.remainingAmount, priced.totalAmount);
+    assert.equal(priced.platformFeeAmount, 0);
+    assert.equal(priced.depositAmount, 0);
+    assert.equal(priced.storeDepositAmount, 0);
+    assert.equal(priced.remainingAmount, 270000);
+    assert.equal(priced.depositRateSnapshot, 0);
+    assert.equal(priced.platformFeeRateSnapshot, 0);
+    assert.equal(priced.paymentMethod, 'COD');
   });
 
-  it('rejects a store deposit that would be negative', () => {
+  it('rejects negative goods or shipping on the free policy', () => {
     const share = storeDepositShare(1000, 4000);
     assert.equal(share.ok, false);
     assert.equal(share.code, 'STORE_DEPOSIT_SHORT');
     assert.equal(share.storeDepositAmount, -3000);
     const priced = priceMaterialOrder({ materialSubtotal: -1, shippingFee: 0 });
     assert.equal(priced.ok, false);
-    assert.equal(priced.code, 'STORE_DEPOSIT_SHORT');
+    assert.equal(priced.code, 'INVALID_AMOUNT');
   });
 
-  it('matches the deposit example without charging the platform fee on shipping', () => {
-    const priced = priceMaterialOrder({ materialSubtotal: 2000000, shippingFee: 200000 });
-    assert.equal(priced.totalAmount, 2200000);
-    assert.equal(priced.depositAmount, 330000);
-    assert.equal(priced.platformFeeAmount, 100000);
-    assert.equal(priced.storeDepositAmount, 230000);
-    assert.equal(priced.remainingAmount, 1870000);
+  it('matches 2_000_000 goods plus 100_000 shipping with no BuildMate fee', () => {
+    const priced = priceMaterialOrder({ materialSubtotal: 2_000_000, shippingFee: 100_000 });
+    assert.equal(priced.ok, true);
+    assert.equal(priced.totalAmount, 2_100_000);
+    assert.equal(priced.depositAmount, 0);
+    assert.equal(priced.platformFeeAmount, 0);
+    assert.equal(priced.storeDepositAmount, 0);
+    assert.equal(priced.remainingAmount, 2_100_000);
+  });
+
+  it('keeps the legacy 15/5 snapshot for historical material orders', () => {
+    const priced = priceLegacyMaterialOrder({ materialSubtotal: 2_000_000, shippingFee: 200_000 });
+    assert.equal(priced.totalAmount, 2_200_000);
+    assert.equal(priced.depositAmount, 330_000);
+    assert.equal(priced.platformFeeAmount, 100_000);
+    assert.equal(priced.storeDepositAmount, 230_000);
+    assert.equal(priced.remainingAmount, 1_870_000);
     assert.notEqual(priced.platformFeeAmount, Math.round(priced.depositAmount * 0.05));
   });
 
@@ -86,6 +97,9 @@ describe('material order pricing and status', () => {
 
   it('walks store fulfillment forward and blocks skips', () => {
     assert.doesNotThrow(() =>
+      assertMaterialStatusTransition('PENDING_CONFIRMATION', 'CONFIRMED', MATERIAL_ACTOR.STORE)
+    );
+    assert.doesNotThrow(() =>
       assertMaterialStatusTransition('DEPOSIT_PAID', 'CONFIRMED', MATERIAL_ACTOR.STORE)
     );
     assert.doesNotThrow(() =>
@@ -107,6 +121,9 @@ describe('material order pricing and status', () => {
     );
     assert.doesNotThrow(() =>
       assertMaterialStatusTransition('PENDING_PAYMENT', 'CANCELLED', MATERIAL_ACTOR.CUSTOMER)
+    );
+    assert.doesNotThrow(() =>
+      assertMaterialStatusTransition('PENDING_CONFIRMATION', 'CANCELLED', MATERIAL_ACTOR.CUSTOMER)
     );
     assert.throws(
       () => assertMaterialStatusTransition('PREPARING', 'CANCELLED', MATERIAL_ACTOR.CUSTOMER),

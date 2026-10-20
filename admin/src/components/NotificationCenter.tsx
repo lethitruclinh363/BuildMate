@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Bell } from 'lucide-react';
 import { adminApi } from '@/services/admin.api';
@@ -13,16 +14,99 @@ const LEGACY_WORKER_NOTICE: Record<string, string> = {
   WORKER_COMPLETED: 'notify.completed',
 };
 
+const ADMIN_ROOTS = [
+  '/dashboard',
+  '/users',
+  '/contractors',
+  '/material-stores',
+  '/partners',
+  '/verification',
+  '/verifications',
+  '/orders',
+  '/services',
+  '/payments',
+  '/commission',
+  '/reviews',
+  '/complaints',
+  '/analytics',
+  '/audit',
+  '/settings',
+  '/policies',
+  '/notifications',
+];
+
 function noticeTitle(item: AdminNotification, translate: (key: string) => string) {
   const key = LEGACY_WORKER_NOTICE[item.type] || LEGACY_WORKER_NOTICE[item.title];
   return key ? translate(key) : item.title;
 }
 
+export function adminNotificationHref(link?: string) {
+  if (!link || !link.startsWith('/') || link.startsWith('//')) return null;
+  const path = link.split(/[?#]/)[0];
+  const allowed = ADMIN_ROOTS.some((root) => path === root || path.startsWith(`${root}/`));
+  return allowed ? link : null;
+}
+
+function byNewest(items: AdminNotification[]) {
+  return [...items].sort((a, b) => {
+    const left = new Date(a.createdAt).getTime();
+    const right = new Date(b.createdAt).getTime();
+    return (Number.isFinite(right) ? right : 0) - (Number.isFinite(left) ? left : 0);
+  });
+}
+
+type AnchorBox = { right: number; width: number };
+
+function placeDropdown(anchor: HTMLElement): AnchorBox {
+  const rect = anchor.getBoundingClientRect();
+  const gutter = 12;
+  const width = Math.min(380, window.innerWidth - gutter * 2);
+  let rightEdge = rect.right;
+  if (rightEdge - width < gutter) rightEdge = gutter + width;
+  if (rightEdge > window.innerWidth - gutter) rightEdge = window.innerWidth - gutter;
+  return { right: rect.right - rightEdge, width };
+}
+
+export function AdminNotificationList({
+  items,
+  onOpen,
+}: {
+  items: AdminNotification[];
+  onOpen: (item: AdminNotification) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      {byNewest(items).map((item) => (
+        <li key={item.id}>
+          <button
+            type="button"
+            className={`admin-notify__item${item.isRead ? '' : ' admin-notify__item--unread'}`}
+            onClick={() => onOpen(item)}
+          >
+            <span className="admin-notify__dot" aria-hidden="true" />
+            <span className="admin-notify__copy">
+              <p className="admin-notify__title">{noticeTitle(item, t)}</p>
+              {item.message ? <p className="admin-notify__body">{item.message}</p> : null}
+              <p className="admin-notify__time">{relativeTime(item.createdAt)}</p>
+            </span>
+          </button>
+        </li>
+      ))}
+    </>
+  );
+}
+
 export function NotificationCenter() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AdminNotification[]>([]);
   const [unread, setUnread] = useState(0);
+  const [ready, setReady] = useState(false);
+  const [box, setBox] = useState<AnchorBox | null>(null);
+  const root = useRef<HTMLDivElement>(null);
 
   const load = async (force = false) => {
     try {
@@ -32,6 +116,9 @@ export function NotificationCenter() {
       setUnread(data.unread);
     } catch {
       setItems([]);
+      setUnread(0);
+    } finally {
+      setReady(true);
     }
   };
 
@@ -41,11 +128,78 @@ export function NotificationCenter() {
     return () => window.clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      if (!root.current) return;
+      const next = placeDropdown(root.current);
+      setBox((prev) => (prev && prev.right === next.right && prev.width === next.width ? prev : next));
+    };
+    update();
+    const header = root.current?.closest('header');
+    const observer = new ResizeObserver(update);
+    observer.observe(document.documentElement);
+    if (header) observer.observe(header);
+    window.addEventListener('resize', update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (event: MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const markAll = () => {
+    const previous = items;
+    const previousUnread = unread;
+    setItems((rows) => rows.map((item) => ({ ...item, isRead: true })));
+    setUnread(0);
+    void adminApi.markNotificationsRead().catch(() => {
+      setItems(previous);
+      setUnread(previousUnread);
+    });
+  };
+
+  const openItem = (item: AdminNotification) => {
+    if (!item.isRead) {
+      setItems((rows) => rows.map((row) => (row.id === item.id ? { ...row, isRead: true } : row)));
+      setUnread((count) => Math.max(0, count - 1));
+      void adminApi.markNotificationRead(item.id).catch(() => {
+        void load(true);
+      });
+    }
+    setOpen(false);
+    const href = adminNotificationHref(item.link);
+    if (href) navigate(href);
+  };
+
+  const visible = byNewest(items).slice(0, 12);
+
   return (
-    <div className="relative">
+    <div className="relative" ref={root}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        aria-label={t('notify.aria')}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => {
+          if (root.current) setBox(placeDropdown(root.current));
+          setOpen((value) => !value);
+        }}
         className="relative rounded-xl border border-white/10 p-2 text-white/70 hover:bg-white/8 hover:text-white"
       >
         <Bell className="h-4 w-4" />
@@ -55,29 +209,38 @@ export function NotificationCenter() {
           </span>
         ) : null}
       </button>
-      {open ? (
-        <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-2xl border border-white/10 bg-navy-900/95 shadow-glass backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
-            <p className="text-sm font-semibold">{t('notify.title')}</p>
-            <button
-              type="button"
-              className="text-xs text-copper-300"
-              onClick={() => void adminApi.markNotificationsRead().then(() => load(true))}
-            >
+      {open && box ? (
+        <div
+          className="admin-notify"
+          role="dialog"
+          aria-label={t('notify.title')}
+          style={{ right: box.right, width: box.width }}
+        >
+          <div className="admin-notify__head">
+            <p className="admin-notify__heading">{t('notify.title')}</p>
+            <button type="button" className="admin-notify__mark" onClick={markAll}>
               {t('notify.markAll')}
             </button>
           </div>
-          <ul className="max-h-80 overflow-y-auto">
-            {items.slice(0, 12).map((item) => (
-              <li key={item.id} className={`border-b border-white/6 px-4 py-3 ${item.isRead ? 'opacity-60' : ''}`}>
-                <p className="text-sm text-white">{noticeTitle(item, t)}</p>
-                <p className="mt-0.5 text-xs text-white/45">
-                  {item.message} · {relativeTime(item.createdAt)}
-                </p>
-              </li>
-            ))}
-            {items.length === 0 ? <li className="px-4 py-6 text-sm text-white/40">{t('notify.empty')}</li> : null}
+          <ul className="admin-notify__list">
+            {!ready ? (
+              <li className="admin-notify__empty">…</li>
+            ) : visible.length === 0 ? (
+              <li className="admin-notify__empty">{t('notify.empty')}</li>
+            ) : (
+              <AdminNotificationList items={visible} onOpen={openItem} />
+            )}
           </ul>
+          <button
+            type="button"
+            className="admin-notify__all"
+            onClick={() => {
+              setOpen(false);
+              navigate('/notifications');
+            }}
+          >
+            {t('notify.viewAll')}
+          </button>
         </div>
       ) : null}
     </div>

@@ -53,6 +53,18 @@ const analytics = asyncHandler(async (_req, res) => {
   return success(res, data, 'Analytics retrieved');
 });
 
+const financeSummary = asyncHandler(async (_req, res) => {
+  const adminFinanceService = require('../services/adminFinanceService');
+  const data = await adminFinanceService.buildLedger();
+  return success(res, data, 'Mock finance ledger retrieved');
+});
+
+const listEscrows = asyncHandler(async (_req, res) => {
+  const adminFinanceService = require('../services/adminFinanceService');
+  const data = await adminFinanceService.listEscrows();
+  return success(res, data, 'Mock escrow register retrieved');
+});
+
 const getCommissionRule = asyncHandler(async (_req, res) => {
   const data = await adminService.getCommissionRule();
   return success(res, data, 'Commission rule retrieved');
@@ -98,6 +110,12 @@ const updateMaterialCategory = asyncHandler(async (req, res) => {
   return success(res, data, 'Material category updated');
 });
 
+const reviewMaterialCategory = asyncHandler(async (req, res) => {
+  const { decision, reason } = req.body;
+  const data = await materialCategoryService.reviewMaterialCategory(req.params.id, decision, req.user.id, reason);
+  return success(res, data, `Material category ${decision === 'reject' ? 'rejected' : 'approved'}`);
+});
+
 const setCatalogStatus = asyncHandler(async (req, res) => {
   const data = await catalogService.setCatalogStatus(req.params.id, req.body.status);
   return success(res, data, 'Service status updated');
@@ -118,6 +136,8 @@ module.exports = {
   reject,
   auditLogs,
   analytics,
+  financeSummary,
+  listEscrows,
   getCommissionRule,
   setCommissionRule,
   reviewCatalogService,
@@ -128,4 +148,5 @@ module.exports = {
   listMaterialCategories,
   createMaterialCategory,
   updateMaterialCategory,
+  reviewMaterialCategory,
 };

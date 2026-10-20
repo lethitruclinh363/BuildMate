@@ -8,7 +8,15 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/scripts/seed.js",
-    "test": "node --require ./src/tests/helpers/preload-postgres.js --test --test-concurrency=1 src/tests/*.test.js"
+    "test:unit": "node --test --test-concurrency=1 src/tests/identity.test.js src/tests/error-status.test.js src/tests/response.test.js src/tests/database-safety.test.js src/tests/contractor-finance.test.js",
+    "test:integration": "node ./src/tests/helpers/require-isolated-db.js && node --require ./src/tests/helpers/preload-postgres.js --test --test-concurrency=1 src/tests/*.test.js",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:db:up": "node scripts/test-db/up.js",
+    "test:db:down": "node scripts/test-db/down.js",
+    "test:db:bootstrap": "node scripts/bootstrap-isolated-test-db.js",
+    "test:db:sql": "node scripts/apply-finance-sql-on-test.js",
+    "test:db:seed-actors": "node scripts/seed-test-actors.js",
+    "test:api": "node ./src/tests/helpers/require-isolated-db.js && node --require ./src/tests/helpers/preload-postgres.js src/server.js"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

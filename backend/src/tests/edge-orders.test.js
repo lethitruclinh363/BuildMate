@@ -89,6 +89,8 @@ describe('Sprint 5.3 edge cases', { timeout: 90000 }, () => {
     trash.push(party);
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
     const actor = { id: party.contractor._id, role: 'CONTRACTOR' };
+    const { payMockDeposit } = require('./helpers/finance-http');
+    await payMockDeposit(party.customer, accepted.payment.id);
     await progressService.addProgress(accepted.order.id, actor, {
       status: 'STARTED',
       description: 'Started on site',

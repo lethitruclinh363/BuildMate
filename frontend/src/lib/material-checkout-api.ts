@@ -1,7 +1,7 @@
 import type { AxiosRequestConfig } from 'axios';
 import { api } from '@/lib/api';
 
-/** Identifiers only. Price, distance, shipping, and deposit are recalculated on the server. */
+/** Identifiers only. Price, distance, and shipping are recalculated on the server. */
 export interface MaterialCheckoutDraft {
   storeId: string;
   address: string;

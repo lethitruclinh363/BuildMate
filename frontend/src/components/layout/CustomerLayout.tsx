@@ -58,7 +58,7 @@ export function CustomerLayout() {
                   label: t('common.logout'),
                   danger: true,
                   onSelect: () => {
-                    void logout().then(() => navigate('/login'));
+                    void logout().then(() => navigate('/login', { replace: true }));
                   },
                 },
               ]}
@@ -66,7 +66,7 @@ export function CustomerLayout() {
             <button
               type="button"
               className="hidden items-center gap-1 rounded-full px-2 text-sm text-ink-600 md:inline-flex"
-              onClick={() => void logout().then(() => navigate('/login'))}
+              onClick={() => void logout().then(() => navigate('/login', { replace: true }))}
             >
               <LogOut className="h-4 w-4" />
             </button>
