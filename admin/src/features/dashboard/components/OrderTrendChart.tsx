@@ -17,16 +17,18 @@ export const OrderTrendChart = memo(function OrderTrendChart({ series }: { serie
     <GlassCard className="h-full">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-copper-400">{t('dash.trend')}</p>
-          <h3 className="font-display text-lg text-white">{t('dash.createdVs')}</h3>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2B6280]">{t('dash.trend')}</p>
+          <h3 className="font-display text-lg font-bold text-[#16283C]">{t('dash.createdVs')}</h3>
         </div>
-        <div className="flex gap-1 rounded-xl bg-white/5 p-1">
+        <div className="flex gap-1 rounded-lg border border-[#E1E7ED] bg-[#F8FAFC] p-1">
           {ranges.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setRange(item.id)}
-              className={`rounded-lg px-3 py-1 text-xs font-semibold ${range === item.id ? 'bg-copper-500 text-navy-950' : 'text-white/55'}`}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                range === item.id ? 'bg-[#173B4F] text-white shadow-sm' : 'text-[#526477] hover:text-[#16283C]'
+              }`}
             >
               {t(item.label)}
             </button>
@@ -36,14 +38,14 @@ export const OrderTrendChart = memo(function OrderTrendChart({ series }: { serie
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={series[range]}>
-            <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-            <XAxis dataKey="label" stroke="#7a8499" fontSize={11} tickLine={false} axisLine={false} />
-            <YAxis stroke="#7a8499" fontSize={11} tickLine={false} axisLine={false} />
+            <CartesianGrid stroke="#E1E7ED" vertical={false} />
+            <XAxis dataKey="label" stroke="#526477" fontSize={11} tickLine={false} axisLine={false} />
+            <YAxis stroke="#526477" fontSize={11} tickLine={false} axisLine={false} />
             <Tooltip
-              contentStyle={{ background: '#111b2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}
+              contentStyle={{ background: '#FFFFFF', border: '1px solid #E1E7ED', borderRadius: 8, color: '#16283C', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.08)' }}
             />
-            <Line type="monotone" dataKey="created" name={t('dash.legendCreated')} stroke="#c89445" strokeWidth={2.4} dot={false} animationDuration={800} />
-            <Line type="monotone" dataKey="completed" name={t('dash.legendCompleted')} stroke="#34d399" strokeWidth={2.4} dot={false} animationDuration={800} />
+            <Line type="monotone" dataKey="created" name={t('dash.legendCreated')} stroke="#2B6280" strokeWidth={2.4} dot={false} animationDuration={800} />
+            <Line type="monotone" dataKey="completed" name={t('dash.legendCompleted')} stroke="#16A34A" strokeWidth={2.4} dot={false} animationDuration={800} />
           </LineChart>
         </ResponsiveContainer>
       </div>

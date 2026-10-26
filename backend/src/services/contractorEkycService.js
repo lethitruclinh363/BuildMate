@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { VERIFICATION_STATUS, DOCUMENT_TYPE } = require('../models/ContractorProfile');
 const { ContractorProfile } = require('../repositories/partnerAccess');
 const { ContractorEkycVerification } = require('../repositories/ekycAccess');
@@ -334,6 +335,7 @@ function openFile(record, kind) {
   const relative = pick(record);
   if (!relative) throw new ApiError(404, 'Verification image not found');
   const full = resolvePrivate(relative);
+  if (!fs.existsSync(full)) throw new ApiError(404, 'Verification image not found');
   return { full, contentType: contentTypeFor(relative) };
 }
 

@@ -68,7 +68,7 @@ export function PaymentsPage() {
           <Badge key={`${row.id}-s`} tone={row.status === 'PAID' ? 'success' : row.status === 'REFUNDED' ? 'warn' : 'navy'}>
             {paymentStatusLabel(row.status)}
           </Badge>,
-          <Link key={`${row.id}-o`} to={`/orders/${row.orderId}`} state={back} className="text-copper-300">
+          <Link key={`${row.id}-o`} to={`/orders/${row.orderId}`} state={back} className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
             {t('pages.openOrder')}
           </Link>,
           formatDate(row.paidAt),

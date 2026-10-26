@@ -51,6 +51,13 @@ const filters: Array<{ id: VerificationStatus | ''; label: 'queue' | 'all' | 'li
   { id: 'DRAFT', label: 'drafts' },
 ];
 
+function vTone(status: string): 'success' | 'warn' | 'danger' | 'navy' {
+  if (status === 'APPROVED') return 'success';
+  if (status === 'SUBMITTED') return 'warn';
+  if (status === 'REJECTED') return 'danger';
+  return 'navy';
+}
+
 function docTitle(type: DocumentType, translate: (key: string) => string) {
   if (type === 'CCCD_FRONT') return translate('verify.cccdFront');
   if (type === 'CCCD_BACK') return translate('verify.cccdBack');
@@ -127,7 +134,11 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
             key={filter.label}
             type="button"
             onClick={() => setStatus(filter.id)}
-            className={`rounded-full px-4 py-1.5 text-sm ${status === filter.id ? 'bg-copper-500 text-navy-950' : 'bg-white/8 text-white/70'}`}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+              status === filter.id
+                ? 'bg-[#173B4F] text-white shadow-sm'
+                : 'border border-[#E1E7ED] bg-white text-[#526477] hover:bg-[#F8FAFC]'
+            }`}
           >
             {t(`verify.${filter.label}`)}
           </button>
@@ -136,32 +147,34 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.2fr]">
         <GlassCard padding={false} className="max-h-[70vh] overflow-y-auto p-3">
           {visible.length === 0 ? (
-            <p className="p-6 text-sm text-white/40">{t('verify.empty')}</p>
+            <p className="p-6 text-center text-sm text-[#7E92A2]">{t('verify.empty')}</p>
           ) : (
             visible.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setSelectedId(item.id)}
-                className={`mb-2 w-full rounded-2xl p-4 text-left ${
-                  selected?.id === item.id ? 'bg-copper-500/15 text-white' : 'bg-white/[0.03] hover:bg-white/[0.06]'
+                className={`mb-2 w-full rounded-xl border p-4 text-left transition ${
+                  selected?.id === item.id
+                    ? 'border-[#2B6280] bg-[#EBF3F7] shadow-sm'
+                    : 'border-[#E1E7ED] bg-white hover:bg-[#F8FAFC]'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-display text-lg">{item.businessName || item.user?.name}</p>
-                    <p className="text-xs text-white/45">
+                    <p className="font-display text-base font-semibold text-[#16283C]">{item.businessName || item.user?.name}</p>
+                    <p className="text-xs text-[#526477]">
                       {item.user?.email} · {item.city}
                     </p>
                     {item.activation ? (
-                      <p className="mt-1 text-xs text-white/55">
+                      <p className="mt-1 text-xs text-[#526477]">
                         {t('verify.activationLabel')}: {t(item.activation.activationStatus === 'LIVE' ? 'verify.activationLive' : item.activation.activationStatus === 'PAUSED' ? 'verify.activationPaused' : 'verify.activationInactive')}
                         {' · '}
                         {t('verify.profilePercent', { n: item.activation.percent })}
                       </p>
                     ) : null}
                   </div>
-                  <Badge tone={item.verificationStatus === 'APPROVED' ? 'success' : 'copper'}>{item.verificationStatus}</Badge>
+                  <Badge tone={vTone(item.verificationStatus)}>{item.verificationStatus}</Badge>
                 </div>
               </button>
             ))
@@ -171,22 +184,22 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
           <GlassCard>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-copper-400">{t('verify.application')}</p>
-                <h2 className="font-display text-2xl">{selected.businessName}</h2>
+                <p className="text-xs uppercase tracking-[0.2em] text-[#526477]">{t('verify.application')}</p>
+                <h2 className="font-display text-2xl font-bold text-[#16283C]">{selected.businessName}</h2>
                 {actor === 'CONTRACTOR' ? (
-                  <p className="text-sm text-white/50">
+                  <p className="text-sm text-[#526477]">
                     {selected.user?.name} · {selected.user?.phone || '—'} · {t('verify.years', { n: selected.yearsExperience || 0 })}
                   </p>
                 ) : (
-                  <p className="text-sm text-white/50">
+                  <p className="text-sm text-[#526477]">
                     {t('verify.representative')}: {selected.user?.name || '—'} · {selected.user?.phone || '—'}
                   </p>
                 )}
               </div>
               <div className="text-right">
-                <Badge>{selected.verificationStatus}</Badge>
+                <Badge tone={vTone(selected.verificationStatus)}>{selected.verificationStatus}</Badge>
                 {selected.activation ? (
-                  <p className="mt-2 text-xs text-white/60">
+                  <p className="mt-2 text-xs text-[#526477]">
                     {t('verify.activationLabel')}: {t(selected.activation.activationStatus === 'LIVE' ? 'verify.activationLive' : selected.activation.activationStatus === 'PAUSED' ? 'verify.activationPaused' : 'verify.activationInactive')}
                     <br />
                     {t('verify.profilePercent', { n: selected.activation.percent })}
@@ -194,8 +207,8 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
                 ) : null}
               </div>
             </div>
-            <p className="mt-4 text-sm leading-6 text-white/70">{selected.description || t('verify.noNarrative')}</p>
-            <p className="mt-2 text-sm text-white/45">
+            <p className="mt-4 text-sm leading-6 text-[#16283C]">{selected.description || t('verify.noNarrative')}</p>
+            <p className="mt-2 text-sm text-[#526477]">
               {selected.address}, {selected.city} · {t('verify.tax')} {selected.taxCode || '—'}
             </p>
             {actor === 'CONTRACTOR' ? (
@@ -207,24 +220,24 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
                       {(selected.services || [])
                         .filter((item) => item.type !== 'CUSTOM')
                         .map((item) => (
-                          <li key={`${item.category}-${item.name}`} className="rounded-full bg-white/10 px-3 py-1.5 text-sm text-white">
+                          <li key={`${item.category}-${item.name}`} className="rounded-full border border-[#E1E7ED] bg-[#F8FAFC] px-3 py-1.5 text-sm text-[#16283C]">
                             {serviceTitle(t, item.name)}
-                            <span className="ml-2 text-xs text-white/50">{t(`category.${item.category}`)}</span>
+                            <span className="ml-2 text-xs text-[#526477]">{t(`category.${item.category}`)}</span>
                             {item.completionStatus === 'COMPLETED' ? (
-                              <span className="ml-2 text-xs text-emerald-300">✓ {t('verify.serviceComplete')}</span>
+                              <span className="ml-2 text-xs font-medium text-emerald-700">✓ {t('verify.serviceComplete')}</span>
                             ) : item.completionStatus === 'INCOMPLETE' ? (
-                              <span className="ml-2 text-xs text-amber-200">⚠ {t('verify.serviceIncomplete')}</span>
+                              <span className="ml-2 text-xs font-medium text-amber-700">⚠ {t('verify.serviceIncomplete')}</span>
                             ) : null}
                           </li>
                         ))}
                     </ul>
                   ) : (
-                    <p className="mt-2 text-sm text-white/45">{t('verify.noServices')}</p>
+                    <p className="mt-2 text-sm text-[#526477]">{t('verify.noServices')}</p>
                   )}
                 </div>
                 <div>
                   <h3 className="font-display text-lg">{t('verify.customServices')}</h3>
-                  <p className="mt-1 text-xs text-white/45">{t('verify.customCatalogNote')}</p>
+                  <p className="mt-1 text-xs text-[#526477]">{t('verify.customCatalogNote')}</p>
                   {(selected.services || []).some((item) => item.type === 'CUSTOM') ? (
                     <ul className="mt-2 space-y-2">
                       {(selected.services || [])
@@ -238,19 +251,19 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
                                 ? t('verify.customStatusRejected')
                                 : t('verify.customStatusPending');
                           return (
-                            <li key={`custom-${item.serviceId || item.name}`} className="rounded-2xl bg-white/10 px-3 py-3 text-sm text-white">
+                            <li key={`custom-${item.serviceId || item.name}`} className="rounded-2xl border border-[#E1E7ED] bg-white px-3 py-3 text-sm text-[#16283C] shadow-sm">
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                  <p className="font-semibold">
+                                  <p className="font-semibold text-[#16283C]">
                                     {item.name}
-                                    <span className="ml-2 text-xs font-semibold tracking-wide text-copper-300">{t('verify.customBadge')}</span>
+                                    <span className="ml-2 text-xs font-semibold tracking-wide text-[#2B6280]">{t('verify.customBadge')}</span>
                                   </p>
-                                  <p className="mt-1 text-xs text-white/55">
+                                  <p className="mt-1 text-xs text-[#526477]">
                                     {t('verify.customCategory')}: {item.category && item.category !== 'Custom' ? t(`category.${item.category}`) : '—'}
                                     {' · '}
                                     {t('verify.customProposer')}: {selected.businessName || selected.user?.name || '—'}
                                   </p>
-                                  <p className="mt-1 text-xs text-white/70">{statusLabel}</p>
+                                  <p className="mt-1 text-xs text-[#526477]">{statusLabel}</p>
                                 </div>
                                 {catalogId ? (
                                   <div className="flex flex-wrap gap-2">
@@ -335,18 +348,18 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
                   href={mediaUrl(doc.url)}
                   target="_blank"
                   rel="noreferrer"
-                  className="overflow-hidden rounded-2xl border border-white/10 bg-navy-950/40"
+                  className="overflow-hidden rounded-2xl border border-[#E1E7ED] bg-white text-[#16283C] shadow-sm hover:border-[#2B6280]/40 transition"
                 >
                   {doc.mimeType.startsWith('image/') ? (
                     <img src={mediaUrl(doc.url)} alt="" className="h-32 w-full object-cover" />
                   ) : (
-                    <div className="grid h-32 place-items-center text-copper-300">
+                    <div className="grid h-32 place-items-center text-[#2B6280]">
                       <FileText className="h-6 w-6" />
                     </div>
                   )}
                   <div className="p-3">
-                    <p className="text-sm font-semibold">{docTitle(doc.type, t)}</p>
-                    <p className="truncate text-xs text-white/40">{doc.originalName}</p>
+                    <p className="text-sm font-semibold text-[#16283C]">{docTitle(doc.type, t)}</p>
+                    <p className="truncate text-xs text-[#526477]">{doc.originalName}</p>
                   </div>
                 </a>
               ))}
@@ -422,10 +435,10 @@ function StoreCategoryReview({ application }: { application: PartnerApplication 
               <button
                 type="button"
                 onClick={() => setOpenKey(active ? null : key)}
-                className={`rounded-full px-3 py-1.5 text-sm text-white ${active ? 'bg-copper-500/25' : 'bg-white/10'}`}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${active ? 'bg-[#2B6280] text-white shadow-sm' : 'bg-[#F1F5F9] text-[#16283C] hover:bg-[#E2E8F0]'}`}
               >
                 {categoryTitle(t, item)}
-                <span className="ml-2 text-xs font-semibold tracking-wide text-copper-300">
+                <span className={`ml-2 text-xs font-semibold tracking-wide ${active ? 'text-white/90' : 'text-[#2B6280]'}`}>
                   {item.type === 'CUSTOM' ? t('verify.customBadge') : t('verify.systemBadge')}
                 </span>
               </button>
@@ -524,34 +537,34 @@ function PortfolioReview({ portfolio }: { portfolio?: PartnerApplication['portfo
               href={mediaUrl(shot.url)}
               target="_blank"
               rel="noreferrer"
-              className="overflow-hidden rounded-2xl border border-white/10 bg-navy-950/40"
+              className="overflow-hidden rounded-2xl border border-[#E1E7ED] bg-white text-[#16283C] shadow-sm hover:border-[#2B6280]/40 transition"
             >
               {isPdf(shot.url) ? (
-                <div className="grid h-28 place-items-center text-sm font-semibold text-copper-300">PDF</div>
+                <div className="grid h-28 place-items-center text-sm font-semibold text-[#2B6280]">PDF</div>
               ) : (
                 <img src={mediaUrl(shot.url)} alt="" className="h-28 w-full object-cover" />
               )}
-              <p className="px-3 py-2 text-xs text-white/60">{shot.label}</p>
+              <p className="px-3 py-2 text-xs text-[#526477]">{shot.label}</p>
             </a>
           ))}
         </div>
       ) : null}
       {projects.length ? (
-        <div className="mt-5 border-t border-white/10 pt-4">
-          <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white/70">{t('verify.projectsTitle')}</h4>
-          <div className="mt-3 divide-y divide-white/10">
+        <div className="mt-5 border-t border-[#E1E7ED] pt-4">
+          <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#526477]">{t('verify.projectsTitle')}</h4>
+          <div className="mt-3 divide-y divide-[#E1E7ED]">
             {projects.map((project, index) => (
               <div key={project.id || `${project.serviceId}-${index}`} className="py-4">
-                <p className="text-sm font-semibold text-white">{t('verify.projectNumber', { n: index + 1 })}</p>
-                <p className="mt-1 text-sm text-white/70">
+                <p className="text-sm font-semibold text-[#16283C]">{t('verify.projectNumber', { n: index + 1 })}</p>
+                <p className="mt-1 text-sm text-[#526477]">
                   {t('verify.projectService')}: {serviceLabel(project.serviceNameSnapshot, t)}
                 </p>
-                <p className="mt-2 text-xs uppercase tracking-[0.12em] text-white/40">{t('verify.projectDescription')}</p>
-                <p className="mt-1 text-sm text-white/80">{project.description}</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.12em] text-[#526477]">{t('verify.projectDescription')}</p>
+                <p className="mt-1 text-sm text-[#16283C]">{project.description}</p>
                 {project.images?.length ? (
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {project.images.map((url) => (
-                      <a key={url} href={mediaUrl(url)} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border border-white/10">
+                      <a key={url} href={mediaUrl(url)} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border border-[#E1E7ED] hover:border-[#2B6280]/40 transition">
                         <img src={mediaUrl(url)} alt="" className="aspect-[4/3] w-full object-cover" />
                       </a>
                     ))}

@@ -14,7 +14,7 @@ export function AdminBackButton({ fallback, label }: { fallback: string; label?:
       type="button"
       aria-label={text}
       onClick={() => goBackOrFallback(navigate, location, fallback)}
-      className="mb-4 inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-sm text-copper-300 hover:underline"
+      className="mb-4 inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-sm font-medium text-[#2B6280] hover:text-[#1E4B63] hover:underline"
     >
       <ArrowLeft className="h-4 w-4" aria-hidden />
       {text}

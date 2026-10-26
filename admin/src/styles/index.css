@@ -4,15 +4,17 @@
 
 :root {
   color-scheme: light;
-  --admin-bg: #f4f1ea;
-  --admin-surface: #f7f5f1;
-  --admin-panel: #ffffff;
-  --admin-sidebar: #173b4f;
-  --admin-sidebar-strong: #102d3d;
-  --admin-border: rgba(11, 46, 74, 0.09);
-  --admin-text: #1a2332;
-  --admin-text-soft: #46576b;
-  --admin-accent: #173b4f;
+  --admin-bg: #F5F7FA;
+  --admin-surface: #F5F7FA;
+  --admin-panel: #FFFFFF;
+  --admin-sidebar: #173B4F;
+  --admin-sidebar-strong: #102D3D;
+  --admin-border: #E1E7ED;
+  --admin-text: #16283C;
+  --admin-text-soft: #526477;
+  --admin-text-muted: #7E92A2;
+  --admin-accent: #2B6280;
+  --admin-accent-hover: #1E4B63;
 }
 
 html[data-theme='oled'] {
@@ -24,7 +26,9 @@ html[data-theme='oled'] {
   --admin-border: rgba(255, 255, 255, 0.08);
   --admin-text: #edf3fa;
   --admin-text-soft: #a9bbcf;
-  --admin-accent: #dca85a;
+  --admin-text-muted: #70849b;
+  --admin-accent: #38bdf8;
+  --admin-accent-hover: #7dd3fc;
 }
 
 html,
@@ -36,13 +40,16 @@ body,
 
 body {
   margin: 0;
-  background: linear-gradient(180deg, var(--admin-bg) 0%, #eef3f8 100%);
+  background-color: var(--admin-bg);
   color: var(--admin-text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+  text-shadow: none !important;
 }
 
 @layer base {
@@ -50,38 +57,101 @@ body {
   h2,
   h3,
   .font-display {
-    letter-spacing: -0.02em;
+    letter-spacing: normal;
     font-weight: 600;
+    color: var(--admin-text);
+    text-shadow: none !important;
   }
+
+  a {
+    color: var(--admin-accent);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  a:hover {
+    color: var(--admin-accent-hover);
+  }
+}
+
+/* Explicit high-contrast rules for links and legacy copper tokens */
+.admin-shell table a,
+.text-copper-300,
+[class*='text-copper-300'] {
+  color: #2B6280 !important;
+  font-weight: 600;
+}
+
+.admin-shell table a:hover,
+.text-copper-300:hover,
+[class*='text-copper-300']:hover {
+  color: #173B4F !important;
+  text-decoration: underline;
+}
+
+.text-copper-400,
+[class*='text-copper-400'] {
+  color: #526477 !important;
 }
 
 .uppercase {
   letter-spacing: 0.08em;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+  text-shadow: none !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+a,
+button,
+input,
+label,
+select,
+textarea,
+th,
+td,
+dt,
+dd,
+div,
+.font-display,
+[class*='text-'] {
+  text-shadow: none !important;
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(201, 132, 42, 0.42);
+  background: #CBD5E1;
   border-radius: 999px;
 }
 
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
 ::selection {
-  background: rgba(23, 59, 79, 0.28);
+  background: rgba(43, 98, 128, 0.2);
 }
 
 @layer components {
   .glass-card {
-    @apply rounded-xl border shadow-none;
-    background: rgba(255, 255, 255, 0.8);
-    border-color: var(--admin-border);
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-panel);
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
     color: var(--admin-text);
   }
 }
@@ -96,7 +166,7 @@ html[data-theme='oled'] .glass-card {
 }
 
 .admin-shell > div {
-  background-color: var(--admin-surface) !important;
+  background-color: var(--admin-surface);
   color: var(--admin-text);
 }
 
@@ -110,24 +180,26 @@ html[data-theme='oled'] .glass-card {
 .admin-shell > div .bg-navy-900,
 .admin-shell > div .bg-navy-950\/60,
 .admin-shell > div .bg-navy-950\/40 {
-  background-color: var(--admin-panel) !important;
+  background-color: var(--admin-panel);
   border-color: var(--admin-border);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
 }
 
-.admin-shell > div [class~='text-white'],
-.admin-shell > div [class~='text-white/80'],
-.admin-shell > div [class~='text-white/70'],
-.admin-shell > div [class~='text-white/60'],
-.admin-shell > div [class~='text-white/55'],
-.admin-shell > div [class~='text-white/50'],
-.admin-shell > div [class~='text-white/45'],
-.admin-shell > div [class~='text-white/40'],
-.admin-shell > div [class~='text-white/35'],
-.admin-shell > div [class~='text-white/30'],
-.admin-shell > div [class*='text-slate-'],
-.admin-shell > div [class*='text-ink-'] {
-  color: var(--admin-text) !important;
+/* Scoped typography mappings for main content without breaking buttons/badges */
+.admin-shell > div :where(p, h1, h2, h3, h4, h5, h6, dt, dd, th, label):where(.text-white) {
+  color: var(--admin-text);
+}
+
+.admin-shell > div :where(p, span, td, div):where(.text-white\/80, .text-white\/75, .text-white\/70) {
+  color: var(--admin-text);
+}
+
+.admin-shell > div :where(p, span, td, div, figcaption):where(.text-white\/60, .text-white\/55, .text-white\/50) {
+  color: var(--admin-text-soft);
+}
+
+.admin-shell > div :where(p, span, td, div):where(.text-white\/45, .text-white\/40, .text-white\/35, .text-white\/30) {
+  color: var(--admin-text-muted);
 }
 
 .admin-shell > div [class~='border-white/15'],
@@ -136,20 +208,21 @@ html[data-theme='oled'] .glass-card {
 .admin-shell > div [class~='border-white/8'],
 .admin-shell > div [class~='border-white/6'],
 .admin-shell > div [class~='border-navy-800/10'] {
-  border-color: var(--admin-border) !important;
+  border-color: var(--admin-border);
 }
 
 .admin-shell > div [class~='hover:bg-white/6']:hover,
 .admin-shell > div [class~='hover:bg-white/8']:hover,
 .admin-shell > div [class~='hover:bg-slate-100']:hover,
 .admin-shell > div [class~='hover:bg-paper-100']:hover {
-  background-color: rgba(11, 46, 74, 0.05) !important;
+  background-color: #F1F5F9;
 }
 
 .admin-shell > div input,
 .admin-shell > div textarea,
 .admin-shell > div select {
   color: var(--admin-text);
+  border-color: var(--admin-border);
 }
 
 /* Light notification panel. Kept off the shell's text-white / text-slate remap

@@ -58,26 +58,26 @@ export function PolicyListPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t('policy.search')}
-            className="rounded-xl border border-white/12 bg-navy-950/60 px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-copper-500/60"
+            className="rounded-xl border border-[#E1E7ED] bg-white px-3.5 py-2.5 text-sm text-[#16283C] placeholder:text-[#94A3B8] outline-none focus:border-[#2B6280]"
           />
           <Select value={type} onChange={setType} label={t('policy.all')} options={POLICY_TYPES.map((item) => [item, t(`policy.types.${item}`)])} />
           <Select value={status} onChange={setStatus} label={t('policy.all')} options={POLICY_STATUSES.map((item) => [item, t(`policy.statuses.${item}`)])} />
           <Select value={language} onChange={setLanguage} label={t('policy.all')} options={[['vi', 'VI'], ['en', 'EN']]} />
         </div>
       </GlassCard>
-      {error ? <p className="mb-3 text-sm text-red-300">{error}</p> : null}
+      {error ? <p className="mb-3 text-sm text-red-500">{error}</p> : null}
       <GlassCard padding={false}>
         <DataTable
           columns={[t('policy.titleField'), t('policy.type'), t('policy.language'), t('policy.version'), t('policy.status'), t('policy.updated'), t('policy.actions')]}
-          empty={<p className="p-6 text-sm text-white/50">{t('policy.empty')}</p>}
+          empty={<p className="p-6 text-center text-sm text-[#526477]">{t('policy.empty')}</p>}
           rows={rows.map((row) => [
-            <span key="title" className="font-medium text-white">{row.title}</span>,
+            <span key="title" className="font-medium text-[#16283C]">{row.title}</span>,
             t(`policy.types.${row.type}`),
             row.language.toUpperCase(),
             row.version,
             <Badge key="status" tone={statusTone(row.status)}>{t(`policy.statuses.${row.status}`)}</Badge>,
             new Date(row.updatedAt).toLocaleDateString(i18n.language),
-            <Link key="view" to={`/policies/${row.id}`} state={back} className="text-copper-300">{t('policy.view')}</Link>,
+            <Link key="view" to={`/policies/${row.id}`} state={back} className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">{t('policy.view')}</Link>,
           ])}
         />
       </GlassCard>
@@ -100,7 +100,7 @@ function Select({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="rounded-xl border border-white/12 bg-navy-950/60 px-3.5 py-2.5 text-sm text-white outline-none focus:border-copper-500/60"
+      className="rounded-xl border border-[#E1E7ED] bg-white px-3.5 py-2.5 text-sm text-[#16283C] outline-none focus:border-[#2B6280]"
     >
       <option value="">{label}</option>
       {options.map(([id, text]) => (

@@ -9,8 +9,8 @@ export const OrderStatusChart = memo(function OrderStatusChart({ data }: { data:
   const slices = data.map((slice) => ({ ...slice, label: t(slice.name) }));
   return (
     <GlassCard className="h-full">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-copper-400">{t('dash.status')}</p>
-      <h3 className="mb-4 font-display text-lg text-white">{t('dash.distribution')}</h3>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2B6280]">{t('dash.status')}</p>
+      <h3 className="mb-4 font-display text-lg font-bold text-[#16283C]">{t('dash.distribution')}</h3>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -19,13 +19,13 @@ export const OrderStatusChart = memo(function OrderStatusChart({ data }: { data:
                 <Cell key={slice.name} fill={slice.fill} />
               ))}
             </Pie>
-            <Tooltip contentStyle={{ background: '#111b2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }} />
+            <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #E1E7ED', borderRadius: 8, color: '#16283C', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.08)' }} />
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-2 flex flex-wrap gap-3 text-xs text-white/55">
+      <div className="mt-2 flex flex-wrap gap-3 text-xs text-[#526477]">
         {slices.map((slice) => (
-          <span key={slice.name} className="flex items-center gap-1.5">
+          <span key={slice.name} className="flex items-center gap-1.5 font-medium">
             <i className="inline-block h-2 w-2 rounded-full" style={{ background: slice.fill }} />
             {slice.label}
           </span>

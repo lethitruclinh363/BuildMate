@@ -47,7 +47,7 @@ export function AdminUserManagementPage() {
           <Badge key={`${user.id}-status`} tone={user.status === 'ACTIVE' ? 'success' : 'warn'}>
             {user.status}
           </Badge>,
-          <Link key={`${user.id}-link`} to={`/users/${user.id}`} state={back} className="text-copper-300">
+          <Link key={`${user.id}-link`} to={`/users/${user.id}`} state={back} className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
             {t('customers.view')}
           </Link>,
         ])}

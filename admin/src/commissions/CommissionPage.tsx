@@ -59,7 +59,7 @@ export function CommissionPage() {
         <StatCard label={t('pages.earning')} value={vnd(data.analytics.finance.contractorEarning)} />
       </div>
       <GlassCard className="max-w-xl">
-        <p className="mb-4 text-sm text-white/70">{t('pages.commissionLock')}</p>
+        <p className="mb-4 text-sm text-[#526477]">{t('pages.commissionLock')}</p>
         <form className="space-y-4" onSubmit={onSubmit}>
           <Input
             id="pct"

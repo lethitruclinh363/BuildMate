@@ -16,6 +16,21 @@ import { getApiErrorMessage } from '@/services/api';
 import { useToastStore } from '@/stores/toast.store';
 import type { ComplaintStatus } from '@/types/admin';
 
+const complaintTone = (status: ComplaintStatus): 'warn' | 'info' | 'success' | 'danger' => {
+  switch (status) {
+    case 'OPEN':
+      return 'warn';
+    case 'PROCESSING':
+      return 'info';
+    case 'RESOLVED':
+      return 'success';
+    case 'REJECTED':
+      return 'danger';
+    default:
+      return 'warn';
+  }
+};
+
 export function ComplaintDetailPage() {
   const { t } = useTranslation();
   const { id = '' } = useParams();
@@ -60,18 +75,23 @@ export function ComplaintDetailPage() {
   return (
     <div>
       <AdminBackButton fallback="/complaints" label={t('pages.backComplaints')} />
-      <PageHeader eyebrow={t('pages.case')} title={row.reason} description={data?.order?.orderCode} actions={<Badge tone="copper">{complaintStatusLabel(row.status)}</Badge>} />
+      <PageHeader
+        eyebrow={t('pages.case')}
+        title={row.reason}
+        description={data?.order?.orderCode}
+        actions={<Badge tone={complaintTone(row.status)}>{complaintStatusLabel(row.status)}</Badge>}
+      />
       <div className="grid gap-6 lg:grid-cols-3">
-        <GlassCard className="lg:col-span-2 space-y-3 text-sm text-white/70">
+        <GlassCard className="lg:col-span-2 space-y-3 text-sm text-[#16283C]">
           <p className="leading-6">{row.description}</p>
           <p>{t('pages.orderLabel')}: {data?.order?.title || row.orderId}</p>
           <p>
             {t('pages.parties')}: {row.createdBy} → {row.againstUser}
           </p>
-          {row.adminNote ? <p className="text-copper-300">{row.adminNote}</p> : null}
+          {row.adminNote ? <p className="font-semibold text-[#2B6280]">{row.adminNote}</p> : null}
           <div className="flex gap-2 pt-2">
             {steps.map((step) => (
-              <span key={step} className={`rounded-full px-2 py-1 text-[11px] ${row.status === step ? 'bg-copper-500 text-navy-950' : 'bg-white/8'}`}>
+              <span key={step} className={`rounded-full px-2 py-1 text-[11px] ${row.status === step ? 'bg-[#2B6280] text-white font-medium shadow-sm' : 'bg-[#F1F5F9] text-[#526477]'}`}>
                 {complaintStatusLabel(step)}
               </span>
             ))}

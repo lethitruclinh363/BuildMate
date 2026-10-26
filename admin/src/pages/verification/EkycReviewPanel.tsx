@@ -53,37 +53,39 @@ export function EkycReviewPanel({
     };
   }, [applicationId, showLive, ekyc?.status]);
 
-  if (!ekyc) return <p className="mt-4 text-sm text-white/50">{t('verify.ekycEmpty')}</p>;
+  if (!ekyc) return <p className="mt-4 text-sm text-[#7E92A2]">{t('verify.ekycEmpty')}</p>;
 
   const match = ekyc.faceMatch;
 
   return (
-    <section className="mt-6 space-y-3 border-t border-white/8 pt-5">
-      <h3 className="font-display text-lg">{t('verify.ekycTitle')}</h3>
-      <p className="text-xs text-white/45">{ekyc.referenceCode} · {ekyc.status}</p>
-      {ekyc.retakeReason ? <p className="text-sm text-white/70">{ekyc.retakeReason}</p> : null}
+    <section className="mt-6 space-y-3 border-t border-[#E1E7ED] pt-5">
+      <h3 className="font-display text-lg font-bold text-[#16283C]">{t('verify.ekycTitle')}</h3>
+      <p className="text-xs text-[#7E92A2]">{ekyc.referenceCode} · {ekyc.status}</p>
+      {ekyc.retakeReason ? (
+        <p className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-[#B91C1C]">{ekyc.retakeReason}</p>
+      ) : null}
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
-        <div><dt className="text-white/45">{t('verify.ekycName')}</dt><dd>{ekyc.ocr?.fullName || '—'}</dd></div>
-        <div><dt className="text-white/45">{t('verify.ekycId')}</dt><dd>{ekyc.ocr?.idNumber || '—'}</dd></div>
-        <div><dt className="text-white/45">{t('verify.ekycDob')}</dt><dd>{ekyc.ocr?.dateOfBirth || '—'}</dd></div>
-        <div><dt className="text-white/45">{t('verify.ekycGender')}</dt><dd>{ekyc.ocr?.gender || '—'}</dd></div>
-        <div className="sm:col-span-2"><dt className="text-white/45">{t('verify.ekycHometown')}</dt><dd>{ekyc.ocr?.hometown || '—'}</dd></div>
+        <div><dt className="text-xs font-semibold uppercase tracking-wider text-[#526477]">{t('verify.ekycName')}</dt><dd className="font-medium text-[#16283C]">{ekyc.ocr?.fullName || '—'}</dd></div>
+        <div><dt className="text-xs font-semibold uppercase tracking-wider text-[#526477]">{t('verify.ekycId')}</dt><dd className="font-medium text-[#16283C]">{ekyc.ocr?.idNumber || '—'}</dd></div>
+        <div><dt className="text-xs font-semibold uppercase tracking-wider text-[#526477]">{t('verify.ekycDob')}</dt><dd className="font-medium text-[#16283C]">{ekyc.ocr?.dateOfBirth || '—'}</dd></div>
+        <div><dt className="text-xs font-semibold uppercase tracking-wider text-[#526477]">{t('verify.ekycGender')}</dt><dd className="font-medium text-[#16283C]">{ekyc.ocr?.gender || '—'}</dd></div>
+        <div className="sm:col-span-2"><dt className="text-xs font-semibold uppercase tracking-wider text-[#526477]">{t('verify.ekycHometown')}</dt><dd className="font-medium text-[#16283C]">{ekyc.ocr?.hometown || '—'}</dd></div>
       </dl>
-      <ul className="space-y-1 text-sm text-white/80">
-        <li>{t('verify.ekycOcr')}: {ekyc.ocr?.passed ? t('verify.ekycPass') : t('verify.ekycFail')}</li>
-        <li>{t('verify.ekycLiveness')}: {ekyc.liveness?.passed ? t('verify.ekycPass') : t('verify.ekycFail')}</li>
-        <li>{t('verify.ekycMatch')}: {match?.decision || '—'}</li>
-        <li>{t('verify.ekycDistance')}: {match?.distance ?? '—'} / {match?.threshold ?? '—'}</li>
+      <ul className="space-y-1 text-sm text-[#16283C]">
+        <li>{t('verify.ekycOcr')}: <span className="font-semibold">{ekyc.ocr?.passed ? t('verify.ekycPass') : t('verify.ekycFail')}</span></li>
+        <li>{t('verify.ekycLiveness')}: <span className="font-semibold">{ekyc.liveness?.passed ? t('verify.ekycPass') : t('verify.ekycFail')}</span></li>
+        <li>{t('verify.ekycMatch')}: <span className="font-semibold">{match?.decision || '—'}</span></li>
+        <li>{t('verify.ekycDistance')}: <span className="font-semibold">{match?.distance ?? '—'} / {match?.threshold ?? '—'}</span></li>
       </ul>
       <div className="grid gap-3 sm:grid-cols-3">
         {Object.entries(photos).map(([kind, url]) => (
-          <figure key={kind} className="overflow-hidden rounded-2xl border border-white/10">
+          <figure key={kind} className="overflow-hidden rounded-xl border border-[#E1E7ED] bg-white">
             <img src={url} alt="" className="h-32 w-full object-cover" />
-            <figcaption className="p-2 text-xs text-white/55">{t(`verify.ekycFile.${kind}`)}</figcaption>
+            <figcaption className="border-t border-[#E1E7ED] bg-[#F8FAFC] p-2 text-xs font-medium text-[#526477]">{t(`verify.ekycFile.${kind}`)}</figcaption>
           </figure>
         ))}
       </div>
-      <button type="button" className="text-sm font-semibold text-copper-300" onClick={() => setShowLive((value) => !value)}>
+      <button type="button" className="text-sm font-semibold text-[#2B6280] hover:underline" onClick={() => setShowLive((value) => !value)}>
         {showLive ? t('verify.ekycHideLive') : t('verify.ekycShowLive')}
       </button>
       <div>
