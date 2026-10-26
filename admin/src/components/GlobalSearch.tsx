@@ -76,42 +76,42 @@ export function GlobalSearch() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-start bg-black/55 p-4 pt-[12vh] backdrop-blur-sm" onClick={() => setSearchOpen(false)}>
+    <div className="fixed inset-0 z-[70] grid place-items-start bg-black/40 p-4 pt-[12vh]" onClick={() => setSearchOpen(false)}>
       <div
-        className="glass-card w-full max-w-xl overflow-hidden"
+        className="w-full max-w-xl overflow-hidden rounded-2xl border border-[#E1E7ED] bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-white/8 px-4 py-3">
-          <Search className="h-4 w-4 text-copper-400" />
+        <div className="flex items-center gap-2 border-b border-[#E1E7ED] px-4 py-3 bg-[#F8FAFC]">
+          <Search className="h-4 w-4 text-[#2B6280]" />
           <input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('search.placeholder')}
-            className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+            className="w-full bg-transparent text-sm text-[#16283C] outline-none placeholder:text-[#94A3B8]"
           />
-          <kbd className="rounded border border-white/15 px-1.5 py-0.5 text-[10px] text-white/40">ESC</kbd>
+          <kbd className="rounded border border-[#E1E7ED] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[#526477]">ESC</kbd>
         </div>
-        <ul className="max-h-80 overflow-y-auto p-2">
+        <ul className="max-h-80 overflow-y-auto p-2 divide-y divide-[#E1E7ED]/50">
           {filtered.map((hit) => (
             <li key={`${hit.kind}-${hit.id}`}>
               <button
                 type="button"
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left hover:bg-white/6"
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition hover:bg-[#F8FAFC]"
                 onClick={() => {
                   setSearchOpen(false);
                   navigate(hit.to);
                 }}
               >
                 <span>
-                  <span className="block text-sm text-white">{hit.title}</span>
-                  <span className="text-xs text-white/40">{hit.subtitle}</span>
+                  <span className="block text-sm font-semibold text-[#16283C]">{hit.title}</span>
+                  <span className="text-xs text-[#526477]">{hit.subtitle}</span>
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.14em] text-copper-400">{t(`search.${hit.kind}`)}</span>
+                <span className="text-[10px] uppercase font-bold tracking-[0.14em] text-[#2B6280]">{t(`search.${hit.kind}`)}</span>
               </button>
             </li>
           ))}
-          {filtered.length === 0 ? <li className="px-3 py-6 text-center text-sm text-white/40">{t('search.empty')}</li> : null}
+          {filtered.length === 0 ? <li className="px-3 py-6 text-center text-sm text-[#526477]">{t('search.empty')}</li> : null}
         </ul>
       </div>
     </div>

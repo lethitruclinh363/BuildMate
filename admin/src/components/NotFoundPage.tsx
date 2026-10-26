@@ -7,9 +7,9 @@ export function NotFoundPage() {
   return (
     <div className="grid min-h-[50vh] place-items-center p-6">
       <GlassCard className="max-w-md text-center">
-        <p className="text-xs uppercase tracking-[0.22em] text-copper-400">404</p>
-        <h1 className="mt-2 font-display text-2xl text-white">{t('errors.notFound')}</h1>
-        <Link to="/dashboard" className="mt-5 inline-block text-sm text-copper-300">
+        <p className="text-xs uppercase tracking-[0.22em] text-[#526477]">404</p>
+        <h1 className="mt-2 font-display text-2xl text-[#16283C]">{t('errors.notFound')}</h1>
+        <Link to="/dashboard" className="mt-5 inline-block text-sm font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
           {t('errors.returnDash')}
         </Link>
       </GlassCard>

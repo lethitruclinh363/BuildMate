@@ -14,12 +14,12 @@ function MixBars({ items }: { items: Array<{ label: string; value: number }> }) 
     <div className="space-y-3">
       {items.map((item) => (
         <div key={item.label}>
-          <div className="mb-1 flex justify-between text-xs text-white/50">
+          <div className="mb-1 flex justify-between text-xs text-[#526477]">
             <span>{item.label}</span>
-            <span>{typeof item.value === 'number' && item.value > 1000 ? vnd(item.value) : item.value}</span>
+            <span className="font-semibold text-[#16283C]">{typeof item.value === 'number' && item.value > 1000 ? vnd(item.value) : item.value}</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/8">
-            <div className="h-full rounded-full bg-copper-500" style={{ width: `${Math.max((item.value / max) * 100, 4)}%` }} />
+          <div className="h-2 overflow-hidden rounded-full bg-[#E1E7ED]">
+            <div className="h-full rounded-full bg-[#2B6280]" style={{ width: `${Math.max((item.value / max) * 100, 4)}%` }} />
           </div>
         </div>
       ))}
@@ -70,7 +70,7 @@ export function AnalyticsPage() {
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <GlassCard>
-          <p className="mb-4 text-xs uppercase tracking-[0.18em] text-copper-400">{t('pages.financeMix')}</p>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#526477]">{t('pages.financeMix')}</p>
           <MixBars
             items={[
               { label: t('pages.ledgerI'), value: ledger?.platformFeePosted || data.finance.commission },
@@ -81,7 +81,7 @@ export function AnalyticsPage() {
           />
         </GlassCard>
         <GlassCard>
-          <p className="mb-4 text-xs uppercase tracking-[0.18em] text-copper-400">{t('pages.orderMix')}</p>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#526477]">{t('pages.orderMix')}</p>
           <MixBars
             items={[
               { label: t('pages.completed'), value: data.orders.completed },

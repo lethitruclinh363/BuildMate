@@ -16,6 +16,21 @@ import type { ComplaintStatus } from '@/types/admin';
 
 const filters: Array<ComplaintStatus | ''> = ['', 'OPEN', 'PROCESSING', 'RESOLVED', 'REJECTED'];
 
+const complaintTone = (status: ComplaintStatus): 'warn' | 'info' | 'success' | 'danger' => {
+  switch (status) {
+    case 'OPEN':
+      return 'warn';
+    case 'PROCESSING':
+      return 'info';
+    case 'RESOLVED':
+      return 'success';
+    case 'REJECTED':
+      return 'danger';
+    default:
+      return 'warn';
+  }
+};
+
 export function ComplaintsPage() {
   const { t } = useTranslation();
   const back = useReturnState();
@@ -36,7 +51,11 @@ export function ComplaintsPage() {
             key={code || 'all'}
             type="button"
             onClick={() => setStatus(code)}
-            className={`rounded-full px-4 py-1.5 text-sm ${status === code ? 'bg-copper-500 text-navy-950' : 'bg-white/8 text-white/70'}`}
+            className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors ${
+              status === code
+                ? 'border-[#173B4F] bg-[#173B4F] text-white shadow-sm'
+                : 'border-[#E1E7ED] bg-white text-[#526477] hover:bg-[#F8FAFC] hover:text-[#16283C]'
+            }`}
           >
             {complaintStatusLabel(code)}
           </button>
@@ -47,15 +66,15 @@ export function ComplaintsPage() {
         empty={<EmptyState icon={<Inbox className="h-5 w-5" />} title={t('pages.noComplaints')} body={t('pages.queueClear')} />}
         rows={items.map((row) => [
           <div key={`${row.id}-r`}>
-            <p>{row.reason}</p>
-            <p className="line-clamp-1 text-xs text-white/40">{row.description}</p>
+            <p className="font-semibold text-[#16283C]">{row.reason}</p>
+            <p className="line-clamp-1 text-xs text-[#526477]">{row.description}</p>
           </div>,
-          <Badge key={`${row.id}-s`} tone={row.status === 'OPEN' ? 'copper' : row.status === 'RESOLVED' ? 'success' : 'navy'}>
+          <Badge key={`${row.id}-s`} tone={complaintTone(row.status)}>
             {complaintStatusLabel(row.status)}
           </Badge>,
           shortenId(row.orderId),
           formatDate(row.createdAt),
-          <Link key={`${row.id}-l`} to={`/complaints/${row.id}`} state={back} className="text-copper-300">
+          <Link key={`${row.id}-l`} to={`/complaints/${row.id}`} state={back} className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
             {t('pages.view')}
           </Link>,
         ])}

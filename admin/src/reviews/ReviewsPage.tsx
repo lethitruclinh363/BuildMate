@@ -38,7 +38,7 @@ export function ReviewsPage() {
           `${row.rating}/5`,
           `${row.targetType === 'CONTRACTOR' ? t('roles.CONTRACTOR') : t('nav.stores')} · ${shortenId(row.targetUserId)}`,
           row.comment || '—',
-          <Link key={row.id} to={`/orders/${row.orderId}`} state={back} className="text-copper-300">
+          <Link key={row.id} to={`/orders/${row.orderId}`} state={back} className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
             {shortenId(row.orderId)}
           </Link>,
           formatDate(row.createdAt),

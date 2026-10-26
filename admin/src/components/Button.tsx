@@ -13,11 +13,11 @@ export function Button({ variant = 'primary', loading, className, children, disa
       type="button"
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 disabled:opacity-50',
-        variant === 'primary' && 'border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-100 hover:text-slate-900',
-        variant === 'ghost' && 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-        variant === 'danger' && 'bg-red-50 text-red-600 hover:bg-red-100',
-        variant === 'outline' && 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900',
+        'inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed',
+        variant === 'primary' && 'bg-[#173B4F] text-white shadow-sm hover:bg-[#102D3D] active:bg-[#0A1F2C]',
+        variant === 'ghost' && 'text-[#526477] hover:bg-[#F1F5F9] hover:text-[#16283C]',
+        variant === 'danger' && 'border border-[#FECACA] bg-[#FEE2E2] text-[#B91C1C] hover:bg-[#FCDAD7] active:bg-[#F8B4B4]',
+        variant === 'outline' && 'border border-[#E1E7ED] bg-white text-[#16283C] shadow-sm hover:bg-[#F8FAFC] hover:border-[#CCD6E0] active:bg-[#F1F5F9]',
         className
       )}
       {...props}

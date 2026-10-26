@@ -59,18 +59,28 @@ const submit = asyncHandler(async (req, res) => {
   return success(res, data, 'Identity verification submitted');
 });
 
-const file = asyncHandler(async (req, res) => {
+const file = asyncHandler(async (req, res, next) => {
   const opened = await contractorEkycService.openForOwner(req.user.id, req.params.kind);
   res.setHeader('Content-Type', opened.contentType);
   res.setHeader('Cache-Control', 'private, no-store');
-  fs.createReadStream(opened.full).pipe(res);
+  const stream = fs.createReadStream(opened.full);
+  stream.on('error', (err) => {
+    if (!res.headersSent) return next(err);
+    res.end();
+  });
+  stream.pipe(res);
 });
 
-const adminFile = asyncHandler(async (req, res) => {
+const adminFile = asyncHandler(async (req, res, next) => {
   const opened = await contractorEkycService.openForAdmin(req.params.id, req.params.kind);
   res.setHeader('Content-Type', opened.contentType);
   res.setHeader('Cache-Control', 'private, no-store');
-  fs.createReadStream(opened.full).pipe(res);
+  const stream = fs.createReadStream(opened.full);
+  stream.on('error', (err) => {
+    if (!res.headersSent) return next(err);
+    res.end();
+  });
+  stream.pipe(res);
 });
 
 const retake = asyncHandler(async (req, res) => {

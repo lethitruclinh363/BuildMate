@@ -200,11 +200,11 @@ export function NotificationCenter() {
           if (root.current) setBox(placeDropdown(root.current));
           setOpen((value) => !value);
         }}
-        className="relative rounded-xl border border-white/10 p-2 text-white/70 hover:bg-white/8 hover:text-white"
+        className="relative flex items-center justify-center rounded-lg border border-[#E1E7ED] bg-[#F8FAFC] p-2 text-[#2B6280] transition-colors hover:bg-[#EBF3F7] hover:text-[#173B4F] hover:border-[#2B6280]/40"
       >
-        <Bell className="h-4 w-4" />
+        <Bell className="h-4 w-4 text-[#2B6280]" />
         {unread > 0 ? (
-          <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-copper-500 px-1 text-[10px] font-bold text-navy-950">
+          <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#E05252] px-1 text-[10px] font-bold text-white shadow-sm">
             {unread}
           </span>
         ) : null}

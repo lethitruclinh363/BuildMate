@@ -69,9 +69,9 @@ export function Sidebar() {
         onClick={() => setMobileOpen(false)}
         className={({ isActive }) =>
           cn(
-            'group relative flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-2 text-[13px] font-medium leading-none text-white/70 transition-all duration-200 hover:bg-white/6 hover:text-white',
+            'group relative flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-2 text-[13px] font-medium leading-none text-[#C4D1DE] transition-all duration-150 hover:bg-white/10 hover:text-white',
             collapsed && 'justify-center px-2',
-            isActive && 'border-white/10 bg-white/8 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]'
+            isActive && 'bg-[#234E66] text-white font-semibold shadow-sm'
           )
         }
       >
@@ -94,12 +94,12 @@ export function Sidebar() {
         {!collapsed ? (
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-[15px] font-bold tracking-tight text-white">{t('brand')}</p>
-            <p className="truncate text-[10px] font-medium uppercase tracking-[0.12em] text-white/60">{t('tagline')}</p>
+            <p className="truncate text-[10px] font-medium uppercase tracking-[0.12em] text-[#8FB1CA]">{t('tagline')}</p>
           </div>
         ) : null}
         <button
           type="button"
-          className="ml-auto rounded-md bg-white/8 p-1.5 text-white/80 transition hover:bg-white/12 hover:text-white"
+          className="ml-auto rounded-md bg-white/8 p-1.5 text-[#C4D1DE] transition hover:bg-white/15 hover:text-white"
           onClick={() => (mobileOpen ? setMobileOpen(false) : toggleCollapsed())}
           aria-label={collapsed ? t('shell.expand') : t('shell.collapse')}
         >
@@ -108,19 +108,19 @@ export function Sidebar() {
       </div>
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-2">
         {items.map((item) => renderNavItem(item))}
-        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45', collapsed && 'px-1 text-center')}>
+        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7E9DB5]', collapsed && 'px-1 text-center')}>
           {collapsed ? '•' : t('nav.partners')}
         </p>
         {partnerItems.map((item) => renderNavItem(item))}
-        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45', collapsed && 'px-1 text-center')}>
+        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7E9DB5]', collapsed && 'px-1 text-center')}>
           {collapsed ? '•' : t('nav.system')}
         </p>
         {systemItems.map((item) => renderNavItem(item))}
       </nav>
       <div className="mt-auto border-t border-white/10 p-2.5">
         {!collapsed && user ? (
-          <div className="flex items-center gap-2.5 rounded-lg bg-white/4 px-2 py-2">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#3b697d] text-[11px] font-bold text-white shadow-inner shadow-white/10">
+          <div className="flex items-center gap-2.5 rounded-lg bg-[#102D3D] border border-white/10 px-2.5 py-2">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#2B6280] text-[11px] font-bold text-white shadow-inner shadow-white/10">
               {user.name
                 .split(/\s+/)
                 .filter(Boolean)
@@ -131,7 +131,7 @@ export function Sidebar() {
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{user.name}</p>
-              <p className="truncate text-[10px] tracking-[0.12em] text-white/50">{roleLabel(user.role)}</p>
+              <p className="truncate text-[10px] tracking-[0.12em] text-[#8FB1CA]">{roleLabel(user.role)}</p>
             </div>
           </div>
         ) : null}

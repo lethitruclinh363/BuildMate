@@ -21,11 +21,11 @@ export const RecentOrdersTable = memo(function RecentOrdersTable({ rows }: { row
   const { t } = useTranslation();
   return (
     <GlassCard>
-      <p className="text-[11px] uppercase tracking-[0.18em] text-copper-400">{t('dash.ops')}</p>
-      <h3 className="mb-4 font-display text-lg text-white">{t('dash.recent')}</h3>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2B6280]">{t('dash.ops')}</p>
+      <h3 className="mb-4 font-display text-lg font-bold text-[#16283C]">{t('dash.recent')}</h3>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="text-sm text-white/55">
+          <thead className="border-b border-[#E1E7ED] text-xs font-semibold uppercase tracking-wider text-[#526477]">
             <tr>
               <th className="pb-3">{t('dash.orderCode')}</th>
               <th className="pb-3">{t('dash.customer')}</th>
@@ -35,17 +35,17 @@ export const RecentOrdersTable = memo(function RecentOrdersTable({ rows }: { row
               <th className="pb-3">{t('dash.time')}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-[#E1E7ED]">
             {rows.map((row) => (
-              <tr key={row.id} className="border-t border-white/6">
+              <tr key={row.id} className="transition-colors hover:bg-[#F8FAFC]">
                 <td className="py-3">
-                  <Link to={`/orders/${row.id}`} state={back} className="text-copper-300">
+                  <Link to={`/orders/${row.id}`} state={back} className="font-medium text-[#2B6280] hover:underline">
                     {row.orderCode}
                   </Link>
                 </td>
-                <td className="py-3 text-white/70">{row.customer}</td>
-                <td className="py-3 text-white/70">{row.contractor}</td>
-                <td className="py-3">{vnd(row.amount)}</td>
+                <td className="py-3 text-[#16283C]">{row.customer}</td>
+                <td className="py-3 text-[#16283C]">{row.contractor}</td>
+                <td className="py-3 font-medium text-[#16283C]">{vnd(row.amount)}</td>
                 <td className="py-3">
                   <Badge
                     tone={
@@ -57,12 +57,12 @@ export const RecentOrdersTable = memo(function RecentOrdersTable({ rows }: { row
                     {orderStatusLabel(row.status)}
                   </Badge>
                 </td>
-                <td className="py-3 text-white/40">{relativeTime(row.createdAt)}</td>
+                <td className="py-3 text-[#7E92A2]">{relativeTime(row.createdAt)}</td>
               </tr>
             ))}
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-6 text-white/40">
+                <td colSpan={6} className="py-6 text-center text-[#7E92A2]">
                   {t('dash.noOrders')}
                 </td>
               </tr>

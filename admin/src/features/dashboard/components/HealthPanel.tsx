@@ -16,9 +16,9 @@ export const HealthPanel = memo(function HealthPanel({ health }: { health: Healt
   const ok = health.backend === 'ONLINE';
   return (
     <GlassCard>
-      <p className="text-[11px] uppercase tracking-[0.18em] text-copper-400">{t('dash.monitor')}</p>
-      <h3 className="mb-4 font-display text-lg text-white">{t('dash.platformHealth')}</h3>
-      <p className={cn('mb-4 text-sm', ok ? 'text-emerald-300' : 'text-red-300')}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2B6280]">{t('dash.monitor')}</p>
+      <h3 className="mb-4 font-display text-lg font-bold text-[#16283C]">{t('dash.platformHealth')}</h3>
+      <p className={cn('mb-4 text-sm font-semibold', ok ? 'text-[#166534]' : 'text-[#B91C1C]')}>
         ● {ok ? t('dash.operational') : t('dash.degraded')}
       </p>
       <ul className="space-y-3">
@@ -27,8 +27,8 @@ export const HealthPanel = memo(function HealthPanel({ health }: { health: Healt
           const live = value === 'ONLINE' || value === 'CONNECTED' || value === 'ACTIVE' || value === 'AVAILABLE';
           return (
             <li key={row.key} className="flex items-center justify-between text-sm">
-              <span className="text-white/60">{t(row.label)}</span>
-              <span className={cn('font-semibold', live ? 'text-emerald-300' : 'text-amber-300')}>{t(`health.${value}`)}</span>
+              <span className="text-[#526477]">{t(row.label)}</span>
+              <span className={cn('font-semibold', live ? 'text-[#166534]' : 'text-[#92400E]')}>{t(`health.${value}`)}</span>
             </li>
           );
         })}

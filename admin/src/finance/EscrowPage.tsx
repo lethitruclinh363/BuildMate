@@ -9,11 +9,9 @@ import { Button } from '@/components/Button';
 import { DataTable } from '@/components/DataTable';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
-import { GlassCard } from '@/components/GlassCard';
 import { PageHeader } from '@/components/PageHeader';
 import { Spinner } from '@/components/Spinner';
 import { StatCard } from '@/components/StatCard';
-import { TextArea } from '@/components/Input';
 import { vnd } from '@/lib/utils';
 import { getApiErrorMessage } from '@/services/api';
 import { useToastStore } from '@/stores/toast.store';
@@ -25,7 +23,6 @@ export function EscrowPage() {
     const [ledger, rows] = await Promise.all([adminApi.financeSummary(), adminApi.listEscrows()]);
     return { ledger, rows };
   }, []);
-  const [reason, setReason] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
 
   if (loading) return <Spinner />;
@@ -50,14 +47,10 @@ export function EscrowPage() {
   };
 
   const refund = async (orderId: string) => {
-    if (!reason.trim()) {
-      push('error', t('pages.refundReasonRequired'));
-      return;
-    }
     if (!confirmMock(t('pages.confirmRefund'))) return;
     setBusy(`refund-${orderId}`);
     try {
-      await adminApi.refundEscrow(orderId, reason);
+      await adminApi.refundEscrow(orderId, t('pages.adminRefund'));
       push('success', t('pages.mockRefundPosted'));
       await reload();
     } catch (err) {
@@ -70,9 +63,10 @@ export function EscrowPage() {
   return (
     <div>
       <PageHeader eyebrow={t('pages.finance')} title={t('pages.escrowTitle')} description={t('pages.escrowDesc')} />
-      <GlassCard className="mb-6 border-amber-400/30 bg-amber-500/10 text-sm text-amber-100">
-        {t('pages.mockWarning')}
-      </GlassCard>
+      <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 shadow-sm">
+        <span className="text-base leading-none text-amber-600" aria-hidden="true">⚠️</span>
+        <span>{t('pages.mockWarning')}</span>
+      </div>
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label={t('pages.ledgerA')} value={vnd(ledger.acceptedQuoteTotal)} />
         <StatCard label={t('pages.ledgerB')} value={vnd(ledger.capturedDeposit)} />
@@ -84,9 +78,6 @@ export function EscrowPage() {
         <StatCard label={t('pages.ledgerH')} value={vnd(ledger.paidOutAmount)} />
         <StatCard label={t('pages.ledgerI')} value={vnd(ledger.platformFeePosted)} />
         <StatCard label={t('pages.ledgerJ')} value={vnd(ledger.materialGmv)} />
-      </div>
-      <div className="mb-4 max-w-xl">
-        <TextArea label={t('pages.refundReason')} value={reason} onChange={setReason} rows={2} />
       </div>
       <DataTable
         columns={[
@@ -100,7 +91,7 @@ export function EscrowPage() {
         ]}
         empty={<EmptyState icon={<Landmark className="h-5 w-5" />} title={t('pages.noEscrow')} />}
         rows={rows.map((row) => [
-          <Link key={`${row.orderId}-c`} to={`/orders/${row.orderId}`} className="text-copper-300">
+          <Link key={`${row.orderId}-c`} to={`/orders/${row.orderId}`} className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
             {row.orderCode || row.orderId}
           </Link>,
           vnd(row.quoteTotal),

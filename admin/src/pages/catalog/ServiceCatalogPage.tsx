@@ -144,25 +144,25 @@ export function ServiceCatalogPage() {
           [stats?.proposals ?? 0, t('catalog.proposals')],
         ].map(([value, label]) => (
           <GlassCard key={String(label)}>
-            <p className="font-display text-3xl text-white">{value}</p>
-            <p className="mt-1 text-sm text-white/55">{label}</p>
+            <p className="font-display text-3xl text-[#16283C]">{value}</p>
+            <p className="mt-1 text-sm text-[#526477]">{label}</p>
           </GlassCard>
         ))}
       </div>
 
       {data?.proposals?.length ? (
         <GlassCard className="mb-5">
-          <h2 className="font-display text-lg">{t('catalog.proposalTitle')}</h2>
+          <h2 className="font-display text-lg font-bold text-[#16283C]">{t('catalog.proposalTitle')}</h2>
           <ul className="mt-3 space-y-3">
             {data.proposals.map((item) => (
-              <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3">
+              <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-[#E1E7ED] bg-white px-4 py-3 shadow-sm">
                 <div>
-                  <p className="font-semibold text-white">{item.name}</p>
-                  <p className="text-xs text-white/55">
+                  <p className="font-semibold text-[#16283C]">{item.name}</p>
+                  <p className="text-xs text-[#526477]">
                     {t(`category.${item.category}`)}
                     {item.proposerName ? ` · ${item.proposerName}` : ''}
                   </p>
-                  <p className="mt-1 text-xs text-copper-300">{t('catalog.pending')}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#2B6280]">{t('catalog.pending')}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button disabled={busy} onClick={() => void review(item.id, 'approve')}>
@@ -188,7 +188,7 @@ export function ServiceCatalogPage() {
               setQuery(q);
               void load({ q }).catch((err) => push('error', getApiErrorMessage(err)));
             }}
-            className="w-full max-w-sm rounded-xl border border-white/12 bg-navy-950/60 px-3.5 py-2.5 text-sm text-white outline-none focus:border-copper-500/60"
+            className="w-full max-w-sm rounded-xl border border-[#E1E7ED] bg-white px-3.5 py-2.5 text-sm text-[#16283C] placeholder:text-[#94A3B8] outline-none focus:border-[#2B6280]"
           />
           <Button onClick={openCreate}>{t('catalog.add')}</Button>
         </div>
@@ -223,26 +223,32 @@ export function ServiceCatalogPage() {
             </FilterChip>
           ))}
         </div>
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4 overflow-x-auto rounded-xl border border-[#E1E7ED] bg-white">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-white/40">
+            <thead className="border-b border-[#E1E7ED] bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wider text-[#526477]">
               <tr>
-                <th className="py-2">{t('catalog.name')}</th>
-                <th>{t('catalog.group')}</th>
-                <th>{t('catalog.status')}</th>
-                <th>{t('catalog.actions')}</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.name')}</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.group')}</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.status')}</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.actions')}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[#E1E7ED]">
               {(data?.items || []).map((item) => (
-                <tr key={item.id} className="border-t border-white/8 text-white">
-                  <td className="py-3 pr-3">
-                    <p className="font-semibold">{item.name}</p>
-                    {item.description ? <p className="text-xs text-white/45">{item.description}</p> : null}
+                <tr key={item.id} className="text-[#16283C] transition-colors hover:bg-[#F8FAFC]">
+                  <td className="px-4 py-3.5 pr-3">
+                    <p className="font-semibold text-[#16283C]">{item.name}</p>
+                    {item.description ? <p className="mt-0.5 text-xs text-[#526477]">{item.description}</p> : null}
                   </td>
-                  <td>{t(`category.${item.category}`)}</td>
-                  <td>{item.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'}</td>
-                  <td>
+                  <td className="px-4 py-3.5 text-[#526477]">{t(`category.${item.category}`)}</td>
+                  <td className="px-4 py-3.5">
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                      item.status === 'INACTIVE' ? 'bg-[#F1F5F9] text-[#64748B]' : 'bg-[#DCFCE7] text-[#166534]'
+                    }`}>
+                      {item.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5">
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" disabled={busy} onClick={() => openEdit(item)}>
                         {t('catalog.edit')}
@@ -256,15 +262,15 @@ export function ServiceCatalogPage() {
               ))}
             </tbody>
           </table>
-          {!data?.items?.length ? <p className="py-6 text-sm text-white/45">{t('catalog.empty')}</p> : null}
+          {!data?.items?.length ? <p className="py-8 text-center text-sm text-[#526477]">{t('catalog.empty')}</p> : null}
         </div>
       </GlassCard>
 
       {open ? (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 p-4">
-          <GlassCard className="w-full max-w-lg">
-            <h2 className="font-display text-xl">{editing ? t('catalog.edit') : t('catalog.add')}</h2>
-            <label className="mt-4 block text-sm text-white/70">
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-[#E1E7ED] bg-white p-6 shadow-xl">
+            <h2 className="font-display text-xl font-bold text-[#16283C]">{editing ? t('catalog.edit') : t('catalog.add')}</h2>
+            <label className="mt-4 block text-sm font-medium text-[#16283C]">
               {t('catalog.name')}
               <input
                 value={form.name}
@@ -273,15 +279,15 @@ export function ServiceCatalogPage() {
                   setSimilar([]);
                   setAcknowledgeSimilar(false);
                 }}
-                className="mt-1.5 w-full rounded-xl border border-white/12 bg-navy-950/60 px-3.5 py-2.5 text-sm text-white outline-none"
+                className="mt-1.5 w-full rounded-xl border border-[#E1E7ED] bg-white px-3.5 py-2.5 text-sm text-[#16283C] outline-none focus:border-[#2B6280]"
               />
             </label>
-            <label className="mt-3 block text-sm text-white/70">
+            <label className="mt-3 block text-sm font-medium text-[#16283C]">
               {t('catalog.group')}
               <select
                 value={form.category}
                 onChange={(event) => setForm((cur) => ({ ...cur, category: event.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-white/12 bg-navy-950/60 px-3.5 py-2.5 text-sm text-white outline-none"
+                className="mt-1.5 w-full rounded-xl border border-[#E1E7ED] bg-white px-3.5 py-2.5 text-sm text-[#16283C] outline-none focus:border-[#2B6280]"
               >
                 {GROUPS.map((item) => (
                   <option key={item} value={item}>
@@ -290,30 +296,30 @@ export function ServiceCatalogPage() {
                 ))}
               </select>
             </label>
-            <label className="mt-3 block text-sm text-white/70">
+            <label className="mt-3 block text-sm font-medium text-[#16283C]">
               {t('catalog.descriptionField')}
               <textarea
                 value={form.description}
                 rows={3}
                 onChange={(event) => setForm((cur) => ({ ...cur, description: event.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-white/12 bg-navy-950/60 px-3.5 py-2.5 text-sm text-white outline-none"
+                className="mt-1.5 w-full rounded-xl border border-[#E1E7ED] bg-white px-3.5 py-2.5 text-sm text-[#16283C] outline-none focus:border-[#2B6280]"
               />
             </label>
-            <label className="mt-3 block text-sm text-white/70">
+            <label className="mt-3 block text-sm font-medium text-[#16283C]">
               {t('catalog.status')}
               <select
                 value={form.status}
                 onChange={(event) => setForm((cur) => ({ ...cur, status: event.target.value as 'ACTIVE' | 'INACTIVE' }))}
-                className="mt-1.5 w-full rounded-xl border border-white/12 bg-navy-950/60 px-3.5 py-2.5 text-sm text-white outline-none"
+                className="mt-1.5 w-full rounded-xl border border-[#E1E7ED] bg-white px-3.5 py-2.5 text-sm text-[#16283C] outline-none focus:border-[#2B6280]"
               >
                 <option value="ACTIVE">{t('catalog.activeOption')}</option>
                 <option value="INACTIVE">{t('catalog.inactiveOption')}</option>
               </select>
             </label>
             {similar.length ? (
-              <div className="mt-3 rounded-xl bg-amber-500/10 px-3 py-3 text-sm text-amber-200">
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
                 <p>{t('catalog.similar')}</p>
-                <p className="mt-1">{similar.join(', ')}</p>
+                <p className="mt-1 font-semibold">{similar.join(', ')}</p>
                 <label className="mt-2 flex items-center gap-2">
                   <input type="checkbox" checked={acknowledgeSimilar} onChange={(event) => setAcknowledgeSimilar(event.target.checked)} />
                   {t('catalog.confirmSimilar')}
@@ -328,7 +334,7 @@ export function ServiceCatalogPage() {
                 {t('catalog.save')}
               </Button>
             </div>
-          </GlassCard>
+          </div>
         </div>
       ) : null}
       </>
@@ -344,8 +350,8 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
       onClick={onClick}
       className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
         active
-          ? 'border-slate-300 bg-slate-200 text-slate-800 hover:bg-slate-300'
-          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+          ? 'border-[#2B6280] bg-[#2B6280] text-white shadow-sm'
+          : 'border-[#E1E7ED] bg-white text-[#526477] hover:bg-[#F8FAFC] hover:text-[#16283C]'
       }`}
     >
       {children}

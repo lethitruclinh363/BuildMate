@@ -99,8 +99,8 @@ export function MaterialCatalogPanel() {
       <GlassCard>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="font-display text-lg">{editing ? t('catalog.materials.edit') : t('catalog.materials.add')}</h2>
-            <p className="mt-1 text-sm text-white/50">{t('catalog.materials.description')}</p>
+            <h2 className="font-display text-lg font-bold text-[#16283C]">{editing ? t('catalog.materials.edit') : t('catalog.materials.add')}</h2>
+            <p className="mt-1 text-sm text-[#526477]">{t('catalog.materials.description')}</p>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -108,7 +108,7 @@ export function MaterialCatalogPanel() {
             value={name}
             placeholder={t('catalog.materials.placeholder')}
             onChange={(event) => setName(event.target.value)}
-            className="w-full max-w-sm rounded-xl border border-white/12 bg-navy-950/60 px-3.5 py-2.5 text-sm text-white outline-none focus:border-copper-500/60"
+            className="w-full max-w-sm rounded-xl border border-[#E1E7ED] bg-white px-3.5 py-2.5 text-sm text-[#16283C] placeholder:text-[#94A3B8] outline-none focus:border-[#2B6280]"
           />
           <Button disabled={busy} onClick={() => void save()}>
             {t('catalog.materials.save')}
@@ -128,30 +128,38 @@ export function MaterialCatalogPanel() {
       </GlassCard>
 
       <GlassCard>
-        <h2 className="font-display text-lg">{t('catalog.materials.systemTitle')}</h2>
-        <div className="mt-4 overflow-x-auto">
+        <h2 className="font-display text-lg font-bold text-[#16283C]">{t('catalog.materials.systemTitle')}</h2>
+        <div className="mt-4 overflow-x-auto rounded-xl border border-[#E1E7ED] bg-white">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-white/40">
+            <thead className="border-b border-[#E1E7ED] bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wider text-[#526477]">
               <tr>
-                <th className="py-2">{t('catalog.materials.name')}</th>
-                <th>{t('catalog.materials.group')}</th>
-                <th>{t('catalog.materials.type')}</th>
-                <th>{t('catalog.materials.status')}</th>
-                <th>{t('catalog.materials.created')}</th>
-                <th />
+                <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.name')}</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.group')}</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.type')}</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.status')}</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.created')}</th>
+                <th className="px-4 py-3.5 whitespace-nowrap" />
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[#E1E7ED]">
               {system.map((item) => (
-                <tr key={item.id || item.name} className="border-t border-white/8 text-white">
-                  <td className="py-3 pr-3 font-semibold">{categoryLabel(item, i18n.language)}</td>
-                  <td>{t('catalog.materials.materialsGroup')}</td>
-                  <td>{t('verify.systemBadge')}</td>
-                  <td>{statusLabel(item)}</td>
-                  <td>{createdLabel(item.createdAt)}</td>
-                  <td>
+                <tr key={item.id || item.name} className="text-[#16283C] transition-colors hover:bg-[#F8FAFC]">
+                  <td className="px-4 py-3.5 pr-3 font-semibold text-[#16283C]">{categoryLabel(item, i18n.language)}</td>
+                  <td className="px-4 py-3.5 text-[#526477]">{t('catalog.materials.materialsGroup')}</td>
+                  <td className="px-4 py-3.5">
+                    <span className="inline-flex items-center rounded-md bg-[#EFF6FF] px-2 py-0.5 text-xs font-medium text-[#1D4ED8]">
+                      {t('verify.systemBadge')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <span className="inline-flex items-center rounded-md bg-[#DCFCE7] px-2 py-0.5 text-xs font-medium text-[#166534]">
+                      {statusLabel(item)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5 text-[#526477]">{createdLabel(item.createdAt)}</td>
+                  <td className="px-4 py-3.5">
                     {item.locked || !item.id ? (
-                      <span className="text-xs text-white/40">{t('catalog.materials.locked')}</span>
+                      <span className="text-xs text-[#94A3B8]">{t('catalog.materials.locked')}</span>
                     ) : (
                       <Button
                         variant="outline"
@@ -173,36 +181,46 @@ export function MaterialCatalogPanel() {
       </GlassCard>
 
       <GlassCard>
-        <h2 className="font-display text-lg">{t('catalog.materials.customTitle')}</h2>
+        <h2 className="font-display text-lg font-bold text-[#16283C]">{t('catalog.materials.customTitle')}</h2>
         {custom.length === 0 ? (
-          <p className="mt-3 text-sm text-white/45">{t('catalog.materials.emptyCustom')}</p>
+          <p className="mt-3 text-sm text-[#526477]">{t('catalog.materials.emptyCustom')}</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
+          <div className="mt-4 overflow-x-auto rounded-xl border border-[#E1E7ED] bg-white">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-white/40">
+              <thead className="border-b border-[#E1E7ED] bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wider text-[#526477]">
                 <tr>
-                  <th className="py-2">{t('catalog.materials.name')}</th>
-                  <th>{t('catalog.materials.store')}</th>
-                  <th>{t('catalog.materials.type')}</th>
-                  <th>{t('catalog.materials.status')}</th>
-                  <th>{t('catalog.materials.created')}</th>
-                  <th>{t('catalog.materials.actions')}</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.name')}</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.store')}</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.type')}</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.status')}</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.created')}</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">{t('catalog.materials.actions')}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[#E1E7ED]">
                 {custom.map((item) => (
-                  <tr key={item.id || item.name} className="border-t border-white/8 text-white">
-                    <td className="py-3 pr-3 font-semibold">{item.name}</td>
-                    <td>{item.storeName || ''}</td>
-                    <td>{t('verify.customBadge')}</td>
-                    <td>{statusLabel(item)}</td>
-                    <td>{createdLabel(item.createdAt)}</td>
-                    <td>
+                  <tr key={item.id || item.name} className="text-[#16283C] transition-colors hover:bg-[#F8FAFC]">
+                    <td className="px-4 py-3.5 pr-3 font-semibold text-[#16283C]">{item.name}</td>
+                    <td className="px-4 py-3.5 text-[#526477]">{item.storeName || '—'}</td>
+                    <td className="px-4 py-3.5">
+                      <span className="inline-flex items-center rounded-md bg-[#FEF3C7] px-2 py-0.5 text-xs font-medium text-[#92400E]">
+                        {t('verify.customBadge')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                        item.status === 'APPROVED' ? 'bg-[#DCFCE7] text-[#166534]' : item.status === 'REJECTED' ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#FEF3C7] text-[#92400E]'
+                      }`}>
+                        {statusLabel(item)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-[#526477]">{createdLabel(item.createdAt)}</td>
+                    <td className="px-4 py-3.5">
                       {item.status === 'PENDING_APPROVAL' && item.id ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <Button
                             variant="outline"
-                            className="px-3 py-1.5 text-xs text-emerald-400 hover:text-emerald-300"
+                            className="px-3 py-1.5 text-xs font-semibold text-[#166534] hover:bg-emerald-50"
                             disabled={busy}
                             onClick={() => void review(item, 'approve')}
                           >
@@ -210,7 +228,7 @@ export function MaterialCatalogPanel() {
                           </Button>
                           <Button
                             variant="ghost"
-                            className="px-3 py-1.5 text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+                            className="px-3 py-1.5 text-xs font-semibold text-[#B91C1C] hover:bg-red-50"
                             disabled={busy}
                             onClick={() => void review(item, 'reject')}
                           >

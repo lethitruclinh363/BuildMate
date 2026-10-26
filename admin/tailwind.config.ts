@@ -14,11 +14,11 @@ const config: Config = {
           500: '#3b7eaa',
         },
         copper: {
-          300: '#cfe3f1',
-          400: '#8eb0c9',
-          500: '#5f8ca9',
-          600: '#3d6f8d',
-          700: '#173b4f',
+          300: '#2B6280',
+          400: '#526477',
+          500: '#173B4F',
+          600: '#102D3D',
+          700: '#0A1F2C',
         },
       },
       fontFamily: {
@@ -26,10 +26,10 @@ const config: Config = {
         display: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
       boxShadow: {
-        glass: '0 1px 2px rgba(0, 0, 0, 0.2)',
-        copper: '0 0 0 1px rgba(201, 163, 106, 0.28)',
-        xl: '0 4px 12px rgba(0, 0, 0, 0.18)',
-        '2xl': '0 4px 12px rgba(0, 0, 0, 0.18)',
+        glass: '0 1px 3px 0 rgba(16, 24, 40, 0.05)',
+        copper: '0 0 0 1px rgba(43, 98, 128, 0.2)',
+        xl: '0 4px 12px rgba(0, 0, 0, 0.08)',
+        '2xl': '0 8px 24px rgba(0, 0, 0, 0.1)',
       },
       backgroundImage: {
         'admin-grid':

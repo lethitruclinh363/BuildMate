@@ -32,7 +32,7 @@ export function UserDetailPage() {
         actions={<Badge tone="copper">{t('customers.role')}</Badge>}
       />
       <div className="grid gap-6 lg:grid-cols-3">
-        <GlassCard className="lg:col-span-2 space-y-2 text-sm text-white/70">
+        <GlassCard className="lg:col-span-2 space-y-2 text-sm text-[#16283C]">
           <p>
             {t('customers.phone')}: {user.phone || '—'}
           </p>
@@ -47,42 +47,42 @@ export function UserDetailPage() {
           </p>
         </GlassCard>
         <GlassCard>
-          <p className="text-xs uppercase tracking-[0.16em] text-copper-400">{t('customers.reviews')}</p>
-          <p className="mt-2 font-display text-3xl">{reviews.length}</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-[#526477]">{t('customers.reviews')}</p>
+          <p className="mt-2 font-display text-3xl text-[#16283C]">{reviews.length}</p>
         </GlassCard>
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <GlassCard>
-          <p className="mb-3 text-xs uppercase tracking-[0.16em] text-copper-400">{t('customers.orders')}</p>
+          <p className="mb-3 text-xs uppercase tracking-[0.16em] text-[#526477]">{t('customers.orders')}</p>
           {orders.length === 0 ? (
-            <p className="text-sm text-white/40">{t('customers.noOrders')}</p>
+            <p className="text-sm text-[#526477]">{t('customers.noOrders')}</p>
           ) : (
             orders.map((order) => (
-              <Link key={order.id} to={`/orders/${order.id}`} state={back} className="mb-2 block text-sm text-copper-300">
+              <Link key={order.id} to={`/orders/${order.id}`} state={back} className="mb-2 block text-sm font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
                 {order.orderCode} · {order.title}
               </Link>
             ))
           )}
         </GlassCard>
         <GlassCard>
-          <p className="mb-3 text-xs uppercase tracking-[0.16em] text-copper-400">{t('customers.reviews')}</p>
+          <p className="mb-3 text-xs uppercase tracking-[0.16em] text-[#526477]">{t('customers.reviews')}</p>
           {reviews.length === 0 ? (
-            <p className="text-sm text-white/40">{t('customers.noReviews')}</p>
+            <p className="text-sm text-[#526477]">{t('customers.noReviews')}</p>
           ) : (
             reviews.map((row) => (
-              <p key={row.id} className="mb-2 text-sm text-white/70">
+              <p key={row.id} className="mb-2 text-sm text-[#16283C]">
                 {row.rating}/5 · {row.comment || '—'}
               </p>
             ))
           )}
         </GlassCard>
         <GlassCard>
-          <p className="mb-3 text-xs uppercase tracking-[0.16em] text-copper-400">{t('customers.complaints')}</p>
+          <p className="mb-3 text-xs uppercase tracking-[0.16em] text-[#526477]">{t('customers.complaints')}</p>
           {complaints.length === 0 ? (
-            <p className="text-sm text-white/40">{t('customers.noComplaints')}</p>
+            <p className="text-sm text-[#526477]">{t('customers.noComplaints')}</p>
           ) : (
             complaints.map((row) => (
-              <Link key={row.id} to={`/complaints/${row.id}`} state={back} className="mb-2 block text-sm text-white/70">
+              <Link key={row.id} to={`/complaints/${row.id}`} state={back} className="mb-2 block text-sm font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
                 {row.reason} · {formatDate(row.createdAt)}
               </Link>
             ))

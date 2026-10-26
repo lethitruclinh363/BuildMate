@@ -45,7 +45,7 @@ export function OrdersPage() {
             {paymentStatusLabel(order.paymentStatus)}
           </Badge>,
           formatDate(order.createdAt),
-          <Link key={`${order.id}-l`} to={`/orders/${order.id}`} state={back} className="text-copper-300">
+          <Link key={`${order.id}-l`} to={`/orders/${order.id}`} state={back} className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
             {t('pages.view')}
           </Link>,
         ])}

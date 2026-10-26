@@ -5,9 +5,9 @@ import { GlassCard } from '@/components/GlassCard';
 export function ErrorState({ body, onRetry }: { body?: string; onRetry?: () => void }) {
   const { t } = useTranslation();
   return (
-    <GlassCard className="mx-auto max-w-lg text-center">
-      <p className="text-sm font-semibold text-red-300">{t('errors.failed')}</p>
-      <p className="mt-2 text-sm text-white/60">{body || t('errors.unexpected')}</p>
+    <GlassCard className="mx-auto max-w-lg border-red-200 bg-red-50/50 text-center">
+      <p className="text-sm font-semibold text-[#B91C1C]">{t('errors.failed')}</p>
+      <p className="mt-2 text-sm text-[#526477]">{body || t('errors.unexpected')}</p>
       {onRetry ? (
         <Button className="mt-4" variant="outline" onClick={onRetry}>
           {t('errors.retry')}

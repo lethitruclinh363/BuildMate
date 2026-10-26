@@ -13,7 +13,7 @@ import type { PartnerApplication } from '@/types/admin';
 
 const tone: Record<string, 'success' | 'warn' | 'danger' | 'copper' | 'navy'> = {
   APPROVED: 'success',
-  SUBMITTED: 'copper',
+  SUBMITTED: 'warn',
   REJECTED: 'danger',
   DRAFT: 'navy',
 };
@@ -36,7 +36,7 @@ function PartnerDirectoryPage({ role }: { role: 'CONTRACTOR' | 'MATERIAL_STORE_O
         title={t(`partners.${copy}.title`)}
         description={t(`partners.${copy}.subtitle`)}
         actions={
-          <Link to={queue} className="rounded-xl bg-copper-500 px-4 py-2 text-sm font-semibold text-navy-950">
+          <Link to={queue} className="rounded-xl bg-[#173B4F] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#102D3D]">
             {t('partners.openQueue')}
           </Link>
         }
@@ -51,7 +51,7 @@ function PartnerDirectoryPage({ role }: { role: 'CONTRACTOR' | 'MATERIAL_STORE_O
           <Badge key={row.id} tone={tone[row.verificationStatus] || 'navy'}>
             {row.verificationStatus}
           </Badge>,
-          <Link key={`${row.id}-u`} to={`${queue}?id=${row.id}`} className="text-copper-300">
+          <Link key={`${row.id}-u`} to={`${queue}?id=${row.id}`} className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
             {t('partners.profile')}
           </Link>,
         ])}
