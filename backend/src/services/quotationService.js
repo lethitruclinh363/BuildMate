@@ -7,20 +7,83 @@ const { sendMessage, MESSAGE_TYPE } = require('./chatService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const orderService = require('./orderService');
+const { roundVnd } = require('../utils/contractor-finance');
+
+const REPLAY_WINDOW_MS = 45 * 1000;
+const replayLocks = new Map();
+
+function lineQty(item) {
+  if (item == null || item.quantity == null || item.quantity === '') return 1;
+  const qty = Number(item.quantity);
+  return Number.isFinite(qty) ? qty : 0;
+}
+
+function lineAmount(item) {
+  return roundVnd(lineQty(item) * Number(item.price || 0));
+}
 
 function tally(items = [], transportCost = 0) {
   const materialCost = items
     .filter((i) => i.type === QUOTE_ITEM_TYPE.MATERIAL)
-    .reduce((sum, i) => sum + Number(i.quantity || 1) * Number(i.price || 0), 0);
+    .reduce((sum, i) => sum + lineAmount(i), 0);
   const laborCost = items
     .filter((i) => i.type === QUOTE_ITEM_TYPE.LABOR)
-    .reduce((sum, i) => sum + Number(i.quantity || 1) * Number(i.price || 0), 0);
+    .reduce((sum, i) => sum + lineAmount(i), 0);
+  const transport = roundVnd(transportCost);
   return {
     materialCost,
     laborCost,
-    transportCost: Number(transportCost) || 0,
-    totalCost: materialCost + laborCost + (Number(transportCost) || 0),
+    transportCost: transport,
+    totalCost: materialCost + laborCost + transport,
   };
+}
+
+function itemsKey(items = []) {
+  return (items || [])
+    .map((item) =>
+      [
+        item.type || '',
+        String(item.name || '').trim().toLowerCase(),
+        lineQty(item),
+        Number(item.price || 0),
+        String(item.unit || '').trim().toLowerCase(),
+      ].join(':')
+    )
+    .join('|');
+}
+
+function quoteReplayFingerprint(contractorId, payload = {}) {
+  return [
+    String(contractorId),
+    String(payload.requestId || ''),
+    itemsKey(payload.items),
+    roundVnd(payload.transportCost),
+    Number(payload.estimatedDays || 1),
+    String(payload.note || '').trim(),
+  ].join('|');
+}
+
+function isQuoteReplay(row, payload, now = Date.now()) {
+  if (!row?.createdAt) return false;
+  if (now - new Date(row.createdAt).getTime() > REPLAY_WINDOW_MS) return false;
+  if (row.status === QUOTATION_STATUS.ACCEPTED) return false;
+  return (
+    itemsKey(row.items) === itemsKey(payload.items)
+    && roundVnd(row.transportCost) === roundVnd(payload.transportCost)
+    && String(row.note || '').trim() === String(payload.note || '').trim()
+  );
+}
+
+async function withReplayLock(key, work) {
+  const pending = replayLocks.get(key);
+  if (pending) return pending;
+  const next = Promise.resolve()
+    .then(work)
+    .finally(() => {
+      replayLocks.delete(key);
+    });
+  replayLocks.set(key, next);
+  return next;
 }
 
 async function createQuotation(contractorId, payload) {
@@ -29,8 +92,6 @@ async function createQuotation(contractorId, payload) {
   if (String(request.contractorId) !== String(contractorId)) {
     throw new ApiError(403, 'You cannot quote this request');
   }
-  // ACCEPTED on the request = contractor accepted the job (or quote later).
-  // Only block when a quotation was already accepted by the customer.
   if (request.status === REQUEST_STATUS.REJECTED) {
     throw new ApiError(409, 'This request was rejected');
   }
@@ -39,6 +100,9 @@ async function createQuotation(contractorId, payload) {
   }
   if (request.status === REQUEST_STATUS.COMPLETED) {
     throw new ApiError(409, 'This request is already completed');
+  }
+  if (request.status !== REQUEST_STATUS.ACCEPTED) {
+    throw new ApiError(409, 'Accept this request before sending a quotation');
   }
   const acceptedQuote = await Quotation.findOne({
     requestId: request._id,
@@ -54,48 +118,57 @@ async function createQuotation(contractorId, payload) {
   }));
   if (!items.length) throw new ApiError(422, 'Add at least one line item');
   const costs = tally(items, payload.transportCost);
-  const room = await ChatRoom.findOne({ requestId: request._id });
-
-  const quotation = await Quotation.create({
-    requestId: request._id,
-    customerId: request.customerId,
-    contractorId,
-    roomId: room?._id || null,
-    items,
-    ...costs,
-    estimatedDays: payload.estimatedDays || 1,
-    note: payload.note || '',
-    status: QUOTATION_STATUS.SENT,
-  });
-
-  if (room) {
-    await sendMessage({
-      roomId: room._id,
-      senderId: contractorId,
-      type: MESSAGE_TYPE.QUOTATION,
-      content: `Quotation ${costs.totalCost.toLocaleString('vi-VN')}đ`,
-      quotationId: quotation._id,
-    });
+  if (costs.totalCost <= 0) {
+    throw new ApiError(422, 'Quotation total must be greater than zero');
   }
 
-  await notify({
-    userId: request.customerId,
-    title: 'New quotation',
-    message: `${request.title} · ${costs.totalCost.toLocaleString('vi-VN')}đ`,
-    type: NOTIFICATION_TYPE.QUOTATION,
-    link: `/customer/quotation/${quotation._id}`,
-    meta: { quotationId: String(quotation._id), requestId: String(request._id) },
-  });
-  await writeAudit({
-    actorId: contractorId,
-    actorRole: 'CONTRACTOR',
-    action: AUDIT_ACTION.QUOTATION_SENT,
-    entityType: 'Quotation',
-    entityId: quotation._id,
-    meta: { totalCost: costs.totalCost, requestId: String(request._id) },
-  });
+  return withReplayLock(quoteReplayFingerprint(contractorId, payload), async () => {
+    const recent = await Quotation.find({ contractorId, requestId: request._id }).sort({ createdAt: -1 }).limit(5);
+    const replayed = recent.find((row) => isQuoteReplay(row, payload));
+    if (replayed) return replayed.toPublic();
 
-  return quotation.toPublic();
+    const room = await ChatRoom.findOne({ requestId: request._id });
+    const quotation = await Quotation.create({
+      requestId: request._id,
+      customerId: request.customerId,
+      contractorId,
+      roomId: room?._id || null,
+      items,
+      ...costs,
+      estimatedDays: payload.estimatedDays || 1,
+      note: payload.note || '',
+      status: QUOTATION_STATUS.SENT,
+    });
+
+    if (room) {
+      await sendMessage({
+        roomId: room._id,
+        senderId: contractorId,
+        type: MESSAGE_TYPE.QUOTATION,
+        content: `Quotation ${costs.totalCost.toLocaleString('vi-VN')}đ`,
+        quotationId: quotation._id,
+      });
+    }
+
+    await notify({
+      userId: request.customerId,
+      title: 'New quotation',
+      message: `${request.title} · ${costs.totalCost.toLocaleString('vi-VN')}đ`,
+      type: NOTIFICATION_TYPE.QUOTATION,
+      link: `/customer/quotation/${quotation._id}`,
+      meta: { quotationId: String(quotation._id), requestId: String(request._id) },
+    });
+    await writeAudit({
+      actorId: contractorId,
+      actorRole: 'CONTRACTOR',
+      action: AUDIT_ACTION.QUOTATION_SENT,
+      entityType: 'Quotation',
+      entityId: quotation._id,
+      meta: { totalCost: costs.totalCost, requestId: String(request._id) },
+    });
+
+    return quotation.toPublic();
+  });
 }
 
 async function getQuotation(id, user) {
@@ -228,4 +301,14 @@ async function customerAction(id, customerId, action, modificationNote = '') {
   return quotation.toPublic();
 }
 
-module.exports = { createQuotation, getQuotation, listForRequest, customerAction };
+module.exports = {
+  createQuotation,
+  getQuotation,
+  listForRequest,
+  customerAction,
+  tally,
+  lineQty,
+  quoteReplayFingerprint,
+  isQuoteReplay,
+  REPLAY_WINDOW_MS,
+};

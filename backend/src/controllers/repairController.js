@@ -40,4 +40,9 @@ const reject = asyncHandler(async (req, res) => {
   return success(res, data, 'Request declined');
 });
 
-module.exports = { create, mine, received, getOne, accept, reject };
+const cancel = asyncHandler(async (req, res) => {
+  const data = await repairService.cancelPending(req.params.id, req.user.id);
+  return success(res, data, 'Request cancelled');
+});
+
+module.exports = { create, mine, received, getOne, accept, reject, cancel };

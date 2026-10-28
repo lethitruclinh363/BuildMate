@@ -9,6 +9,7 @@ export interface KpiItem {
   hint: string;
   hintCount?: number;
   tone?: 'default' | 'danger' | 'success';
+  href?: string;
 }
 
 export interface Point {

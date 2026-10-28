@@ -10,9 +10,10 @@ import { MapPlaceActions } from '@/features/map/components/MapPlaceActions';
 import { ServiceAreaMap } from '@/pages/public/ServiceAreaMap';
 import { categoryDisplayLabel, foldCategoryName } from '@/data/material-categories';
 import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
-import { saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
+import { publicPriceVisible, saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
 import { productImageUrl, vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
+import { ChatStoreButton } from '@/features/chat/components/ChatStoreButton';
 import { useAuthStore } from '@/store/auth.store';
 import type { CatalogMaterial } from '@/types/partner';
 import type { MaterialCategoryPick } from '@/data/material-categories';
@@ -113,6 +114,7 @@ export function StoreProfileShowcase({
                 <a href={`tel:${profile.phone}`}><Phone className="h-4 w-4" /> {t('storePublic.contact')}</a>
               </Button>
             ) : null}
+            {!preview && !owner ? <ChatStoreButton storeId={profile.id} /> : null}
             <Button asChild variant="copper">
               <a href="#store-products">{t('storePublic.viewProducts')}</a>
             </Button>
@@ -242,7 +244,9 @@ export function StoreProfileShowcase({
                   ) : (
                     <Link to={`/stores/${profile.id}/materials/${item.id}`} className="mt-1 block font-display text-lg text-navy-800">{item.name}</Link>
                   )}
-                  <p className="mt-2 font-display text-xl text-navy-800">{vnd(item.price)} <span className="text-sm font-sans font-normal text-ink-400">/ {item.unit}</span></p>
+                  {preview || publicPriceVisible(item) ? (
+                    <p className="mt-2 font-display text-xl text-navy-800">{vnd(item.price)} <span className="text-sm font-sans font-normal text-ink-400">/ {item.unit}</span></p>
+                  ) : null}
                   <div className="mt-2"><Badge tone={saleTone(saleState(item))}>{t(saleLabelKey(saleState(item)))}</Badge></div>
                   {preview ? null : (
                     <AddToMaterialCart material={item} storeId={String(profile.id)} storeName={profile.displayName} />

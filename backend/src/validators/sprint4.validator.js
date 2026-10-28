@@ -35,6 +35,12 @@ const sendMessageSchema = z
     if (value.type === MESSAGE_TYPE.LOCATION && !value.location) {
       ctx.addIssue({ code: 'custom', path: ['location'], message: 'Coordinates are invalid' });
     }
+    if (
+      (value.type === MESSAGE_TYPE.IMAGE || value.type === MESSAGE_TYPE.VIDEO)
+      && !String(value.content || '').trim()
+    ) {
+      ctx.addIssue({ code: 'custom', path: ['content'], message: 'Media cannot be empty' });
+    }
   });
 
 const quotationItemSchema = z.object({

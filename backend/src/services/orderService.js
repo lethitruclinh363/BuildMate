@@ -25,6 +25,21 @@ function emitCreated(order, room) {
   if (room) emitToRoom(room._id, 'order_created', { order: order.toPublic() });
 }
 
+const completeLocks = new Map();
+
+async function withCompleteLock(orderId, work) {
+  const key = String(orderId);
+  const pending = completeLocks.get(key);
+  if (pending) return pending;
+  const next = Promise.resolve()
+    .then(work)
+    .finally(() => {
+      completeLocks.delete(key);
+    });
+  completeLocks.set(key, next);
+  return next;
+}
+
 async function createFromQuotation(quotation, request, actorId, outerTx) {
   const existing = await Order.findOne({ quotationId: quotation._id });
   if (existing) {
@@ -201,10 +216,17 @@ async function listForContractor(contractorId) {
 }
 
 async function completeOrder(id, customerId) {
+  return withCompleteLock(id, () => acceptCompletedJob(id, customerId));
+}
+
+async function acceptCompletedJob(id, customerId) {
   const order = await Order.findById(id);
   if (!order) throw new ApiError(404, 'Order not found');
   if (String(order.customerId) !== String(customerId)) {
     throw new ApiError(403, 'Only the customer can complete this order');
+  }
+  if (order.status === ORDER_STATUS.CUSTOMER_ACCEPTED) {
+    return { order: order.toPublic(), notification: null, duplicated: true };
   }
   if (order.status !== ORDER_STATUS.COMPLETED) {
     throw new ApiError(409, 'Order is not waiting for customer acceptance');
@@ -272,11 +294,13 @@ async function cancelOrder(id, user, reason = '') {
   });
 
   const other = String(order.customerId) === uid ? order.contractorId : order.customerId;
+  const otherIsCustomer = String(other) === String(order.customerId);
   await notify({
     userId: other,
     title: 'Order cancelled',
     message: order.title,
     type: NOTIFICATION_TYPE.STATUS_UPDATE,
+    link: otherIsCustomer ? `/customer/orders/${order._id}` : `/contractor/orders/${order._id}`,
     meta: { orderId: String(order._id) },
   });
 

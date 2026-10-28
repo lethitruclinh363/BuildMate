@@ -19,16 +19,21 @@ export function NotificationBell() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const role = useAuthStore((s) => s.user?.role);
+  const userId = useAuthStore((s) => s.user?.id);
   const { notifications, unread, setNotifications } = useSocket();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!userId) {
+      setNotifications([], 0);
+      return;
+    }
     notificationApi
       .list()
       .then((res) => setNotifications(res.data.data.items, res.data.data.unread))
       .catch(() => undefined);
-  }, [setNotifications]);
+  }, [setNotifications, userId]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -85,13 +90,18 @@ export function NotificationBell() {
                       !n.isRead && 'bg-copper-50/60'
                     )}
                     onClick={() => {
+                      const wasUnread = !n.isRead;
                       void notificationApi.read(n.id);
+                      setNotifications(
+                        notifications.map((item) => (item.id === n.id ? { ...item, isRead: true } : item)),
+                        wasUnread ? Math.max(0, unread - 1) : unread
+                      );
                       setOpen(false);
                       if (n.link) navigate(n.link);
                     }}
                   >
-                    <p className="font-semibold text-navy-800">{notificationTitle(t, n)}</p>
-                    <p className="text-ink-400">{n.message}</p>
+                    <p className="break-words font-semibold text-navy-800">{notificationTitle(t, n)}</p>
+                    <p className="break-words text-ink-400">{n.message}</p>
                   </button>
                 </li>
               ))

@@ -7,10 +7,19 @@ const { roundVnd } = require('../utils/contractor-finance');
 
 async function buildLedger() {
   const ledger = emptyLedger();
-  const deposits = await Payment.find({ type: PAYMENT_TYPE.DEPOSIT });
+  const [deposits, orders] = await Promise.all([
+    Payment.find({ type: PAYMENT_TYPE.DEPOSIT }),
+    Order.find({}),
+  ]);
+  const orderById = new Map(orders.map((order) => [String(order._id || order.id), order]));
+  const quotedOrders = new Set();
   for (const payment of deposits) {
+    const orderId = String(payment.orderId);
+    const order = orderById.get(orderId);
+    const includeQuote = Boolean(order) && order.status !== 'CANCELLED' && !quotedOrders.has(orderId);
+    if (includeQuote) quotedOrders.add(orderId);
     const { finance, escrow } = escrowService.financeOf(payment);
-    addDepositRow(ledger, { finance, escrow, paymentStatus: payment.status });
+    addDepositRow(ledger, { finance, escrow, paymentStatus: payment.status, includeQuote });
   }
   const posted = await Commission.find({ status: COMMISSION_STATUS.POSTED });
   ledger.platformFeePosted = posted.reduce((sum, row) => sum + roundVnd(row.platformAmount), 0);

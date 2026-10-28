@@ -15,6 +15,7 @@ const {
   storePublicProfileSchema,
   materialCategoryNameSchema,
   storeCategorySchema,
+  locationChangeRequestSchema,
 } = require('../validators/partner.validator');
 const { updateMaterialOrderStatusSchema } = require('../validators/material-order.validator');
 const { reviewListQuerySchema } = require('../validators/finance.validator');
@@ -27,6 +28,7 @@ const materialController = require('../controllers/materialController');
 const materialOrderController = require('../controllers/material-order.controller');
 const contractorController = require('../controllers/contractorController');
 const reviewController = require('../controllers/reviewController');
+const locationChangeController = require('../controllers/locationChange.controller');
 
 const router = express.Router();
 
@@ -69,9 +71,22 @@ router.post(
   validate(documentTypeSchema),
   contractorController.uploadDocument
 );
+router.get(
+  '/verification/documents/:documentId/file',
+  ...owner,
+  contractorController.serveDocument
+);
 router.delete('/verification/documents/:documentId', ...owner, contractorController.removeDocument);
 router.post('/verification/submit', ...owner, validate(submitSchema), contractorController.submitVerification);
 router.post('/verification/change-request', ...owner, validate(verificationChangeSchema), contractorController.requestVerificationChange);
+router.get('/location-change/eligibility', ...owner, locationChangeController.getEligibility);
+router.get('/location-change/requests', ...owner, locationChangeController.listMyRequests);
+router.post(
+  '/location-change/requests',
+  ...owner,
+  validate(locationChangeRequestSchema),
+  locationChangeController.createRequest
+);
 router.get('/public-profile', ...owner, materialController.getPublicProfile);
 router.patch('/public-profile', ...owner, validate(storePublicProfileSchema), materialController.updatePublicProfile);
 

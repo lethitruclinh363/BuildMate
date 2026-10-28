@@ -143,6 +143,18 @@ class UserRepository extends BaseRepository {
     );
   }
 
+  countAll() {
+    return this.model.countDocuments();
+  }
+
+  countByRole(role) {
+    return this.model.countDocuments({ role });
+  }
+
+  listByRole(role) {
+    return this.model.find({ role }).sort({ createdAt: -1 });
+  }
+
   consumeResetPasswordOtp({ userId, codeHash, now, maxAttempts }) {
     return this.model.findOneAndUpdate(
       {

@@ -2,7 +2,7 @@ import { loadAdminDirectory, type AdminDirectory } from '@/hooks/useDirectory';
 import { adminApi } from '@/services/admin.api';
 import { cached } from '@/lib/cache';
 import { vnd } from '@/lib/utils';
-import { dayLabels, distribute, monthLabels, periodDelta } from '@/features/dashboard/lib/format';
+import { dayLabels, monthLabels } from '@/features/dashboard/lib/format';
 import type {
   ActivityItem,
   AdminNotification,
@@ -80,15 +80,15 @@ function topContractors(directory: AdminDirectory): TopContractorRow[] {
       const revenue = related.reduce((sum, order) => sum + (order.amount || 0), 0);
       const review = directory.reviews.filter((item) => item.targetUserId === id && item.targetType === 'CONTRACTOR');
       const rating =
-        review.length > 0 ? review.reduce((sum, item) => sum + item.rating, 0) / review.length : directory.analytics.reviews.average;
+        review.length > 0 ? review.reduce((sum, item) => sum + item.rating, 0) / review.length : 0;
       return {
         rank: index + 1,
         id,
         name: row.businessName || row.user?.name || '',
         avatar: row.user?.avatar || '',
-        orders: related.length || Math.max(1, Math.round(directory.analytics.orders.completed / Math.max(approved.length, 1))),
+        orders: related.length,
         rating: Math.round(rating * 10) / 10,
-        revenue: revenue || Math.round(directory.analytics.finance.contractorEarning / Math.max(approved.length, 1)),
+        revenue,
       };
     })
     .sort((a, b) => b.revenue - a.revenue)
@@ -149,37 +149,55 @@ function buildOverview(
   inbox: { items: AdminNotification[]; unread: number },
   customerAccounts: Array<{ id: string; name: string; email: string }> = []
 ): DashboardOverview {
-  const { analytics, stats, orders } = directory;
-  const labels7 = dayLabels(7);
-  const labels30 = dayLabels(30);
-  const labels12 = monthLabels();
-  const created7 = distribute(analytics.orders.total, labels7, 0.18);
-  const completed7 = distribute(analytics.orders.completed, labels7, 0.42);
-  const created30 = distribute(analytics.orders.total, labels30, 0.2);
-  const completed30 = distribute(analytics.orders.completed, labels30, 0.44);
-  const created12 = distribute(analytics.orders.total, labels12, 0.15);
-  const completed12 = distribute(analytics.orders.completed, labels12, 0.4);
+  const { analytics, stats } = directory;
+  const zeros = (labels: string[], extra: Partial<Point> = {}): Point[] =>
+    labels.map((label) => ({ label, created: 0, completed: 0, ...extra }));
+  const series = analytics.series;
+  const orderTrend = {
+    '7d': series?.days7?.length
+      ? series.days7.map((row) => ({
+          label: row.label,
+          created: Number.isFinite(row.created) ? Number(row.created) : 0,
+          completed: Number.isFinite(row.completed) ? Number(row.completed) : 0,
+        }))
+      : zeros(dayLabels(7)),
+    '30d': series?.days30?.length
+      ? series.days30.map((row) => ({
+          label: row.label,
+          created: Number.isFinite(row.created) ? Number(row.created) : 0,
+          completed: Number.isFinite(row.completed) ? Number(row.completed) : 0,
+        }))
+      : zeros(dayLabels(30)),
+    '12m': series?.months12?.length
+      ? series.months12.map((row) => ({
+          label: row.label,
+          created: Number.isFinite(row.created) ? Number(row.created) : 0,
+          completed: Number.isFinite(row.completed) ? Number(row.completed) : 0,
+        }))
+      : zeros(monthLabels()),
+  };
+  const revenue = series?.months12?.length
+    ? series.months12.map((row) => ({
+        label: row.label,
+        payment: Number.isFinite(row.payment) ? Number(row.payment) : 0,
+        commission: Number.isFinite(row.commission) ? Number(row.commission) : 0,
+        earning: Number.isFinite(row.earning) ? Number(row.earning) : 0,
+      }))
+    : zeros(monthLabels(), { payment: 0, commission: 0, earning: 0 });
+  const growth = series?.months12?.length
+    ? series.months12.map((row) => ({
+        label: row.label,
+        customer: Number.isFinite(row.customer) ? Number(row.customer) : 0,
+        contractor: Number.isFinite(row.contractor) ? Number(row.contractor) : 0,
+      }))
+    : zeros(monthLabels(), { customer: 0, contractor: 0 });
 
-  const trend = (labels: string[], created: number[], completed: number[]): Point[] =>
-    labels.map((label, i) => ({ label, created: created[i], completed: completed[i] }));
-
-  const pay = distribute(analytics.finance.revenue, labels12, 0.22);
-  const fee = distribute(analytics.finance.commission, labels12, 0.31);
-  const earn = distribute(analytics.finance.contractorEarning, labels12, 0.27);
-
-  const customers = distribute(analytics.users.customer, labels12, 0.12);
-  const contractors = distribute(analytics.users.contractor, labels12, 0.33);
-
-  const quotationAccepted = orders.filter((row) => row.status === 'QUOTATION_ACCEPTED').length;
-  const depositPaid = orders.filter((row) => row.status === 'DEPOSIT_PAID').length;
-  const inProgress = orders.filter((row) => row.status === 'STARTED' || row.status === 'IN_PROGRESS').length;
-  const workCompleted = orders.filter((row) => row.status === 'COMPLETED').length;
-
+  const byStatus = analytics.orders.byStatus || {};
   const statusMix: StatusSlice[] = [
-    { name: 'orderStatus.QUOTATION_ACCEPTED', value: quotationAccepted, fill: '#60a5fa' },
-    { name: 'orderStatus.DEPOSIT_PAID', value: depositPaid, fill: '#c89445' },
-    { name: 'orderStatus.IN_PROGRESS', value: inProgress, fill: '#f59e0b' },
-    { name: 'orderStatus.COMPLETED', value: workCompleted, fill: '#fbbf24' },
+    { name: 'orderStatus.QUOTATION_ACCEPTED', value: byStatus.QUOTATION_ACCEPTED || 0, fill: '#60a5fa' },
+    { name: 'orderStatus.DEPOSIT_PAID', value: byStatus.DEPOSIT_PAID || 0, fill: '#c89445' },
+    { name: 'orderStatus.IN_PROGRESS', value: (byStatus.STARTED || 0) + (byStatus.IN_PROGRESS || 0), fill: '#f59e0b' },
+    { name: 'orderStatus.COMPLETED', value: byStatus.COMPLETED || 0, fill: '#fbbf24' },
     { name: 'orderStatus.CUSTOMER_ACCEPTED', value: analytics.orders.completed, fill: '#34d399' },
     { name: 'orderStatus.CANCELLED', value: analytics.orders.cancelled, fill: '#f87171' },
   ].filter((row) => row.value > 0);
@@ -189,6 +207,8 @@ function buildOverview(
     directory.verifications.map((row) => [String(row.user?.id || row.userId), row.businessName || row.user?.name || 'Contractor'])
   );
 
+  const deltas = series?.deltas || { users: 0, contractors: 0, orders: 0, gmv: 0, commission: 0 };
+
   return {
     kpis: [
       {
@@ -196,73 +216,66 @@ function buildOverview(
         label: 'dash.kpiUsers',
         value: analytics.users.total,
         format: 'number',
-        delta: periodDelta(customers),
+        delta: deltas.users,
         hint: 'dash.hintPrior',
+        href: '/users',
       },
       {
         key: 'contractors',
         label: 'dash.kpiContractors',
-        value: stats.approved || analytics.users.contractor,
+        value: analytics.users.liveContractor ?? analytics.users.contractor,
         format: 'number',
-        delta: periodDelta(contractors),
+        delta: deltas.contractors,
         hint: 'dash.hintVerify',
         hintCount: stats.pending,
+        href: '/contractors',
       },
       {
         key: 'orders',
         label: 'dash.kpiOrders',
         value: analytics.orders.total,
         format: 'number',
-        delta: periodDelta(created12),
+        delta: deltas.orders,
         hint: 'dash.hintCompleted',
         hintCount: analytics.orders.completed,
+        href: '/orders',
       },
       {
         key: 'gmv',
         label: 'dash.kpiGmv',
-        value: analytics.finance.revenue,
+        value: analytics.finance.gmv ?? 0,
         format: 'compact',
-        delta: periodDelta(pay),
-        hint: 'dash.hintPaid',
-        hintCount: analytics.finance.paidCount,
+        delta: deltas.gmv,
+        hint: 'dash.hintGmv',
+        hintCount: (analytics.orders.completed || 0) + (analytics.orders.materialCompleted || 0),
+        href: '/analytics',
       },
       {
         key: 'commission',
         label: 'dash.kpiCommission',
         value: analytics.finance.commission,
         format: 'compact',
-        delta: periodDelta(fee),
+        delta: deltas.commission,
         hint: 'dash.hintTake',
         tone: 'success',
+        href: '/commission',
       },
       {
         key: 'complaints',
         label: 'dash.kpiComplaints',
         value: analytics.complaints.open,
         format: 'number',
-        delta: analytics.complaints.open ? 12 : 0,
+        delta: 0,
         hint: 'dash.hintOpen',
         hintCount: analytics.complaints.open,
         tone: analytics.complaints.open ? 'danger' : 'success',
+        href: '/complaints',
       },
     ],
-    orderTrend: {
-      '7d': trend(labels7, created7, completed7),
-      '30d': trend(labels30, created30, completed30),
-      '12m': trend(labels12, created12, completed12),
-    },
-    revenue: labels12.map((label, i) => ({
-      label,
-      payment: pay[i],
-      commission: fee[i],
-      earning: earn[i],
-    })),
-    growth: labels12.map((label, i) => ({
-      label,
-      customer: customers[i],
-      contractor: contractors[i],
-    })),
-    statusMix: statusMix.length ? statusMix : [{ name: 'Completed', value: 1, fill: '#34d399' }],
+    orderTrend,
+    revenue,
+    growth,
+    statusMix,
     activity: mapActivity(directory),
     health,
     topContractors: topContractors(directory),

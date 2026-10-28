@@ -1,5 +1,5 @@
 const path = require('path');
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('../../prisma/generated/client');
 
 const isolatedUrl = process.env.TEST_DATABASE_URL && process.env.BUILDMATE_TEST_DATABASE === 'isolated'
   ? process.env.TEST_DATABASE_URL

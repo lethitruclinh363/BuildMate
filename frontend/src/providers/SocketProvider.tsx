@@ -44,6 +44,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       socketRef.current = null;
       setSocket(null);
       setConnected(false);
+      setItems([]);
+      setUnread(0);
+      setOnlineIds(new Set());
       return;
     }
 
@@ -66,8 +69,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       });
     });
     instance.on('notification:new', (n: AppNotification) => {
-      setItems((prev) => [n, ...prev].slice(0, 40));
-      setUnread((c) => c + 1);
+      setItems((prev) => {
+        if (n?.id && prev.some((item) => item.id === n.id)) return prev;
+        if (!n?.isRead) setUnread((count) => count + 1);
+        return [n, ...prev].slice(0, 40);
+      });
     });
 
     return () => {

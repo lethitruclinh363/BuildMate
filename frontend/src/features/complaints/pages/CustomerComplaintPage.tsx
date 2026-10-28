@@ -24,6 +24,7 @@ export function CustomerComplaintPage() {
   if (error || !order) return <ErrorState body={error || undefined} onRetry={reload} />;
 
   const submit = async (payload: { reason: string; description: string }) => {
+    if (busy) return;
     setBusy(true);
     try {
       await complaintApi.create({

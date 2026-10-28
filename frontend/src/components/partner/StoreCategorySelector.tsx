@@ -295,7 +295,9 @@ export function StoreCategorySelector({
                         : 'border-emerald-500/30 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 cursor-pointer'
                       : isPending
                       ? 'border-amber-400/40 bg-amber-50 text-amber-900 cursor-default'
-                      : 'border-rose-400/30 bg-rose-50 text-rose-800 cursor-default line-through opacity-80'
+                      : isRejected
+                      ? 'border-rose-400/30 bg-rose-50 text-rose-800 cursor-default line-through opacity-80'
+                      : 'border-paper-200 bg-paper-100 text-ink-500'
                   )}
                   onClick={() => {
                     if (isApproved) toggleApprovedCustom(item);

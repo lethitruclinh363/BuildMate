@@ -2,13 +2,22 @@ const express = require('express');
 const { authenticate } = require('../middleware/authMiddleware');
 const { allowRole } = require('../middleware/roleMiddleware');
 const { validate } = require('../utils/validator');
-const { rejectSchema, catalogReviewSchema, catalogWriteSchema, catalogStatusSchema, materialCategoryNameSchema } = require('../validators/partner.validator');
+const {
+  rejectSchema,
+  catalogReviewSchema,
+  catalogWriteSchema,
+  catalogStatusSchema,
+  materialCategoryNameSchema,
+  locationChangeRejectSchema,
+  locationChangeApproveSchema,
+} = require('../validators/partner.validator');
 const { refundSchema, complaintPatchSchema, commissionRuleSchema } = require('../validators/finance.validator');
 const adminController = require('../controllers/adminController');
 const contractorEkycController = require('../controllers/contractorEkycController');
 const paymentController = require('../controllers/paymentController');
 const complaintController = require('../controllers/complaintController');
 const orderController = require('../controllers/orderController');
+const locationChangeController = require('../controllers/locationChange.controller');
 
 const router = express.Router();
 const adminOnly = [authenticate, allowRole('ADMIN')];
@@ -16,11 +25,31 @@ const adminOnly = [authenticate, allowRole('ADMIN')];
 router.get('/stats', ...adminOnly, adminController.stats);
 router.get('/customers', ...adminOnly, adminController.listCustomers);
 router.get('/customers/:id', ...adminOnly, adminController.getCustomer);
+router.get('/orders', ...adminOnly, adminController.listRepairOrders);
 router.get('/audit-logs', ...adminOnly, adminController.auditLogs);
 router.get('/verifications', ...adminOnly, adminController.list);
 router.get('/verifications/:id', ...adminOnly, adminController.getOne);
 router.post('/verifications/:id/approve', ...adminOnly, adminController.approve);
 router.post('/verifications/:id/reject', ...adminOnly, validate(rejectSchema), adminController.reject);
+router.get('/location-change-requests', ...adminOnly, locationChangeController.adminListRequests);
+router.get('/location-change-requests/:id', ...adminOnly, locationChangeController.adminGetRequest);
+router.post(
+  '/location-change-requests/:id/approve',
+  ...adminOnly,
+  validate(locationChangeApproveSchema),
+  locationChangeController.adminApproveRequest
+);
+router.post(
+  '/location-change-requests/:id/reject',
+  ...adminOnly,
+  validate(locationChangeRejectSchema),
+  locationChangeController.adminRejectRequest
+);
+router.get(
+  '/verifications/:id/documents/:documentId/file',
+  ...adminOnly,
+  adminController.serveDocument
+);
 router.get('/verifications/:id/ekyc/files/:kind', ...adminOnly, contractorEkycController.adminFile);
 router.post('/verifications/:id/ekyc/retake', ...adminOnly, validate(rejectSchema), contractorEkycController.retake);
 router.get('/service-catalog', ...adminOnly, adminController.listCatalog);

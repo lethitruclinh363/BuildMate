@@ -8,7 +8,7 @@ const {
   loadStore,
   requireStore,
 } = require('../middleware/contractorMiddleware');
-const { verificationUpload, ekycMemoryUpload } = require('../middleware/uploadMiddleware');
+const { verificationUpload, storeUpload, ekycMemoryUpload } = require('../middleware/uploadMiddleware');
 const { validate } = require('../utils/validator');
 const {
   profileSchema,
@@ -25,6 +25,7 @@ const {
   offeringUpdateSchema,
   catalogCheckSchema,
   catalogCreateSchema,
+  locationChangeRequestSchema,
 } = require('../validators/partner.validator');
 const { reviewListQuerySchema } = require('../validators/finance.validator');
 const contractorController = require('../controllers/contractorController');
@@ -32,6 +33,7 @@ const contractorEkycController = require('../controllers/contractorEkycControlle
 const storeController = require('../controllers/storeController');
 const serviceController = require('../controllers/serviceController');
 const paymentController = require('../controllers/paymentController');
+const locationChangeController = require('../controllers/locationChange.controller');
 
 const router = express.Router();
 const contractorOnly = [authenticate, authorize(ROLES.CONTRACTOR), loadContractorProfile];
@@ -54,7 +56,7 @@ router.patch('/profile', ...contractorOnly, validate(profileSchema), contractorC
 router.post(
   '/portfolio',
   ...contractorOnly,
-  verificationUpload.single('file'),
+  storeUpload.single('file'),
   validate(portfolioSlotSchema),
   contractorController.uploadPortfolio
 );
@@ -70,7 +72,7 @@ router.delete('/portfolio/projects/:projectId', ...contractorOnly, contractorCon
 router.post(
   '/portfolio/projects/:projectId/images',
   ...contractorOnly,
-  verificationUpload.single('file'),
+  storeUpload.single('file'),
   contractorController.uploadProjectImage
 );
 router.delete(
@@ -86,6 +88,11 @@ router.post(
   validate(documentTypeSchema),
   contractorController.uploadDocument
 );
+router.get(
+  '/verification/documents/:documentId/file',
+  ...contractorOnly,
+  contractorController.serveDocument
+);
 router.delete('/verification/documents/:documentId', ...contractorOnly, contractorController.removeDocument);
 router.post('/verification/submit', ...contractorOnly, validate(submitSchema), contractorController.submitVerification);
 router.post(
@@ -93,6 +100,14 @@ router.post(
   ...storeWrite,
   validate(verificationChangeSchema),
   contractorController.requestVerificationChange
+);
+router.get('/location-change/eligibility', ...contractorOnly, locationChangeController.getEligibility);
+router.get('/location-change/requests', ...contractorOnly, locationChangeController.listMyRequests);
+router.post(
+  '/location-change/requests',
+  ...contractorOnly,
+  validate(locationChangeRequestSchema),
+  locationChangeController.createRequest
 );
 
 router.get('/ekyc', ...contractorOnly, contractorEkycController.current);

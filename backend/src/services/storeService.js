@@ -6,6 +6,7 @@ const { Material, Service } = require('../repositories/offeringAccess');
 const { ApiError } = require('../utils/ApiError');
 const { assertDeliveryPolicy } = require('../utils/delivery-policy');
 const { toGeoPoint } = require('../utils/geo');
+const { assertLocationNotDirectlyModifiable } = require('../utils/locationGuard');
 const locationCorrection = require('./locationCorrection.service');
 
 function applyGeo(payload) {
@@ -136,6 +137,8 @@ async function updateStore(contractorId, payload, lockedType) {
   if (!store) {
     throw new ApiError(404, 'Storefront not found');
   }
+  const approved = await isApprovedOwner(contractorId);
+  assertLocationNotDirectlyModifiable(approved, payload);
   const data = await lockStoreType(contractorId, payload, lockedType);
   assertDeliveryPolicy(store, data);
   store.set(data);

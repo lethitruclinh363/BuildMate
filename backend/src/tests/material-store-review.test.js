@@ -10,6 +10,7 @@ const {
   listStoreReviews,
   replyToReview,
 } = require('../services/reviewService');
+const { testDatabaseReady } = require('./helpers/pg-cleanup');
 
 function order(overrides = {}) {
   return {
@@ -75,6 +76,7 @@ describe('material store reviews in PostgreSQL', () => {
   let created = [];
 
   before(async () => {
+    if (!testDatabaseReady()) return;
     const { createUser, ROLES } = require('./helpers/party');
     const { prisma } = require('../config/prisma');
     customer = await createUser({
@@ -132,6 +134,7 @@ describe('material store reviews in PostgreSQL', () => {
   });
 
   after(async () => {
+    if (!testDatabaseReady()) return;
     const { prisma } = require('../config/prisma');
     const { deleteFixtureUsers } = require('./helpers/party');
     const ids = [customer, stranger, owner].filter(Boolean).map((user) => user._id);
@@ -202,7 +205,11 @@ describe('material store reviews in PostgreSQL', () => {
     });
   }
 
-  it('stores one store review per received material order and keeps it after reload', async () => {
+  it('stores one store review per received material order and keeps it after reload', async (t) => {
+    if (!testDatabaseReady()) {
+      t.skip('PostgreSQL test database is not available');
+      return;
+    }
     const empty = await listStoreReviews(owner._id, { sort: 'newest' });
     assert.equal(empty.count, 0);
     assert.equal(empty.average, 0);

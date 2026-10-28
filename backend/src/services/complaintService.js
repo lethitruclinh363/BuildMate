@@ -1,16 +1,46 @@
 const { ORDER_STATUS } = require('../models/Order');
 const { COMPLAINT_STATUS } = require('../models/Complaint');
 const { Order, Complaint } = require('../repositories/commerceAccess');
+const { loadUser, findUsersByRole } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const complaintLocks = new Map();
+
+const COMPLAINT_TRANSITIONS = Object.freeze({
+  [COMPLAINT_STATUS.OPEN]: [COMPLAINT_STATUS.PROCESSING],
+  [COMPLAINT_STATUS.PROCESSING]: [COMPLAINT_STATUS.RESOLVED, COMPLAINT_STATUS.REJECTED],
+  [COMPLAINT_STATUS.RESOLVED]: [],
+  [COMPLAINT_STATUS.REJECTED]: [],
+});
+
+function withComplaintLock(id, work) {
+  const key = String(id);
+  const previous = complaintLocks.get(key) || Promise.resolve();
+  const next = previous.catch(() => undefined).then(work);
+  const tracked = next.finally(() => {
+    if (complaintLocks.get(key) === tracked) complaintLocks.delete(key);
+  });
+  complaintLocks.set(key, tracked);
+  return tracked;
+}
 
 async function assertOrderParty(order, user) {
   const uid = String(user.id);
   if (uid === String(order.customerId) || uid === String(order.contractorId)) return;
   throw new ApiError(403, 'You are not a party on this order');
+}
+
+function otherPartyId(order, userId) {
+  const uid = String(userId);
+  return uid === String(order.customerId) ? String(order.contractorId) : String(order.customerId);
+}
+
+function partyComplaintLink(role, orderId) {
+  if (role === 'CONTRACTOR') return `/contractor/orders/${orderId}`;
+  return '/customer/complaints';
 }
 
 function assertComplaintWindow(order) {
@@ -22,6 +52,62 @@ function assertComplaintWindow(order) {
   }
 }
 
+async function notifyComplaintOpened(complaint, order) {
+  const against = await loadUser(complaint.againstUser);
+  await notify({
+    userId: complaint.againstUser,
+    title: 'New complaint',
+    message: complaint.reason,
+    type: NOTIFICATION_TYPE.NEW_COMPLAINT,
+    link: partyComplaintLink(against?.role, order._id),
+    meta: { complaintId: String(complaint._id), orderId: String(order._id) },
+  });
+  const admins = await findUsersByRole('ADMIN');
+  await Promise.all(
+    (admins || []).map((admin) =>
+      notify({
+        userId: admin._id,
+        title: 'New complaint',
+        message: complaint.reason,
+        type: NOTIFICATION_TYPE.NEW_COMPLAINT,
+        link: `/complaints/${complaint._id}`,
+        meta: { complaintId: String(complaint._id), orderId: String(order._id) },
+      })
+    )
+  );
+}
+
+async function notifyComplaintUpdated(complaint) {
+  const [created, against] = await Promise.all([
+    loadUser(complaint.createdBy),
+    loadUser(complaint.againstUser),
+  ]);
+  const recipients = [
+    { userId: complaint.createdBy, role: created?.role },
+    { userId: complaint.againstUser, role: against?.role },
+  ];
+  const seen = new Set();
+  await Promise.all(
+    recipients
+      .filter((row) => {
+        const key = String(row.userId);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((row) =>
+        notify({
+          userId: row.userId,
+          title: 'Complaint updated',
+          message: complaint.status,
+          type: NOTIFICATION_TYPE.COMPLAINT_UPDATED,
+          link: partyComplaintLink(row.role, complaint.orderId),
+          meta: { complaintId: String(complaint._id), status: complaint.status, orderId: String(complaint.orderId) },
+        })
+      )
+  );
+}
+
 async function createComplaint(user, payload) {
   const order = await Order.findById(payload.orderId);
   if (!order) throw new ApiError(404, 'Order not found');
@@ -30,6 +116,9 @@ async function createComplaint(user, payload) {
 
   if (String(payload.againstUser) === String(user.id)) {
     throw new ApiError(400, 'You cannot open a complaint against yourself');
+  }
+  if (String(payload.againstUser) !== otherPartyId(order, user.id)) {
+    throw new ApiError(403, 'You can only open a complaint against the other party');
   }
 
   const complaint = await Complaint.create({
@@ -42,13 +131,7 @@ async function createComplaint(user, payload) {
     status: COMPLAINT_STATUS.OPEN,
   });
 
-  await notify({
-    userId: payload.againstUser,
-    title: 'New complaint',
-    message: payload.reason,
-    type: NOTIFICATION_TYPE.NEW_COMPLAINT,
-    meta: { complaintId: String(complaint._id), orderId: String(order._id) },
-  });
+  await notifyComplaintOpened(complaint, order);
 
   await writeAudit({
     actorId: user.id,
@@ -79,54 +162,57 @@ async function listAdmin(status) {
   return rows.map((row) => row.toPublic());
 }
 
-const COMPLAINT_TRANSITIONS = Object.freeze({
-  [COMPLAINT_STATUS.OPEN]: [COMPLAINT_STATUS.PROCESSING],
-  [COMPLAINT_STATUS.PROCESSING]: [COMPLAINT_STATUS.RESOLVED, COMPLAINT_STATUS.REJECTED],
-  [COMPLAINT_STATUS.RESOLVED]: [],
-  [COMPLAINT_STATUS.REJECTED]: [],
-});
-
 async function adminUpdate(id, adminId, { status, adminNote }) {
-  const complaint = await Complaint.findById(id);
-  if (!complaint) throw new ApiError(404, 'Complaint not found');
-  if (!Object.values(COMPLAINT_STATUS).includes(status)) {
-    throw new ApiError(422, 'Invalid complaint status');
-  }
-  if (status !== complaint.status) {
-    const allowed = COMPLAINT_TRANSITIONS[complaint.status] || [];
-    if (!allowed.includes(status)) {
-      throw new ApiError(409, 'Invalid complaint status transition');
+  return withComplaintLock(id, async () => {
+    const complaint = await Complaint.findById(id);
+    if (!complaint) throw new ApiError(404, 'Complaint not found');
+    if (!Object.values(COMPLAINT_STATUS).includes(status)) {
+      throw new ApiError(422, 'Invalid complaint status');
     }
-  }
-  if ((status === COMPLAINT_STATUS.RESOLVED || status === COMPLAINT_STATUS.REJECTED) && !String(adminNote || '').trim()) {
-    throw new ApiError(422, 'adminNote is required to close a complaint');
-  }
+    const nextNote = String(adminNote || '').trim() || complaint.adminNote;
+    if (status === complaint.status && String(nextNote || '') === String(complaint.adminNote || '')) {
+      return complaint.toPublic();
+    }
+    if (status !== complaint.status) {
+      const allowed = COMPLAINT_TRANSITIONS[complaint.status] || [];
+      if (!allowed.includes(status)) {
+        throw new ApiError(409, 'Invalid complaint status transition');
+      }
+    }
+    if ((status === COMPLAINT_STATUS.RESOLVED || status === COMPLAINT_STATUS.REJECTED) && !String(adminNote || '').trim()) {
+      throw new ApiError(422, 'adminNote is required to close a complaint');
+    }
 
-  complaint.status = status;
-  complaint.adminNote = adminNote || complaint.adminNote;
-  complaint.adminId = adminId;
-  await complaint.save();
+    const statusChanged = status !== complaint.status;
+    complaint.status = status;
+    complaint.adminNote = adminNote || complaint.adminNote;
+    complaint.adminId = adminId;
+    await complaint.save();
 
-  await notify({
-    userId: complaint.createdBy,
-    title: 'Complaint updated',
-    message: status,
-    type: NOTIFICATION_TYPE.COMPLAINT_UPDATED,
-    meta: { complaintId: String(complaint._id), status },
+    if (statusChanged) {
+      await notifyComplaintUpdated(complaint);
+    }
+
+    if (status === COMPLAINT_STATUS.RESOLVED && statusChanged) {
+      await writeAudit({
+        actorId: adminId,
+        actorRole: 'ADMIN',
+        action: AUDIT_ACTION.COMPLAINT_RESOLVED,
+        entityType: 'Complaint',
+        entityId: complaint._id,
+        meta: { adminNote: complaint.adminNote },
+      });
+    }
+
+    return complaint.toPublic();
   });
-
-  if (status === COMPLAINT_STATUS.RESOLVED) {
-    await writeAudit({
-      actorId: adminId,
-      actorRole: 'ADMIN',
-      action: AUDIT_ACTION.COMPLAINT_RESOLVED,
-      entityType: 'Complaint',
-      entityId: complaint._id,
-      meta: { adminNote: complaint.adminNote },
-    });
-  }
-
-  return complaint.toPublic();
 }
 
-module.exports = { createComplaint, listMine, listAdmin, adminUpdate };
+module.exports = {
+  createComplaint,
+  listMine,
+  listAdmin,
+  adminUpdate,
+  COMPLAINT_TRANSITIONS,
+  otherPartyId,
+};

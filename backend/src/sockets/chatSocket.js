@@ -66,6 +66,7 @@ function attachChatHandlers(socket) {
   socket.on('typing', (payload) => {
     const roomId = payload?.roomId;
     if (!roomId) return;
+    if (!socket.rooms.has(`room:${roomId}`) && !socket.rooms.has(`room:${String(roomId)}`)) return;
     emitToRoom(roomId, 'typing', {
       roomId: String(roomId),
       userId,
