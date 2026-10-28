@@ -216,6 +216,7 @@ async function main() {
       return message.type || 'sent';
     });
     await step('quotation order payment progress review complaint', async () => {
+      await repairService.setStatus(global.requestId, contractorId, 'ACCEPTED');
       const quote = await quotationService.createQuotation(contractorId, {
         requestId: global.requestId,
         transportCost: 20000,

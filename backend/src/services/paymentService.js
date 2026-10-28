@@ -17,6 +17,20 @@ const {
 const { env } = require('../config/env');
 
 const provider = new MockPaymentProvider();
+const captureLocks = new Map();
+
+async function withCaptureLock(paymentId, work) {
+  const key = String(paymentId);
+  const pending = captureLocks.get(key);
+  if (pending) return pending;
+  const next = Promise.resolve()
+    .then(work)
+    .finally(() => {
+      captureLocks.delete(key);
+    });
+  captureLocks.set(key, next);
+  return next;
+}
 
 function rollupStatus(payments) {
   if (!payments.length) return PAYMENT_STATUS.UNPAID;
@@ -125,6 +139,11 @@ async function checkout(paymentId, user, { method = 'MOCK', termsAccepted, terms
 }
 
 async function markPaid(payment, actorId, actorRole = 'SYSTEM') {
+  return withCaptureLock(payment._id, () => capturePaid(payment, actorId, actorRole));
+}
+
+async function capturePaid(incoming, actorId, actorRole = 'SYSTEM') {
+  const payment = (await Payment.findById(incoming._id)) || incoming;
   if (payment.status === PAYMENT_STATUS.PAID) {
     if (payment.type === PAYMENT_TYPE.DEPOSIT) {
       return { payment: payment.toPublic(), commission: null, escrow: escrowService.financeOf(payment).escrow, duplicated: true };

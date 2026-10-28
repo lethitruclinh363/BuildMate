@@ -11,6 +11,11 @@ const rooms = asyncHandler(async (req, res) => {
   return success(res, data, 'Chat rooms retrieved');
 });
 
+const openStore = asyncHandler(async (req, res) => {
+  const data = await chatService.createRoomForStore(req.user, req.params.storeId);
+  return success(res, data, 'Store chat ready');
+});
+
 const getRoom = asyncHandler(async (req, res) => {
   const data = await chatService.getRoom(req.params.roomId, req.user.id);
   return success(res, data, 'Chat room retrieved');
@@ -54,4 +59,4 @@ const upload = asyncHandler(async (req, res) => {
   return created(res, data, 'Media sent');
 });
 
-module.exports = { rooms, getRoom, messages, send, upload };
+module.exports = { rooms, getRoom, messages, send, upload, openStore };

@@ -21,4 +21,8 @@ function purchaseBlock(doc) {
   return '';
 }
 
-module.exports = { listingOf, saleStateOf, purchaseBlock };
+function publicPriceVisible(doc) {
+  return saleStateOf(doc) !== 'discontinued';
+}
+
+module.exports = { listingOf, saleStateOf, purchaseBlock, publicPriceVisible };

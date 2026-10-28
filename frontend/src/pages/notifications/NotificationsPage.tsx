@@ -93,15 +93,17 @@ export function NotificationsPage() {
                 type="button"
                 className={cn('flex w-full items-start gap-3 px-5 py-4 text-left hover:bg-paper-100', !n.isRead && 'bg-copper-50/60')}
                 onClick={() => {
+                  const wasUnread = !n.isRead;
                   void notificationApi.read(n.id);
                   setItems((prev) => prev.map((item) => (item.id === n.id ? { ...item, isRead: true } : item)));
+                  if (wasUnread) setUnread((count) => Math.max(0, count - 1));
                   if (n.link) navigate(n.link);
                 }}
               >
                 <span className={cn('mt-2 h-2 w-2 shrink-0 rounded-full', n.isRead ? 'bg-ink-200' : 'bg-copper-400')} />
-                <span>
-                  <span className="block font-semibold text-navy-800">{notificationTitle(t, n)}</span>
-                  <span className="mt-1 block text-sm text-ink-400">{n.message}</span>
+                <span className="min-w-0">
+                  <span className="block break-words font-semibold text-navy-800">{notificationTitle(t, n)}</span>
+                  <span className="mt-1 block break-words text-sm text-ink-400">{n.message}</span>
                   <span className="mt-1 block text-xs text-ink-400">{new Date(n.createdAt).toLocaleString()}</span>
                 </span>
               </button>

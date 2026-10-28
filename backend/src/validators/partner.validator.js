@@ -25,6 +25,16 @@ const contactPhoneSchema = z
     }
   });
 
+const latitudeSchema = z.coerce
+  .number()
+  .refine((v) => Number.isFinite(v) && !Number.isNaN(v), 'Latitude must be a valid number')
+  .refine((v) => v >= -90 && v <= 90, 'Latitude must be between -90 and 90');
+
+const longitudeSchema = z.coerce
+  .number()
+  .refine((v) => Number.isFinite(v) && !Number.isNaN(v), 'Longitude must be a valid number')
+  .refine((v) => v >= -180 && v <= 180, 'Longitude must be between -180 and 180');
+
 const profileSchema = z.object({
   businessName: z.string().trim().min(2, 'Business name is required').max(100),
   representativeName: z.string().trim().max(100).optional().or(z.literal('')),
@@ -34,6 +44,13 @@ const profileSchema = z.object({
   taxCode: z.string().trim().max(30).optional().or(z.literal('')),
   address: z.union([z.literal(''), z.string().trim().min(4, 'Address is required').max(200)]).optional(),
   city: z.string().trim().max(80).optional(),
+  lat: latitudeSchema.nullable().optional(),
+  lng: longitudeSchema.nullable().optional(),
+  latitude: latitudeSchema.nullable().optional(),
+  longitude: longitudeSchema.nullable().optional(),
+  locationConfirmed: z.boolean().optional(),
+  locationSource: z.enum(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']).optional().or(z.literal('')).or(z.null()),
+  providerRefId: z.string().trim().max(2000).optional().or(z.literal('')).or(z.null()),
   description: z.string().trim().max(1200).optional().or(z.literal('')),
   yearsExperience: z.coerce.number().min(0).max(80).optional(),
   serviceAreas: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
@@ -103,6 +120,16 @@ const profileSchema = z.object({
         seen.add(key);
       });
     }),
+}).superRefine((data, ctx) => {
+  const lat = data.lat !== undefined ? data.lat : data.latitude;
+  const lng = data.lng !== undefined ? data.lng : data.longitude;
+  if (data.locationConfirmed && lat === 0 && lng === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Coordinates (0, 0) cannot be used as a valid confirmed location',
+      path: ['lat'],
+    });
+  }
 });
 
 const portfolioSlotSchema = z.object({
@@ -189,12 +216,23 @@ const storeSchema = z.object({
   minimumOrderAmount: z.coerce.number().min(0).optional(),
   deliveryNote: z.string().trim().max(500).optional().or(z.literal('')),
   category: z.string().trim().max(80).optional(),
-  status: z.enum(['DRAFT', 'INACTIVE', 'LIVE', 'PAUSED']).optional(),
-  lng: z.coerce.number().optional(),
-  lat: z.coerce.number().optional(),
+  lng: longitudeSchema.nullable().optional(),
+  lat: latitudeSchema.nullable().optional(),
+  longitude: longitudeSchema.nullable().optional(),
+  latitude: latitudeSchema.nullable().optional(),
   locationConfirmed: z.boolean().optional(),
-  locationSource: z.enum(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']).optional(),
-  providerRefId: z.string().trim().max(2000).optional(),
+  locationSource: z.enum(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']).optional().or(z.literal('')).or(z.null()),
+  providerRefId: z.string().trim().max(2000).optional().or(z.literal('')).or(z.null()),
+}).superRefine((data, ctx) => {
+  const lat = data.lat !== undefined ? data.lat : data.latitude;
+  const lng = data.lng !== undefined ? data.lng : data.longitude;
+  if (data.locationConfirmed && lat === 0 && lng === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Coordinates (0, 0) cannot be used as a valid confirmed location',
+      path: ['lat'],
+    });
+  }
 });
 
 const catalogCheckSchema = z.object({
@@ -282,6 +320,32 @@ const rejectSchema = z.object({
   reason: z.string().trim().min(8, 'Provide a clear rejection reason').max(500),
 });
 
+const locationChangeRequestSchema = z.object({
+  proposedAddress: z.string().trim().min(4, 'Address must be at least 4 characters').max(200),
+  proposedCity: z.string().trim().min(2, 'City must be at least 2 characters').max(80).optional(),
+  proposedLat: latitudeSchema,
+  proposedLng: longitudeSchema,
+  locationSource: z.enum(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']).optional().or(z.literal('')).or(z.null()),
+  providerRefId: z.string().trim().max(2000).optional().or(z.literal('')).or(z.null()),
+  reason: z.string().trim().min(8, 'Reason must be at least 8 characters').max(1000),
+}).superRefine((data, ctx) => {
+  if (data.proposedLat === 0 && data.proposedLng === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Coordinates (0, 0) cannot be used as a valid location',
+      path: ['proposedLat'],
+    });
+  }
+});
+
+const locationChangeRejectSchema = z.object({
+  reason: z.string().trim().min(8, 'Rejection reason must be at least 8 characters').max(1000),
+});
+
+const locationChangeApproveSchema = z.object({
+  adminNote: z.string().trim().max(1000).optional().or(z.literal('')),
+});
+
 module.exports = {
   profileSchema,
   documentTypeSchema,
@@ -307,6 +371,9 @@ module.exports = {
   serviceSuggestionSchema,
   suggestionRejectSchema,
   submitSchema,
+  locationChangeRequestSchema,
+  locationChangeRejectSchema,
+  locationChangeApproveSchema,
   SERVICE_CATEGORIES,
   MATERIAL_CATEGORIES,
 };

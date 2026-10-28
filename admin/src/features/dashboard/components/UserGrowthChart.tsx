@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { GlassCard } from '@/components/GlassCard';
+import { chartHasValues } from '@/features/dashboard/lib/format';
 import type { Point } from '@/features/dashboard/types/dashboard.types';
 
 export const UserGrowthChart = memo(function UserGrowthChart({ data }: { data: Point[] }) {
@@ -11,6 +12,9 @@ export const UserGrowthChart = memo(function UserGrowthChart({ data }: { data: P
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2B6280]">{t('dash.growth')}</p>
       <h3 className="mb-4 font-display text-lg font-bold text-[#16283C]">{t('dash.growthTitle')}</h3>
       <div className="h-64">
+        {!chartHasValues(data || [], ['customer', 'contractor']) ? (
+          <p className="flex h-full items-center justify-center text-sm text-[#526477]">{t('dash.noChartData')}</p>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <CartesianGrid stroke="#E1E7ED" vertical={false} />
@@ -21,6 +25,7 @@ export const UserGrowthChart = memo(function UserGrowthChart({ data }: { data: P
             <Line type="monotone" dataKey="contractor" name={t('dash.legendContractor')} stroke="#0284C7" strokeWidth={2.2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
+        )}
       </div>
     </GlassCard>
   );

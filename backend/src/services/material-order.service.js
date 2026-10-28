@@ -16,6 +16,71 @@ const {
   materialStatusNotice,
 } = require('../utils/material-order.rules');
 
+const REPLAY_WINDOW_MS = 45 * 1000;
+const replayLocks = new Map();
+
+function itemsKey(items = []) {
+  const merged = new Map();
+  for (const item of items || []) {
+    const id = String(item.materialId || '');
+    if (!id) continue;
+    merged.set(id, (merged.get(id) || 0) + Number(item.quantity || 0));
+  }
+  return [...merged.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([id, quantity]) => `${id}:${quantity}`)
+    .join('|');
+}
+
+function replayFingerprint(userId, body = {}) {
+  const lat = Number(body.lat);
+  const lng = Number(body.lng);
+  const pin = Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)},${lng.toFixed(5)}` : '';
+  return [
+    String(userId),
+    String(body.storeId || ''),
+    itemsKey(body.items),
+    String(body.deliveryAddress || '').trim().toLowerCase(),
+    pin,
+    String(body.customerNote || '').trim(),
+  ].join('|');
+}
+
+function isReplayOf(row, body, now = Date.now()) {
+  if (!row?.createdAt) return false;
+  if (now - new Date(row.createdAt).getTime() > REPLAY_WINDOW_MS) return false;
+  if (String(row.storeId) !== String(body.storeId)) return false;
+  if (String(row.deliveryAddress || '').trim() !== String(body.deliveryAddress || '').trim()) return false;
+  return itemsKey(row.items) === itemsKey(body.items);
+}
+
+async function withReplayLock(key, work) {
+  const pending = replayLocks.get(key);
+  if (pending) return pending;
+  const next = Promise.resolve()
+    .then(work)
+    .finally(() => {
+      replayLocks.delete(key);
+    });
+  replayLocks.set(key, next);
+  return next;
+}
+
+const orderLocks = new Map();
+
+async function withOrderLock(orderId, work) {
+  const key = `status:${String(orderId)}`;
+  const pending = orderLocks.get(key);
+  if (pending) return pending;
+  const next = Promise.resolve()
+    .then(work)
+    .finally(() => {
+      orderLocks.delete(key);
+    });
+  orderLocks.set(key, next);
+  return next;
+}
+
 function rejectQuote(summary) {
   if (summary.code === 'DELIVERY_DISABLED') {
     throw new ApiError(409, 'This store does not offer delivery', { code: summary.code });
@@ -36,6 +101,16 @@ function rejectQuote(summary) {
 }
 
 async function create(user, body) {
+  return withReplayLock(replayFingerprint(user.id, body), () => placeOrder(user, body));
+}
+
+async function placeOrder(user, body) {
+  const recent = await MaterialOrder.find({ customerId: user.id, storeId: body.storeId })
+    .sort({ createdAt: -1 })
+    .limit(5);
+  const replayed = recent.find((row) => isReplayOf(row, body));
+  if (replayed) return replayed.toPublic();
+
   const prepared = await checkoutService.prepare(
     {
       storeId: body.storeId,
@@ -126,7 +201,7 @@ async function create(user, body) {
     title: 'New material order',
     message: order.orderCode,
     type: NOTIFICATION_TYPE.ORDER_CREATED,
-    link: '/store/orders',
+    link: `/store/orders/${order._id}`,
     meta: { materialOrderId: String(order._id) },
   }).catch(() => null);
 
@@ -245,30 +320,48 @@ async function transition(order, actor, actorId, status, note) {
   return presented;
 }
 
+async function presentOrder(order) {
+  const [presented] = await attachParties([order]);
+  return presented;
+}
+
 async function updateStoreStatus(store, user, id, body) {
-  const order = await MaterialOrder.findOne({ _id: id, storeId: store._id });
-  if (!order) throw new ApiError(404, 'Material order not found');
-  return transition(order, MATERIAL_ACTOR.STORE, user.id, body.status, body.note);
+  return withOrderLock(id, async () => {
+    const order = await MaterialOrder.findOne({ _id: id, storeId: store._id });
+    if (!order) throw new ApiError(404, 'Material order not found');
+    if (order.status === body.status) return presentOrder(order);
+    return transition(order, MATERIAL_ACTOR.STORE, user.id, body.status, body.note);
+  });
 }
 
 async function cancelMine(user, id) {
-  const order = await MaterialOrder.findOne({ _id: id, customerId: user.id });
-  if (!order) throw new ApiError(404, 'Material order not found');
-  return transition(order, MATERIAL_ACTOR.CUSTOMER, user.id, MATERIAL_ORDER_STATUS.CANCELLED, '');
+  return withOrderLock(id, async () => {
+    const order = await MaterialOrder.findOne({ _id: id, customerId: user.id });
+    if (!order) throw new ApiError(404, 'Material order not found');
+    if (order.status === MATERIAL_ORDER_STATUS.CANCELLED) return presentOrder(order);
+    return transition(order, MATERIAL_ACTOR.CUSTOMER, user.id, MATERIAL_ORDER_STATUS.CANCELLED, '');
+  });
 }
 
 async function receiveMine(user, id) {
-  const order = await MaterialOrder.findOne({ _id: id, customerId: user.id });
-  if (!order) throw new ApiError(404, 'Material order not found');
-  await transition(order, MATERIAL_ACTOR.CUSTOMER, user.id, MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED, '');
-  return transition(order, MATERIAL_ACTOR.SYSTEM, user.id, MATERIAL_ORDER_STATUS.COMPLETED, '');
+  return withOrderLock(id, async () => {
+    const order = await MaterialOrder.findOne({ _id: id, customerId: user.id });
+    if (!order) throw new ApiError(404, 'Material order not found');
+    if (order.status === MATERIAL_ORDER_STATUS.COMPLETED) return presentOrder(order);
+    if (order.status !== MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED) {
+      await transition(order, MATERIAL_ACTOR.CUSTOMER, user.id, MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED, '');
+    }
+    if (order.status === MATERIAL_ORDER_STATUS.COMPLETED) return presentOrder(order);
+    return transition(order, MATERIAL_ACTOR.SYSTEM, user.id, MATERIAL_ORDER_STATUS.COMPLETED, '');
+  });
 }
 
 async function markDirectPaymentCollected(order) {
-  if (!order.remainingSettledOffline) {
-    order.remainingSettledOffline = true;
-    order.remainingSettledAt = new Date();
+  if (order.remainingSettledOffline && order.paymentStatus === MATERIAL_PAYMENT_STATUS.PAID) {
+    return { duplicated: true };
   }
+  order.remainingSettledOffline = true;
+  order.remainingSettledAt = order.remainingSettledAt || new Date();
   order.paymentStatus = MATERIAL_PAYMENT_STATUS.PAID;
   await order.save();
   const { writeAudit, AUDIT_ACTION } = require('./auditService');
@@ -287,34 +380,37 @@ async function markDirectPaymentCollected(order) {
       isMaterialOrder: true,
     },
   }).catch(() => null);
+  return { duplicated: false };
 }
 
 async function settleRemaining(user, id) {
-  const order = await MaterialOrder.findOne({ _id: id, customerId: user.id });
-  if (!order) throw new ApiError(404, 'Material order not found');
-  if (![MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED, MATERIAL_ORDER_STATUS.COMPLETED].includes(order.status)) {
-    throw new ApiError(409, 'The remaining amount can be confirmed after you accept the delivery');
-  }
-  await markDirectPaymentCollected(order);
-  const [presented] = await attachParties([order]);
-  return presented;
+  return withOrderLock(id, async () => {
+    const order = await MaterialOrder.findOne({ _id: id, customerId: user.id });
+    if (!order) throw new ApiError(404, 'Material order not found');
+    if (![MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED, MATERIAL_ORDER_STATUS.COMPLETED].includes(order.status)) {
+      throw new ApiError(409, 'The remaining amount can be confirmed after you accept the delivery');
+    }
+    await markDirectPaymentCollected(order);
+    return presentOrder(order);
+  });
 }
 
 async function settleCollected(store, user, id) {
-  const order = await MaterialOrder.findOne({ _id: id, storeId: store._id });
-  if (!order) throw new ApiError(404, 'Material order not found');
-  if (
-    ![
-      MATERIAL_ORDER_STATUS.DELIVERED,
-      MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED,
-      MATERIAL_ORDER_STATUS.COMPLETED,
-    ].includes(order.status)
-  ) {
-    throw new ApiError(409, 'Direct payment can be confirmed after delivery');
-  }
-  await markDirectPaymentCollected(order);
-  const [presented] = await attachParties([order]);
-  return presented;
+  return withOrderLock(id, async () => {
+    const order = await MaterialOrder.findOne({ _id: id, storeId: store._id });
+    if (!order) throw new ApiError(404, 'Material order not found');
+    if (
+      ![
+        MATERIAL_ORDER_STATUS.DELIVERED,
+        MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED,
+        MATERIAL_ORDER_STATUS.COMPLETED,
+      ].includes(order.status)
+    ) {
+      throw new ApiError(409, 'Direct payment can be confirmed after delivery');
+    }
+    await markDirectPaymentCollected(order);
+    return presentOrder(order);
+  });
 }
 
 module.exports = {
@@ -329,4 +425,7 @@ module.exports = {
   receiveMine,
   settleRemaining,
   settleCollected,
+  replayFingerprint,
+  isReplayOf,
+  REPLAY_WINDOW_MS,
 };

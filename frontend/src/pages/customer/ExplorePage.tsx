@@ -21,7 +21,7 @@ import { originFromPlace, reverseGeocode } from '@/features/map/services/geocodi
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api';
-import { saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
+import { publicPriceVisible, saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { SEARCH_CHIPS, type NearbyPlace, type PublicMaterial, type PublicService } from '@/types/marketplace';
@@ -334,9 +334,11 @@ export function ExplorePage() {
                   {m.store?.id ? <Link to={`/stores/${m.store.id}/materials/${m.id}`}>{m.name}</Link> : m.name}
                 </h3>
                 <p className="mt-1 text-sm text-ink-400">{m.store?.name}</p>
-                <p className="mt-3 font-display text-xl text-navy-800">
-                  {vnd(m.price)} <span className="text-sm font-sans text-ink-400">/{m.unit}</span>
-                </p>
+                {publicPriceVisible(m) ? (
+                  <p className="mt-3 font-display text-xl text-navy-800">
+                    {vnd(m.price)} <span className="text-sm font-sans text-ink-400">/{m.unit}</span>
+                  </p>
+                ) : null}
               </Card>
             ))}
           </div>

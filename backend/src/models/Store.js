@@ -72,7 +72,7 @@ const storeSchema = new mongoose.Schema(
     // Sprint 3 nearby search
     location: {
       type: { type: String, enum: ['Point'], default: 'Point' },
-      coordinates: { type: [Number], default: [105.787, 10.045] },
+      coordinates: { type: [Number] },
     },
     locationConfirmed: { type: Boolean, default: false },
     locationSource: {
@@ -80,6 +80,7 @@ const storeSchema = new mongoose.Schema(
       enum: ['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN'],
     },
     locationConfirmedAt: { type: Date, default: null },
+    locationApprovedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -128,9 +129,14 @@ storeSchema.methods.toPublic = function toPublic() {
     materialReviewCount: this.materialReviewCount,
     status: this.status,
     location: this.location,
+    lat: this.location?.coordinates?.[1] != null ? Number(this.location.coordinates[1]) : null,
+    lng: this.location?.coordinates?.[0] != null ? Number(this.location.coordinates[0]) : null,
+    latitude: this.location?.coordinates?.[1] != null ? Number(this.location.coordinates[1]) : null,
+    longitude: this.location?.coordinates?.[0] != null ? Number(this.location.coordinates[0]) : null,
     locationConfirmed: Boolean(this.locationConfirmed),
     locationSource: this.locationSource || '',
     locationConfirmedAt: this.locationConfirmedAt || null,
+    locationApprovedAt: this.locationApprovedAt || null,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

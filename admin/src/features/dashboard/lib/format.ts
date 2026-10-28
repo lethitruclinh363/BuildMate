@@ -36,21 +36,6 @@ export function formatKpi(value: number, format: 'number' | 'vnd' | 'compact') {
   return new Intl.NumberFormat(localeTag()).format(Math.round(value || 0));
 }
 
-function wave(index: number, total: number, seed: number) {
-  const t = (index + 1) / Math.max(total, 1);
-  return Math.max(0.12, 0.55 + Math.sin((t + seed) * Math.PI * 2) * 0.28 + t * 0.2);
-}
-
-export function distribute(total: number, labels: string[], seed = 0.2): number[] {
-  const weights = labels.map((_, i) => wave(i, labels.length, seed));
-  const sum = weights.reduce((a, b) => a + b, 0) || 1;
-  const raw = weights.map((w) => (total * w) / sum);
-  const rounded = raw.map((n) => Math.round(n));
-  const drift = total - rounded.reduce((a, b) => a + b, 0);
-  if (rounded.length) rounded[rounded.length - 1] += drift;
-  return rounded.map((n) => Math.max(0, n));
-}
-
 export function dayLabels(count: number) {
   return Array.from({ length: count }, (_, i) => {
     const d = new Date();
@@ -67,10 +52,19 @@ export function monthLabels() {
   });
 }
 
+export function chartHasValues(rows: Array<Record<string, any>>, keys: string[]) {
+  return rows.some((row) =>
+    keys.some((key) => {
+      const value = Number(row[key]);
+      return Number.isFinite(value) && value > 0;
+    })
+  );
+}
+
 export function periodDelta(values: number[]) {
   if (values.length < 2) return 0;
   const prev = values[values.length - 2] || 0;
   const last = values[values.length - 1] || 0;
-  if (!prev) return last ? 100 : 0;
+  if (!prev) return 0;
   return Math.round(((last - prev) / prev) * 1000) / 10;
 }

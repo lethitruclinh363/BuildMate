@@ -8,6 +8,7 @@ import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { ContractorPortfolioUpload } from '@/components/partner/ContractorPortfolioUpload';
 import { ContractorServiceSelector } from '@/components/partner/ContractorServiceSelector';
 import { StoreCategorySelector } from '@/components/partner/StoreCategorySelector';
+import { VerificationDocThumb } from '@/components/partner/VerificationDocThumb';
 import { isContractorService, mergeServiceStatus, registeredServiceId, type ContractorServicePick } from '@/data/contractor-services';
 import {
   isMaterialCategoryPick,
@@ -28,6 +29,9 @@ import { cn } from '@/lib/cn';
 import { contractorApi, materialStoreApi, mediaUrl } from '@/lib/partner-api';
 import { ContractorEkycWizard } from '@/features/ekyc/ContractorEkycWizard';
 import { ekycApi, type EkycRecord } from '@/features/ekyc/ekyc.api';
+import { PartnerOnboardingLocationStep } from '@/features/map/components/PartnerOnboardingLocationStep';
+import { hasCoordinates } from '@/features/map/lib/location';
+import type { LocationSource } from '@/features/map/types';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { ContractorProfile, DocumentType, VerificationDocument } from '@/types/partner';
@@ -48,6 +52,11 @@ type Draft = {
   yearsExperience: string;
   address: string;
   city: string;
+  lat: number | null;
+  lng: number | null;
+  locationConfirmed: boolean;
+  locationSource?: LocationSource;
+  providerRefId?: string | null;
   description: string;
 };
 
@@ -73,6 +82,11 @@ const emptyDraft: Draft = {
   yearsExperience: '',
   address: '',
   city: '',
+  lat: null,
+  lng: null,
+  locationConfirmed: false,
+  locationSource: undefined,
+  providerRefId: undefined,
   description: '',
 };
 
@@ -157,7 +171,8 @@ export default function PartnerOnboardingPage() {
       .then((res) => {
         if (cancelled) return;
         const next = res.data.data.profile;
-        setProfile(next || null);
+        const nextLat = next?.lat !== undefined && next?.lat !== null && Number.isFinite(Number(next.lat)) ? Number(next.lat) : null;
+        const nextLng = next?.lng !== undefined && next?.lng !== null && Number.isFinite(Number(next.lng)) ? Number(next.lng) : null;
         const base: StoredDraft = {
           businessName: next?.businessName || '',
           representativeName: next?.representativeName || '',
@@ -172,12 +187,19 @@ export default function PartnerOnboardingPage() {
           yearsExperience: next?.yearsExperience ? String(next.yearsExperience) : '',
           address: next?.address || '',
           city: next?.city || '',
+          lat: nextLat,
+          lng: nextLng,
+          locationConfirmed: next?.locationConfirmed === true,
+          locationSource: next?.locationSource as LocationSource | undefined,
+          providerRefId: next?.providerRefId || undefined,
           description: next?.description || '',
           services: next?.serviceAreas || [],
           materialCategories: (next?.materialCategories || []).filter(isMaterialCategoryPick),
           crewServices: (next?.services || []).filter(isContractorService),
           agreed: false,
         };
+        const localLat = local && local.lat !== undefined && local.lat !== null && Number.isFinite(Number(local.lat)) ? Number(local.lat) : undefined;
+        const localLng = local && local.lng !== undefined && local.lng !== null && Number.isFinite(Number(local.lng)) ? Number(local.lng) : undefined;
         const source: StoredDraft = local
           ? {
               ...base,
@@ -187,6 +209,11 @@ export default function PartnerOnboardingPage() {
               contactEmail: 'contactEmail' in local ? local.contactEmail : base.contactEmail,
               workerCount: 'workerCount' in local ? local.workerCount : base.workerCount,
               yearsExperience: local.yearsExperience || base.yearsExperience,
+              lat: localLat !== undefined ? localLat : base.lat,
+              lng: localLng !== undefined ? localLng : base.lng,
+              locationConfirmed: local.locationConfirmed !== undefined ? Boolean(local.locationConfirmed) : Boolean(base.locationConfirmed),
+              locationSource: local.locationSource || base.locationSource,
+              providerRefId: local.providerRefId || base.providerRefId,
               materialCategories:
                 'materialCategories' in local && Array.isArray(local.materialCategories)
                   ? mergeMaterialCategories(local.materialCategories.filter(isMaterialCategoryPick), base.materialCategories || [])
@@ -207,6 +234,11 @@ export default function PartnerOnboardingPage() {
           yearsExperience: source.yearsExperience,
           address: source.address,
           city: source.city,
+          lat: source.lat ?? null,
+          lng: source.lng ?? null,
+          locationConfirmed: Boolean(source.locationConfirmed),
+          locationSource: source.locationSource,
+          providerRefId: source.providerRefId,
           description: source.description,
         });
         const restoredCategories = source.materialCategories?.length
@@ -326,6 +358,9 @@ export default function PartnerOnboardingPage() {
   const imagesOk = storeOwner ? portfolioDocs.length >= 1 : avatarOk && logoOk && workshopOk && projectsOk;
   const addressOk = draft.address.trim().length >= 4;
   const cityOk = draft.city.trim().length >= 2;
+  const coordsOk = hasCoordinates(draft.lat, draft.lng);
+  const locationConfirmedOk = draft.locationConfirmed === true;
+  const locationStepOk = addressOk && cityOk && coordsOk && locationConfirmedOk;
   const verifyOk = storeOwner
     ? requiredDocs.every((type) => documents.some((doc) => doc.type === type))
     : requiredDocs.every((type) => documents.some((doc) => doc.type === type)) && ekyc?.status === 'SUBMITTED';
@@ -334,11 +369,11 @@ export default function PartnerOnboardingPage() {
       storeOwner ? nameOk && aboutOk : crewOk,
       serviceOk,
       imagesOk,
-      addressOk && cityOk,
+      locationStepOk,
       verifyOk,
       agreed && accurate,
     ],
-    [storeOwner, nameOk, aboutOk, crewOk, serviceOk, imagesOk, addressOk, cityOk, verifyOk, agreed, accurate]
+    [storeOwner, nameOk, aboutOk, crewOk, serviceOk, imagesOk, locationStepOk, verifyOk, agreed, accurate]
   );
   const settled = useMemo(() => pruneCompleted(completed, dataValid), [completed, dataValid]);
 
@@ -445,6 +480,8 @@ export default function PartnerOnboardingPage() {
     }
     if (step === 3 && !addressOk) return t('auth.onboardAddressRequired');
     if (step === 3 && !cityOk) return t('auth.onboardCityRequired');
+    if (step === 3 && !coordsOk) return t('auth.onboardCoordsRequired');
+    if (step === 3 && !locationConfirmedOk) return t('auth.onboardLocationConfirmRequired');
     if (step === 4 && !cccdFrontOk) return t('auth.onboardCccdFrontRequired');
     if (step === 4 && !cccdBackOk) return t('auth.onboardCccdBackRequired');
     if (step === 4 && !licenseOk) return t('auth.onboardLicenseRequired');
@@ -516,7 +553,9 @@ export default function PartnerOnboardingPage() {
               : index === 3
                 ? !addressOk
                   ? 'onboard-address'
-                  : 'onboard-city'
+                  : !cityOk
+                    ? 'onboard-city'
+                    : 'onboard-confirm-location'
                 : index === 4
                   ? !cccdFrontOk
                     ? 'onboard-cccd-front'
@@ -561,6 +600,13 @@ export default function PartnerOnboardingPage() {
     }
     if (draft.city.trim()) body.city = draft.city.trim();
     if (full || addressOk) body.address = draft.address.trim();
+    if (hasCoordinates(draft.lat, draft.lng)) {
+      body.lat = Number(draft.lat);
+      body.lng = Number(draft.lng);
+      body.locationConfirmed = Boolean(draft.locationConfirmed);
+      if (draft.locationSource) body.locationSource = draft.locationSource;
+      if (draft.providerRefId) body.providerRefId = draft.providerRefId;
+    }
     return body;
   }
 
@@ -1022,30 +1068,34 @@ export default function PartnerOnboardingPage() {
               ) : null}
 
               {step === 3 ? (
-                <div className="mt-5 space-y-4">
-                  <label className="block">
-                    <FormLabel required>{t('auth.onboardAddress')}</FormLabel>
-                    <input
-                      id="onboard-address"
-                      className={inputClass(addressOk, Boolean(touched.address))}
-                      maxLength={200}
-                      value={draft.address}
-                      onChange={(event) => patch('address', event.target.value)}
-                    />
-                    {touched.address && !addressOk ? <span className="mt-1 block text-xs text-red-600">{t('auth.onboardAddressRequired')}</span> : null}
-                  </label>
-                  <label className="block">
-                    <FormLabel required>{t('auth.onboardCity')}</FormLabel>
-                    <input
-                      id="onboard-city"
-                      className={inputClass(cityOk, Boolean(touched.city))}
-                      maxLength={80}
-                      value={draft.city}
-                      onChange={(event) => patch('city', event.target.value)}
-                    />
-                    {touched.city && !cityOk ? <span className="mt-1 block text-xs text-red-600">{t('auth.onboardCityRequired')}</span> : null}
-                  </label>
-                </div>
+                <PartnerOnboardingLocationStep
+                  storeOwner={storeOwner}
+                  address={draft.address}
+                  city={draft.city}
+                  lat={draft.lat}
+                  lng={draft.lng}
+                  locationConfirmed={draft.locationConfirmed}
+                  locationSource={draft.locationSource}
+                  providerRefId={draft.providerRefId}
+                  touched={touched}
+                  disabled={busy}
+                  onChange={(patchData) => {
+                    setDraft((current) => ({
+                      ...current,
+                      ...patchData,
+                    }));
+                    setTouched((current) => {
+                      const next = { ...current };
+                      if (patchData.address !== undefined) next.address = true;
+                      if (patchData.city !== undefined) next.city = true;
+                      return next;
+                    });
+                  }}
+                  onConfirm={() => {
+                    setDraft((current) => ({ ...current, locationConfirmed: true }));
+                    pushToast({ kind: 'success', title: t('auth.onboardLocationConfirmed') });
+                  }}
+                />
               ) : null}
 
               {step === 4 ? (
@@ -1056,6 +1106,7 @@ export default function PartnerOnboardingPage() {
                       <>
                     <VerifySlot
                       id="onboard-cccd-front"
+                      kind="store"
                       required
                       error={touched.documents && !cccdFrontOk ? t('auth.onboardCccdFrontRequired') : ''}
                       title={t('docType.CCCD_FRONT')}
@@ -1070,6 +1121,7 @@ export default function PartnerOnboardingPage() {
                     />
                     <VerifySlot
                       id="onboard-cccd-back"
+                      kind="store"
                       required
                       error={touched.documents && !cccdBackOk ? t('auth.onboardCccdBackRequired') : ''}
                       title={t('docType.CCCD_BACK')}
@@ -1101,6 +1153,7 @@ export default function PartnerOnboardingPage() {
                     <h3 className="text-sm font-semibold text-navy-800">{t('docType.BUSINESS_LICENSE')}</h3>
                     <VerifySlot
                       id="onboard-license"
+                      kind={storeOwner ? 'store' : 'contractor'}
                       required
                       error={touched.documents && !licenseOk ? t('auth.onboardLicenseRequired') : ''}
                       title={t('docType.BUSINESS_LICENSE')}
@@ -1119,6 +1172,7 @@ export default function PartnerOnboardingPage() {
                     {storeOwner ? <p className="text-xs text-ink-400">{t('auth.onboardOptionalCert')}</p> : null}
                     <VerifySlot
                       id="onboard-certificate"
+                      kind={storeOwner ? 'store' : 'contractor'}
                       required={!storeOwner}
                       optional={storeOwner ? t('auth.onboardOptionalMark') : undefined}
                       error={touched.documents && !storeOwner && !certificateOk ? t('auth.onboardCertificateRequired') : ''}
@@ -1266,6 +1320,7 @@ export default function PartnerOnboardingPage() {
 
 function VerifySlot({
   id,
+  kind,
   title,
   required,
   optional,
@@ -1280,6 +1335,7 @@ function VerifySlot({
   onRemove,
 }: {
   id: string;
+  kind: 'contractor' | 'store';
   title: string;
   required?: boolean;
   optional?: string;
@@ -1310,11 +1366,7 @@ function VerifySlot({
         />
       </label>
       <div className="mt-2 flex items-center gap-3">
-        {doc?.mimeType?.startsWith('image/') ? (
-          <img src={mediaUrl(doc.url)} alt="" className="h-12 w-12 rounded-xl object-cover" />
-        ) : doc ? (
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-paper-100 text-[10px] font-semibold text-navy-800">PDF</span>
-        ) : null}
+        {doc ? <VerificationDocThumb doc={doc} kind={kind} className="h-12 w-12 rounded-xl object-cover" /> : null}
         <span className={`text-sm font-semibold ${doc ? 'text-emerald-700' : 'text-ink-400'}`}>
           {doc ? `✓ ${uploadedLabel}` : `○ ${missingLabel}`}
         </span>

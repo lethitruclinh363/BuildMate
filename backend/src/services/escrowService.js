@@ -98,6 +98,9 @@ async function confirmRemaining(orderId, user) {
   const payment = await Payment.findOne({ orderId: order._id, type: PAYMENT_TYPE.DEPOSIT });
   if (!payment) throw new ApiError(409, 'This order has no deposit escrow');
   const { finance, escrow } = financeOf(payment);
+  if (escrow.remainingSettled) {
+    return { order: order.toPublic(), payment: payment.toPublic(), mock: true, duplicated: true };
+  }
   const fromStatus = escrow.status;
   escrow.remainingSettled = true;
   escrow.remainingSettledAt = new Date().toISOString();
@@ -167,6 +170,9 @@ async function settle(orderId, user) {
 
   return runInTransaction(async (tx) => {
     await escrowStore.lockByPayment(payment, tx);
+    if (await hasOpenComplaint(order._id)) {
+      throw new ApiError(409, 'Escrow is frozen while a complaint is open');
+    }
     const live = await Payment.findById(payment._id);
     const { finance, escrow } = financeOf(live);
     const gate = canReleaseEscrow({
@@ -179,7 +185,7 @@ async function settle(orderId, user) {
     if (!gate.ok) throw new ApiError(409, 'Escrow is not ready to release', { code: gate.code });
 
     let current = escrow;
-    if (current.status === ESCROW_STATUS.HELD) {
+    if (current.status === ESCROW_STATUS.HELD || current.status === ESCROW_STATUS.FROZEN) {
       const pending = markReleasePending(current);
       if (!pending.ok) throw new ApiError(409, 'Payout refused', { code: pending.code });
       pending.escrow.remainingSettled = current.remainingSettled;

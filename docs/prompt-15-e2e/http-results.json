@@ -1,0 +1,389 @@
+{
+  "database": "BuilMate_test",
+  "api": "http://127.0.0.1:5055/api",
+  "at": "2026-10-26T11:58:04.805Z",
+  "pass": 53,
+  "fail": 0,
+  "results": [
+    {
+      "id": "ENV-01",
+      "flow": "env",
+      "expected": "BuilMate_test",
+      "actual": "BuilMate_test",
+      "passed": true
+    },
+    {
+      "id": "AUTH-01",
+      "flow": "auth",
+      "expected": "customer CUSTOMER",
+      "actual": "CUSTOMER",
+      "passed": true
+    },
+    {
+      "id": "AUTH-02",
+      "flow": "auth",
+      "expected": "contractor CONTRACTOR",
+      "actual": "CONTRACTOR",
+      "passed": true
+    },
+    {
+      "id": "AUTH-03",
+      "flow": "auth",
+      "expected": "store MATERIAL_STORE_OWNER",
+      "actual": "MATERIAL_STORE_OWNER",
+      "passed": true
+    },
+    {
+      "id": "AUTH-04",
+      "flow": "auth",
+      "expected": "admin ADMIN",
+      "actual": "ADMIN",
+      "passed": true
+    },
+    {
+      "id": "AUTH-05",
+      "flow": "auth",
+      "expected": "customer rejected on admin login",
+      "actual": "403",
+      "passed": true
+    },
+    {
+      "id": "AUTH-06",
+      "flow": "auth",
+      "expected": "contractor cannot list store orders",
+      "actual": "403",
+      "passed": true
+    },
+    {
+      "id": "AUTH-07",
+      "flow": "auth",
+      "expected": "store cannot list contractor requests",
+      "actual": "403",
+      "passed": true
+    },
+    {
+      "id": "FILE-01",
+      "flow": "files",
+      "expected": "unknown contractor file 404",
+      "actual": "404",
+      "passed": true
+    },
+    {
+      "id": "MKT-01",
+      "flow": "activation",
+      "expected": "LIVE contractor nearby",
+      "actual": "true",
+      "passed": true,
+      "count": 1
+    },
+    {
+      "id": "REP-00",
+      "flow": "repair",
+      "expected": "quote without real accepted request fails",
+      "actual": "404",
+      "passed": true
+    },
+    {
+      "id": "REP-01",
+      "flow": "repair",
+      "expected": "create request 200",
+      "actual": "201 {\"success\":true,\"message\":\"Repair request submitted\",\"data\":{\"id\":\"fa8abf7ebb50bb79a3b7f4a0\",\"customerId\":\"fe2917737a1492dc1b5c6bcb\",\"contractorId\":\"5bbf65e965e642555b7b9bc3\",\"storeId\":\"e4a083a4cd636568cee0f7be\",\"category\":\"PLUMBING\",\"serviceName\":\"\",\"catalogServiceId\":\"\",\"title\":\"Prompt15 leak 1793015882765\",\"description\":\"Isolated E2E pipe leak in the bathroom, need repair today.\",\"images\":[",
+      "passed": true,
+      "requestId": "fa8abf7ebb50bb79a3b7f4a0"
+    },
+    {
+      "id": "REP-02",
+      "flow": "repair",
+      "expected": "quote while PENDING is 409",
+      "actual": "409",
+      "passed": true
+    },
+    {
+      "id": "REP-03",
+      "flow": "repair",
+      "expected": "contractor accept",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "REP-04",
+      "flow": "repair",
+      "expected": "quotation 10_000_000",
+      "actual": "true",
+      "passed": true,
+      "total": 10000000
+    },
+    {
+      "id": "RACE-01",
+      "flow": "race",
+      "expected": "duplicate quotation replays same id",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "REP-05",
+      "flow": "repair",
+      "expected": "accept quote creates order+deposit",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "RACE-02",
+      "flow": "race",
+      "expected": "second accept keeps one order",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "REP-06",
+      "flow": "repair",
+      "expected": "deposit checkout",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "REP-07",
+      "flow": "repair",
+      "expected": "mock-success 15/5/10",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "RACE-03",
+      "flow": "race",
+      "expected": "replay mock-success does not 500",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "ESC-01",
+      "flow": "escrow",
+      "expected": "order DEPOSIT_PAID + escrow HELD",
+      "actual": "DEPOSIT_PAID/HELD/1500000.00/",
+      "passed": true
+    },
+    {
+      "id": "REP-08b",
+      "flow": "repair",
+      "expected": "escrow gross 1_500_000",
+      "actual": "1500000.00",
+      "passed": true
+    },
+    {
+      "id": "REP-08",
+      "flow": "repair",
+      "expected": "1_500_000 / 500_000 / 1_000_000",
+      "actual": "1500000.00/500000.00/1000000.00",
+      "passed": true
+    },
+    {
+      "id": "ESC-02",
+      "flow": "escrow",
+      "expected": "no POSTED commission before settle",
+      "actual": "0",
+      "passed": true
+    },
+    {
+      "id": "REP-STARTED",
+      "flow": "repair",
+      "expected": "progress STARTED",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "REP-IN_PROGRESS",
+      "flow": "repair",
+      "expected": "progress IN_PROGRESS",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "REP-COMPLETED",
+      "flow": "repair",
+      "expected": "progress COMPLETED",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "REP-09",
+      "flow": "repair",
+      "expected": "customer accepted",
+      "actual": "CUSTOMER_ACCEPTED",
+      "passed": true
+    },
+    {
+      "id": "RACE-04",
+      "flow": "race",
+      "expected": "second acceptance not 500",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "REP-10",
+      "flow": "repair",
+      "expected": "confirm 85%",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "ESC-03",
+      "flow": "escrow",
+      "expected": "admin settle after accept+85%",
+      "actual": "true",
+      "passed": true,
+      "body": "{\"success\":true,\"message\":\"Mock escrow settlement recorded\",\"data\":{\"order\":{\"id\":\"b8687de06b4badd857ff8a8b\",\"orderCode\":\"BM-20261026-CD67CD\",\"quotationId\":\"188a78a04b82fffeba207845\",\"requestId\":\"fa8abf7ebb50bb79a3b7f4a0\",\"customerId\":\"fe2917737a1492dc1b5c6bcb\",\"contractorId\":\"5bbf65e965e642555b7b9bc3\",\"storeId\":\"e4a083a4cd636568cee0f7be\",\"title\":\"Prompt15 leak 1793015882765\",\"description\":\"Isolated E2E pipe leak in the bathroom, need repair today.\",\"location\":{\"type\":\"Point\",\"coordinates\":[105."
+    },
+    {
+      "id": "ESC-04",
+      "flow": "escrow",
+      "expected": "commission POSTED 500000 once",
+      "actual": "1/500000",
+      "passed": true
+    },
+    {
+      "id": "RACE-05",
+      "flow": "race",
+      "expected": "second settle blocked or idempotent",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "CHAT-01",
+      "flow": "chat",
+      "expected": "customer text",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "CHAT-02",
+      "flow": "chat",
+      "expected": "contractor location",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "CHAT-03",
+      "flow": "chat",
+      "expected": "history readable",
+      "actual": "true",
+      "passed": true,
+      "n": 3
+    },
+    {
+      "id": "CHAT-04",
+      "flow": "chat",
+      "expected": "store cannot read repair room",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "COD-01",
+      "flow": "cod",
+      "expected": "quote 2_100_000 with 100k ship",
+      "actual": "2100000",
+      "passed": true
+    },
+    {
+      "id": "COD-02",
+      "flow": "cod",
+      "expected": "create COD order",
+      "actual": "true",
+      "passed": true,
+      "materialOrderId": "09b954f0d95873d0e55a0035"
+    },
+    {
+      "id": "COD-03",
+      "flow": "cod",
+      "expected": "fee 0 deposit 0",
+      "actual": "0.00/0.00/2100000.00",
+      "passed": true
+    },
+    {
+      "id": "COD-04",
+      "flow": "cod",
+      "expected": "store reaches DELIVERED",
+      "actual": "DELIVERED",
+      "passed": true
+    },
+    {
+      "id": "COD-05",
+      "flow": "cod",
+      "expected": "customer received",
+      "actual": "COMPLETED",
+      "passed": true
+    },
+    {
+      "id": "RACE-06",
+      "flow": "race",
+      "expected": "second receive not 500",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "COD-06",
+      "flow": "cod",
+      "expected": "store collected COD",
+      "actual": "PAID",
+      "passed": true
+    },
+    {
+      "id": "RACE-07",
+      "flow": "race",
+      "expected": "second COD collect blocked or ok",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "COD-07",
+      "flow": "cod",
+      "expected": "store review",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "ACT-01",
+      "flow": "activation",
+      "expected": "contractor pause",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "ACT-02",
+      "flow": "activation",
+      "expected": "paused contractor rejects new request",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "ACT-03",
+      "flow": "activation",
+      "expected": "contractor LIVE again",
+      "actual": "true",
+      "passed": true
+    },
+    {
+      "id": "ADM-01",
+      "flow": "admin",
+      "expected": "GMV != commission",
+      "actual": "74200000/1500000",
+      "passed": true
+    },
+    {
+      "id": "ADM-02",
+      "flow": "admin",
+      "expected": "analytics 200",
+      "actual": "true",
+      "passed": true,
+      "gmv": 74200000,
+      "commission": 1500000,
+      "liveContractor": 1
+    },
+    {
+      "id": "ADM-03",
+      "flow": "admin",
+      "expected": "series days7/days30/months12 exist",
+      "actual": "true",
+      "passed": true
+    }
+  ]
+}

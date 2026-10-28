@@ -49,6 +49,16 @@ class PgProfile {
     this.materialCategories = [...(data.materialCategories || [])];
     this.serviceAreas = [...(data.serviceAreas || [])];
     this.completedSteps = Array.from({ length: 6 }, (_, index) => data.completedSteps?.[index] === true);
+    this.lat = data.lat !== undefined ? data.lat : (data.latitude !== undefined ? data.latitude : null);
+    this.lng = data.lng !== undefined ? data.lng : (data.longitude !== undefined ? data.longitude : null);
+    this.latitude = this.lat;
+    this.longitude = this.lng;
+    this.locationConfirmed = Boolean(data.locationConfirmed);
+    this.locationSource = data.locationSource || '';
+    this.locationConfirmedAt = data.locationConfirmedAt || null;
+    this.providerRefId = data.providerRefId || null;
+    this.locationApprovedAt = data.locationApprovedAt || null;
+    this.location = data.location || (this.lat != null && this.lng != null ? { type: 'Point', coordinates: [Number(this.lng), Number(this.lat)] } : null);
   }
 
   markModified() {}
@@ -65,6 +75,16 @@ class PgProfile {
       taxCode: this.taxCode,
       address: this.address,
       city: this.city,
+      lat: this.lat != null ? Number(this.lat) : null,
+      lng: this.lng != null ? Number(this.lng) : null,
+      latitude: this.lat != null ? Number(this.lat) : null,
+      longitude: this.lng != null ? Number(this.lng) : null,
+      locationConfirmed: Boolean(this.locationConfirmed),
+      locationSource: this.locationSource || '',
+      locationConfirmedAt: this.locationConfirmedAt || null,
+      providerRefId: this.providerRefId || null,
+      locationApprovedAt: this.locationApprovedAt || null,
+      location: (this.lat != null && this.lng != null) ? { type: 'Point', coordinates: [Number(this.lng), Number(this.lat)] } : (this.location || null),
       description: this.description,
       yearsExperience: this.yearsExperience,
       serviceAreas: this.serviceAreas,
@@ -129,7 +149,16 @@ class PgStore {
     this.crewPhotos = [...(data.crewPhotos || [])];
     this.publicCertificates = [...(data.publicCertificates || [])];
     this.serviceAreas = [...(data.serviceAreas || [])];
-    this.location = data.location || { type: 'Point', coordinates: [105.787, 10.045] };
+    this.lat = data.lat !== undefined ? data.lat : (data.latitude !== undefined ? data.latitude : (data.location?.coordinates?.[1] != null ? data.location.coordinates[1] : null));
+    this.lng = data.lng !== undefined ? data.lng : (data.longitude !== undefined ? data.longitude : (data.location?.coordinates?.[0] != null ? data.location.coordinates[0] : null));
+    this.latitude = this.lat;
+    this.longitude = this.lng;
+    this.location = data.location || (this.lat != null && this.lng != null ? { type: 'Point', coordinates: [Number(this.lng), Number(this.lat)] } : null);
+    this.locationConfirmed = Boolean(data.locationConfirmed);
+    this.locationSource = data.locationSource || '';
+    this.locationConfirmedAt = data.locationConfirmedAt || null;
+    this.locationApprovedAt = data.locationApprovedAt || null;
+    this.providerRefId = data.providerRefId || null;
   }
 
   set(data) {
@@ -177,10 +206,16 @@ class PgStore {
       materialRating: Number(this.materialRating || 0),
       materialReviewCount: this.materialReviewCount || 0,
       status: this.status,
-      location: this.location,
+      location: this.location || null,
+      lat: this.lat != null ? Number(this.lat) : (this.location?.coordinates?.[1] != null ? Number(this.location.coordinates[1]) : null),
+      lng: this.lng != null ? Number(this.lng) : (this.location?.coordinates?.[0] != null ? Number(this.location.coordinates[0]) : null),
+      latitude: this.lat != null ? Number(this.lat) : (this.location?.coordinates?.[1] != null ? Number(this.location.coordinates[1]) : null),
+      longitude: this.lng != null ? Number(this.lng) : (this.location?.coordinates?.[0] != null ? Number(this.location.coordinates[0]) : null),
       locationConfirmed: Boolean(this.locationConfirmed),
       locationSource: this.locationSource || '',
       locationConfirmedAt: this.locationConfirmedAt || null,
+      locationApprovedAt: this.locationApprovedAt || null,
+      providerRefId: this.providerRefId || null,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };
@@ -220,6 +255,8 @@ function userSnapshot(row) {
 
 function profileFromRows(row) {
   const location = row.locations;
+  const lat = location?.latitude == null ? null : Number(location.latitude);
+  const lng = location?.longitude == null ? null : Number(location.longitude);
   const services = (row.contractor_profile_services || []).map((item) => ({
     category: item.catalog_services?.service_categories?.name || '',
     name: item.catalog_services?.name || '',
@@ -259,6 +296,16 @@ function profileFromRows(row) {
     taxCode: row.tax_code || '',
     address: location?.formatted_address || '',
     city: location?.city || '',
+    lat,
+    lng,
+    latitude: lat,
+    longitude: lng,
+    locationConfirmed: Boolean(location?.is_confirmed),
+    locationSource: location?.location_source || '',
+    locationConfirmedAt: location?.confirmed_at || null,
+    providerRefId: location?.provider_ref_id || null,
+    locationApprovedAt: location?.location_approved_at || null,
+    location: (lat != null && lng != null) ? { type: 'Point', coordinates: [lng, lat] } : null,
     description: row.description || '',
     yearsExperience: row.years_experience || 0,
     serviceAreas: (row.contractor_service_areas || []).map((area) => area.area_name),
@@ -314,8 +361,8 @@ const profileInclude = {
 function storeFromRow(row) {
   const media = row.store_media || [];
   const urls = (type) => media.filter((item) => item.media_type === type).sort((a, b) => a.sort_order - b.sort_order).map((item) => item.file_url);
-  const lat = row.locations?.latitude == null ? 10.045 : Number(row.locations.latitude);
-  const lng = row.locations?.longitude == null ? 105.787 : Number(row.locations.longitude);
+  const lat = row.locations?.latitude == null ? null : Number(row.locations.latitude);
+  const lng = row.locations?.longitude == null ? null : Number(row.locations.longitude);
   return new PgStore({
     pgId: row.id,
     _id: row.legacy_mongo_id,
@@ -356,10 +403,16 @@ function storeFromRow(row) {
     materialRating: Number(row.material_rating || 0),
     materialReviewCount: row.material_review_count || 0,
     status: row.status,
-    location: { type: 'Point', coordinates: [lng, lat] },
+    location: (lat != null && lng != null) ? { type: 'Point', coordinates: [lng, lat] } : null,
+    lat,
+    lng,
+    latitude: lat,
+    longitude: lng,
     locationConfirmed: Boolean(row.locations?.is_confirmed),
     locationSource: row.locations?.location_source || '',
     locationConfirmedAt: row.locations?.confirmed_at || null,
+    locationApprovedAt: row.locations?.location_approved_at || null,
+    providerRefId: row.locations?.provider_ref_id || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     locationId: row.location_id,
@@ -508,7 +561,31 @@ async function ensureMaterial(tx, item, ownerId) {
 }
 
 async function saveLocation(tx, currentId, fields) {
-  const data = {
+  if (currentId) {
+    const updateData = { updated_at: new Date() };
+    if (fields.address !== undefined) updateData.formatted_address = text(fields.address) || null;
+    if (fields.city !== undefined) updateData.city = text(fields.city, 120) || null;
+    if (fields.lat !== undefined) updateData.latitude = fields.lat == null ? null : fields.lat;
+    if (fields.lng !== undefined) updateData.longitude = fields.lng == null ? null : fields.lng;
+    if (fields.locationSource !== undefined) updateData.location_source = fields.locationSource || null;
+    if (fields.locationConfirmed !== undefined) {
+      updateData.is_confirmed = Boolean(fields.locationConfirmed);
+      if (fields.locationConfirmed) {
+        updateData.confirmed_at = fields.locationConfirmedAt || new Date();
+      } else {
+        updateData.confirmed_at = null;
+      }
+    }
+    if (fields.providerRefId !== undefined) {
+      updateData.provider_ref_id = fields.providerRefId || null;
+    }
+    if (fields.locationApprovedAt !== undefined) {
+      updateData.location_approved_at = fields.locationApprovedAt || null;
+    }
+    await tx.locations.update({ where: { id: currentId }, data: updateData });
+    return currentId;
+  }
+  const createData = {
     formatted_address: text(fields.address) || null,
     city: text(fields.city, 120) || null,
     latitude: fields.lat == null ? null : fields.lat,
@@ -516,13 +593,12 @@ async function saveLocation(tx, currentId, fields) {
     location_source: fields.locationSource || null,
     is_confirmed: Boolean(fields.locationConfirmed),
     confirmed_at: fields.locationConfirmed ? fields.locationConfirmedAt || new Date() : null,
+    provider_ref_id: fields.providerRefId || null,
+    location_approved_at: fields.locationApprovedAt || null,
+    created_at: fields.createdAt || new Date(),
     updated_at: new Date(),
   };
-  if (currentId) {
-    await tx.locations.update({ where: { id: currentId }, data });
-    return currentId;
-  }
-  const created = await tx.locations.create({ data: { ...data, created_at: fields.createdAt || new Date() } });
+  const created = await tx.locations.create({ data: createData });
   return created.id;
 }
 
@@ -530,10 +606,21 @@ async function persistProfile(profile, outerTx) {
   const owner = await userRow(profile.userId);
   if (!owner) throw new Error('Contractor profile owner is not in PostgreSQL');
   const reviewer = profile.reviewedBy ? await userRow(profile.reviewedBy) : null;
+  const { ensureLocationColumns } = require('./column-ensure');
+  await ensureLocationColumns();
   const run = async (tx) => {
+    const lat = profile.lat !== undefined ? profile.lat : (profile.latitude !== undefined ? profile.latitude : (profile.location?.coordinates?.[1] !== undefined ? profile.location.coordinates[1] : undefined));
+    const lng = profile.lng !== undefined ? profile.lng : (profile.longitude !== undefined ? profile.longitude : (profile.location?.coordinates?.[0] !== undefined ? profile.location.coordinates[0] : undefined));
     const locationId = await saveLocation(tx, profile.locationId, {
       address: profile.address,
       city: profile.city,
+      lat: lat !== undefined && lat != null ? Number(lat) : (lat === null ? null : undefined),
+      lng: lng !== undefined && lng != null ? Number(lng) : (lng === null ? null : undefined),
+      locationSource: profile.locationSource,
+      locationConfirmed: profile.locationConfirmed,
+      locationConfirmedAt: profile.locationConfirmedAt,
+      providerRefId: profile.providerRefId,
+      locationApprovedAt: profile.locationApprovedAt,
       createdAt: profile.createdAt,
     });
     const data = {
@@ -696,16 +783,21 @@ async function persistProfile(profile, outerTx) {
 async function persistStore(store, outerTx) {
   const owner = await userRow(store.contractorId);
   if (!owner) throw new Error('Store owner is not in PostgreSQL');
-  const coords = store.location?.coordinates || [105.787, 10.045];
+  const { ensureLocationColumns } = require('./column-ensure');
+  await ensureLocationColumns();
+  const latVal = store.lat !== undefined ? store.lat : (store.latitude !== undefined ? store.latitude : (store.location?.coordinates?.[1] !== undefined ? store.location.coordinates[1] : undefined));
+  const lngVal = store.lng !== undefined ? store.lng : (store.longitude !== undefined ? store.longitude : (store.location?.coordinates?.[0] !== undefined ? store.location.coordinates[0] : undefined));
   const run = async (tx) => {
     const locationId = await saveLocation(tx, store.locationId, {
       address: store.address,
       city: store.city,
-      lng: Number(coords[0]),
-      lat: Number(coords[1]),
+      lng: lngVal !== undefined && lngVal != null ? Number(lngVal) : (lngVal === null ? null : undefined),
+      lat: latVal !== undefined && latVal != null ? Number(latVal) : (latVal === null ? null : undefined),
       locationSource: store.locationSource || null,
       locationConfirmed: store.locationConfirmed,
       locationConfirmedAt: store.locationConfirmedAt,
+      locationApprovedAt: store.locationApprovedAt,
+      providerRefId: store.providerRefId,
       createdAt: store.createdAt,
     });
     const data = {
@@ -868,6 +960,14 @@ const ContractorProfile = {
       taxCode: data.taxCode || '',
       address: data.address || '',
       city: data.city || '',
+      lat: data.lat !== undefined ? data.lat : (data.latitude !== undefined ? data.latitude : null),
+      lng: data.lng !== undefined ? data.lng : (data.longitude !== undefined ? data.longitude : null),
+      locationConfirmed: Boolean(data.locationConfirmed),
+      locationSource: data.locationSource || '',
+      locationConfirmedAt: data.locationConfirmedAt || null,
+      providerRefId: data.providerRefId || null,
+      locationApprovedAt: data.locationApprovedAt || null,
+      location: data.location,
       description: data.description || '',
       yearsExperience: data.yearsExperience || 0,
       serviceAreas: data.serviceAreas || [],
@@ -924,7 +1024,17 @@ const Store = {
   findById(id) {
     return this.findOne({ _id: id });
   },
+  async countDocuments(filter) {
+    const rows = (await allStores()).filter((row) => matches(row, filter));
+    return rows.length;
+  },
   async create(data) {
+    let location = data.location;
+    const lat = data.lat !== undefined ? data.lat : data.latitude;
+    const lng = data.lng !== undefined ? data.lng : data.longitude;
+    if (!location && lat != null && lng != null) {
+      location = { type: 'Point', coordinates: [Number(lng), Number(lat)] };
+    }
     const store = new PgStore({
       _id: data._id,
       contractorId: legacyOf(data.contractorId),
@@ -964,10 +1074,14 @@ const Store = {
       materialRating: data.materialRating || 0,
       materialReviewCount: data.materialReviewCount || 0,
       status: data.status || 'INACTIVE',
-      location: data.location || { type: 'Point', coordinates: [105.787, 10.045] },
+      location: location || null,
+      lat: lat != null ? Number(lat) : null,
+      lng: lng != null ? Number(lng) : null,
       locationConfirmed: Boolean(data.locationConfirmed),
       locationSource: data.locationSource || '',
       locationConfirmedAt: data.locationConfirmedAt || null,
+      locationApprovedAt: data.locationApprovedAt || null,
+      providerRefId: data.providerRefId || null,
       createdAt: data.createdAt || new Date(),
       updatedAt: data.updatedAt || new Date(),
     });
@@ -977,7 +1091,14 @@ const Store = {
   async findOneAndUpdate(filter, update) {
     const store = await this.findOne(filter);
     if (!store) return null;
-    Object.assign(store, update.$set || update);
+    const patch = update.$set || update;
+    Object.assign(store, patch);
+    if (patch.lat !== undefined) store.lat = patch.lat;
+    if (patch.lng !== undefined) store.lng = patch.lng;
+    if (patch.locationApprovedAt !== undefined) store.locationApprovedAt = patch.locationApprovedAt;
+    if (patch.locationConfirmed !== undefined) store.locationConfirmed = patch.locationConfirmed;
+    if (patch.locationSource !== undefined) store.locationSource = patch.locationSource;
+    if (patch.location !== undefined) store.location = patch.location;
     await store.save();
     return store;
   },

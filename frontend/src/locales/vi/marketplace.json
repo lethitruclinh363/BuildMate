@@ -222,6 +222,11 @@
     "emptyTitle": "Chưa có yêu cầu",
     "emptyBody": "Ghim công trình trên bản đồ, chọn đội thợ và gửi mô tả kèm ảnh hiện trạng.",
     "openChat": "Mở chat",
+    "cancelCta": "Hủy yêu cầu",
+    "cancelTitle": "Hủy yêu cầu sửa chữa?",
+    "cancelBody": "Yêu cầu vẫn đang chờ đội thợ. Sau khi hủy, đội thợ không thể nhận việc này. Lịch sử chat và thông báo cũ được giữ lại.",
+    "confirmCancel": "Xác nhận hủy",
+    "cancelBack": "Quay lại",
     "titleMin": "Nhập tiêu đề ngắn",
     "descMin": "Mô tả vấn đề cần sửa"
   },

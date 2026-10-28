@@ -102,6 +102,7 @@ function isEligibleProvider(row) {
   if (HIDDEN_VERIFICATION.has(verification) || verification !== 'APPROVED') return false;
   if (HIDDEN_STORE.has(storeStatus) || storeStatus !== 'LIVE') return false;
   if (HIDDEN_ACCOUNTS.has(account)) return false;
+  if (row?.visible === false || row?.profileReady === false) return false;
   return true;
 }
 

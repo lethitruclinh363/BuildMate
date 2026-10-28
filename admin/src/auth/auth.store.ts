@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { adminApi } from '@/services/admin.api';
 import { AUTH_KEY, clearAdminSessionStorage } from '@/services/api';
+import { invalidateCache } from '@/lib/cache';
 import { loginAdmin } from '@/auth/auth.service';
 import { AdminForbiddenError, type User } from '@/types/api';
 
@@ -30,6 +31,8 @@ export const useAuthStore = create<AuthState>()(
         } catch {
           /* still clear local session */
         }
+        invalidateCache();
+        clearAdminSessionStorage();
         set({ user: null, token: null, loading: false });
       },
       restore: async () => {
@@ -41,6 +44,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const user = await adminApi.getProfile();
           if (user.role !== 'ADMIN') {
+            invalidateCache();
             clearAdminSessionStorage();
             set({ user: null, token: null, loading: false });
             throw new AdminForbiddenError();
@@ -48,10 +52,19 @@ export const useAuthStore = create<AuthState>()(
           set({ user, loading: false });
         } catch (error) {
           if (error instanceof AdminForbiddenError) {
+            invalidateCache();
+            clearAdminSessionStorage();
             set({ user: null, token: null, loading: false });
             return;
           }
-          set({ user: null, token: null, loading: false });
+          const status = (error as { response?: { status?: number } })?.response?.status;
+          if (status === 401 || status === 403) {
+            invalidateCache();
+            clearAdminSessionStorage();
+            set({ user: null, token: null, loading: false });
+            return;
+          }
+          set({ loading: false });
         }
       },
     }),

@@ -94,6 +94,7 @@ async function createReview(customerId, payload) {
     title: 'New review',
     message: `${payload.rating}/5 · ${order.title}`,
     type: NOTIFICATION_TYPE.NEW_REVIEW,
+    link: targetType === REVIEW_TARGET.MATERIAL_STORE ? '/store/reviews' : '/contractor/reviews',
     meta: { orderId: String(order._id), reviewId: String(review._id) },
   });
 
@@ -249,6 +250,7 @@ async function createMaterialStoreReview(customerId, payload) {
     title: 'New review',
     message: `${payload.rating}/5 · ${order.orderCode || ''}`,
     type: NOTIFICATION_TYPE.NEW_REVIEW,
+    link: '/store/reviews',
     meta: { materialOrderId: String(order._id), reviewId: String(review._id) },
   });
   await writeAudit({

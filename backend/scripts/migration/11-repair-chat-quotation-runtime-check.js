@@ -143,6 +143,9 @@ async function main() {
     `events ${socketEvents.length}`
   );
 
+  const acceptedRequest = await repairService.setStatus(created.id, contractorId, 'ACCEPTED');
+  record('contractor accept request before quotation', acceptedRequest.status === 'ACCEPTED', acceptedRequest.status);
+
   const firstQuote = await quotationService.createQuotation(contractorId, {
     requestId: created.id,
     transportCost: 50000,

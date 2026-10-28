@@ -13,6 +13,46 @@ const { CatalogService } = require('../repositories/offeringAccess');
 const { requirePlace } = require('../utils/geo');
 const locationCorrection = require('./locationCorrection.service');
 
+const REPLAY_WINDOW_MS = 45 * 1000;
+const replayLocks = new Map();
+
+function replayFingerprint(customerId, payload = {}) {
+  const title = String(payload.title || '').trim().toLowerCase();
+  const description = String(payload.description || '').trim().toLowerCase();
+  const catalog = String(payload.catalogServiceId || payload.category || '').trim().toLowerCase();
+  const lat = Number(payload.lat);
+  const lng = Number(payload.lng);
+  const pin = Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)},${lng.toFixed(5)}` : '';
+  return [String(customerId), String(payload.contractorId || ''), catalog, title, description, pin].join('|');
+}
+
+function isReplayOf(row, payload, now = Date.now()) {
+  if (!row?.createdAt) return false;
+  if (now - new Date(row.createdAt).getTime() > REPLAY_WINDOW_MS) return false;
+  const sameTitle = String(row.title || '').trim() === String(payload.title || '').trim();
+  const sameBody = String(row.description || '').trim() === String(payload.description || '').trim();
+  const catalog = String(payload.catalogServiceId || '').trim();
+  const sameCatalog = !catalog || String(row.catalogServiceId || '').trim() === catalog;
+  return sameTitle && sameBody && sameCatalog;
+}
+
+async function withReplayLock(key, work) {
+  const pending = replayLocks.get(key);
+  if (pending) return pending;
+  const next = Promise.resolve()
+    .then(work)
+    .finally(() => {
+      replayLocks.delete(key);
+    });
+  replayLocks.set(key, next);
+  return next;
+}
+
+async function findRecentDuplicate(customerId, contractorId, payload) {
+  const rows = await RepairRequest.find({ customerId, contractorId }).sort({ createdAt: -1 }).limit(8);
+  return rows.find((row) => isReplayOf(row, payload)) || null;
+}
+
 async function populateCards(requests) {
   const list = requests.filter(Boolean);
   if (!list.length) return [];
@@ -94,44 +134,57 @@ async function createRequest(customerId, payload) {
     throw new ApiError(422, 'Confirm the site location');
   }
   const confirmedAt = new Date();
-
-  const request = await RepairRequest.create({
-    customerId,
-    contractorId: contractor._id,
-    storeId: store?._id || null,
+  const createPayload = {
+    ...payload,
     category,
-    serviceName,
     catalogServiceId,
-    title: payload.title,
-    description: payload.description,
-    images: payload.images || [],
-    videos: payload.videos || [],
-    address: site.address,
-    location: site.point,
-    locationConfirmed: true,
-    locationSource: locationCorrection.locationSourceOf(payload.locationSource),
-    locationConfirmedAt: confirmedAt,
-  });
-  if (env.databaseProvider !== 'postgres') {
-    await locationCorrection.record({
+  };
+
+  return withReplayLock(replayFingerprint(customerId, createPayload), async () => {
+    const recent = await findRecentDuplicate(customerId, contractor._id, createPayload);
+    if (recent) {
+      const room = await ChatRoom.findOne({ requestId: recent._id });
+      return { ...(await populateCard(recent)), roomId: room?._id || null };
+    }
+
+    const request = await RepairRequest.create({
+      customerId,
+      contractorId: contractor._id,
+      storeId: store?._id || null,
+      category,
+      serviceName,
+      catalogServiceId,
+      title: payload.title,
+      description: payload.description,
+      images: payload.images || [],
+      videos: payload.videos || [],
       address: site.address,
-      lat: site.lat,
-      lng: site.lng,
-      refId: payload.providerRefId,
-    }).catch(() => null);
-  }
+      location: site.point,
+      locationConfirmed: true,
+      locationSource: locationCorrection.locationSourceOf(payload.locationSource),
+      locationConfirmedAt: confirmedAt,
+    });
+    if (env.databaseProvider !== 'postgres') {
+      await locationCorrection.record({
+        address: site.address,
+        lat: site.lat,
+        lng: site.lng,
+        refId: payload.providerRefId,
+      }).catch(() => null);
+    }
 
-  const room = await createRoomForRequest(request);
-  await notify({
-    userId: contractor._id,
-    title: 'New repair request',
-    message: `${payload.title} · ${payload.category}`,
-    type: NOTIFICATION_TYPE.REQUEST,
-    link: `/contractor/requests`,
-    meta: { requestId: String(request._id), roomId: String(room._id) },
+    const room = await createRoomForRequest(request);
+    await notify({
+      userId: contractor._id,
+      title: 'New repair request',
+      message: `${payload.title} · ${payload.category}`,
+      type: NOTIFICATION_TYPE.REQUEST,
+      link: `/contractor/requests`,
+      meta: { requestId: String(request._id), roomId: String(room._id) },
+    });
+
+    return { ...(await populateCard(request)), roomId: room._id };
   });
-
-  return { ...(await populateCard(request)), roomId: room._id };
 }
 
 async function listMine(customerId) {
@@ -154,17 +207,70 @@ async function getById(id, user) {
   return populateCard(request);
 }
 
+async function claimPendingRequest(id, contractorId, status) {
+  if (typeof RepairRequest.claimPending === 'function') {
+    return RepairRequest.claimPending(id, contractorId, status);
+  }
+  return RepairRequest.findOneAndUpdate(
+    { _id: id, contractorId, status: REQUEST_STATUS.PENDING },
+    { status },
+    { new: true }
+  );
+}
+
+async function claimCustomerPending(id, customerId, status) {
+  if (typeof RepairRequest.claimCustomerPending === 'function') {
+    return RepairRequest.claimCustomerPending(id, customerId, status);
+  }
+  return RepairRequest.findOneAndUpdate(
+    { _id: id, customerId, status: REQUEST_STATUS.PENDING },
+    { status },
+    { new: true }
+  );
+}
+
+async function cancelPending(id, customerId) {
+  const request = await claimCustomerPending(id, customerId, REQUEST_STATUS.CANCELLED);
+  if (!request) {
+    const existing = await RepairRequest.findById(id);
+    if (!existing) throw new ApiError(404, 'Repair request not found');
+    if (String(existing.customerId) !== String(customerId)) {
+      throw new ApiError(403, 'You cannot cancel this request');
+    }
+    if (existing.status === REQUEST_STATUS.CANCELLED) {
+      throw new ApiError(409, 'This request is already cancelled');
+    }
+    throw new ApiError(409, 'This request is no longer pending');
+  }
+  await notify({
+    userId: request.contractorId,
+    title: 'Request cancelled',
+    message: request.title,
+    type: NOTIFICATION_TYPE.STATUS_UPDATE,
+    link: '/contractor/requests',
+    meta: { requestId: String(request._id), status: REQUEST_STATUS.CANCELLED },
+  });
+  await writeAudit({
+    actorId: customerId,
+    actorRole: 'CUSTOMER',
+    action: AUDIT_ACTION.REQUEST_STATUS,
+    entityType: 'RepairRequest',
+    entityId: request._id,
+    meta: { status: REQUEST_STATUS.CANCELLED },
+  });
+  return populateCard(request);
+}
+
 async function setStatus(id, contractorId, status) {
   if (![REQUEST_STATUS.ACCEPTED, REQUEST_STATUS.REJECTED].includes(status)) {
     throw new ApiError(400, 'Invalid status');
   }
-  const request = await RepairRequest.findOne({ _id: id, contractorId });
-  if (!request) throw new ApiError(404, 'Repair request not found');
-  if (request.status !== REQUEST_STATUS.PENDING) {
+  const request = await claimPendingRequest(id, contractorId, status);
+  if (!request) {
+    const existing = await RepairRequest.findOne({ _id: id, contractorId });
+    if (!existing) throw new ApiError(404, 'Repair request not found');
     throw new ApiError(409, 'This request is no longer pending');
   }
-  request.status = status;
-  await request.save();
   const room = await ChatRoom.findOne({ requestId: request._id });
   await notify({
     userId: request.customerId,
@@ -185,4 +291,14 @@ async function setStatus(id, contractorId, status) {
   return populateCard(request);
 }
 
-module.exports = { createRequest, listMine, listReceived, getById, setStatus };
+module.exports = {
+  createRequest,
+  listMine,
+  listReceived,
+  getById,
+  setStatus,
+  cancelPending,
+  replayFingerprint,
+  isReplayOf,
+  REPLAY_WINDOW_MS,
+};

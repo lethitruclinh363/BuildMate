@@ -117,6 +117,17 @@ const ContractorOrderDetailPage = lazy(() =>
 const CreateQuotationPage = lazy(() =>
   import('@/pages/contractor/CreateQuotationPage').then((m) => ({ default: m.CreateQuotationPage }))
 );
+const ContractorMaterialRequirementPage = lazy(() =>
+  import('@/pages/contractor/ContractorMaterialRequirementPage').then((m) => ({
+    default: m.ContractorMaterialRequirementPage,
+  }))
+);
+const StoreMaterialRequestsPage = lazy(() =>
+  import('@/pages/store/StoreMaterialRequestsPage').then((m) => ({ default: m.StoreMaterialRequestsPage }))
+);
+const StoreMaterialRequestDetailPage = lazy(() =>
+  import('@/pages/store/StoreMaterialRequestDetailPage').then((m) => ({ default: m.StoreMaterialRequestDetailPage }))
+);
 const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const NotificationsPage = lazy(() =>
   import('@/pages/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage }))
@@ -160,6 +171,7 @@ export function App() {
                   <Route path="/customer/explore" element={<ExplorePage />} />
                   <Route path="/customer/request/create" element={<CreateRepairRequestPage />} />
                   <Route path="/customer/request/history" element={<RequestHistoryPage />} />
+                  <Route path="/customer/chat" element={<ChatPage />} />
                   <Route path="/customer/chat/:roomId" element={<ChatPage />} />
                   <Route path="/customer/quotation/:id" element={<CustomerQuotationPage />} />
                   <Route path="/customer/orders" element={<CustomerOrdersPage />} />
@@ -190,6 +202,8 @@ export function App() {
                   <Route path="/contractor/reputation" element={<ContractorReputationPage />} />
                   <Route path="/contractor/chat/:roomId" element={<ChatPage />} />
                   <Route path="/contractor/quotation/create/:requestId" element={<CreateQuotationPage />} />
+                  <Route path="/contractor/material-requirements/new/:requestId" element={<ContractorMaterialRequirementPage />} />
+                  <Route path="/contractor/material-requirements/:listId" element={<ContractorMaterialRequirementPage />} />
                   <Route path="/contractor/quotation/create" element={<ContractorRequestsPage />} />
                   <Route path="/contractor/notifications" element={<NotificationsPage />} />
                   <Route path="/contractor/profile/edit" element={<ContractorPublicProfilePage />} />
@@ -209,9 +223,12 @@ export function App() {
                   <Route path="/store/delivery" element={<StoreDeliveryPage />} />
                   <Route path="/store/orders" element={<StoreOrdersPage />} />
                   <Route path="/store/orders/:id" element={<StoreOrderDetailPage />} />
+                  <Route path="/store/material-requests" element={<StoreMaterialRequestsPage />} />
+                  <Route path="/store/material-requests/:id" element={<StoreMaterialRequestDetailPage />} />
                   <Route path="/store/earnings" element={<StoreEarningsPage />} />
                   <Route path="/store/reviews" element={<StoreReviewsPage />} />
                   <Route path="/store/reputation" element={<StoreReputationPage />} />
+                  <Route path="/store/chat" element={<ChatPage />} />
                   <Route path="/store/chat/:roomId" element={<ChatPage />} />
                   <Route path="/store/notifications" element={<NotificationsPage />} />
                   <Route path="/store/profile" element={<ProfilePage />} />

@@ -15,6 +15,7 @@ const MIME_BY_EXT = Object.freeze({
 });
 
 const ALLOWED_MIME = new Set(Object.values(MIME_BY_EXT));
+const CHAT_MEDIA_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.mp4', '.mov']);
 
 const UPLOAD_SCOPES = Object.freeze({
   users: 'users',
@@ -38,6 +39,15 @@ function isAllowedFile(file) {
   return true;
 }
 
+function isChatMedia(file) {
+  const ext = extensionOf(file.originalname);
+  if (!CHAT_MEDIA_EXT.has(ext)) return false;
+  if (file.mimetype && !file.mimetype.startsWith('image/') && !file.mimetype.startsWith('video/')) {
+    return false;
+  }
+  return true;
+}
+
 function secureFilename(originalName) {
   const ext = MIME_BY_EXT[extensionOf(originalName)] ? extensionOf(originalName) : '';
   return `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
@@ -53,9 +63,11 @@ function maxBytesFor(file, fallbackMb) {
 module.exports = {
   MIME_BY_EXT,
   ALLOWED_MIME,
+  CHAT_MEDIA_EXT,
   UPLOAD_SCOPES,
   extensionOf,
   isAllowedFile,
+  isChatMedia,
   secureFilename,
   maxBytesFor,
 };

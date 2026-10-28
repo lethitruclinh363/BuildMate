@@ -25,5 +25,6 @@ router.get('/received', authenticate, authorize(ROLES.CONTRACTOR), repairControl
 router.get('/:id', authenticate, repairController.getOne);
 router.patch('/:id/accept', authenticate, authorize(ROLES.CONTRACTOR), repairController.accept);
 router.patch('/:id/reject', authenticate, authorize(ROLES.CONTRACTOR), repairController.reject);
+router.patch('/:id/cancel', authenticate, authorize(ROLES.CUSTOMER), repairController.cancel);
 
 module.exports = router;

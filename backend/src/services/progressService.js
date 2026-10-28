@@ -10,6 +10,21 @@ const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const { emitToUser } = require('./socketService');
 const { assertParty } = require('./orderService');
 
+const progressLocks = new Map();
+
+async function withProgressLock(orderId, work) {
+  const key = String(orderId);
+  const pending = progressLocks.get(key);
+  if (pending) return pending;
+  const next = Promise.resolve()
+    .then(work)
+    .finally(() => {
+      progressLocks.delete(key);
+    });
+  progressLocks.set(key, next);
+  return next;
+}
+
 async function listProgress(orderId, user) {
   const order = await Order.findById(orderId);
   if (!order) throw new ApiError(404, 'Order not found');
@@ -19,6 +34,10 @@ async function listProgress(orderId, user) {
 }
 
 async function addProgress(orderId, user, payload) {
+  return withProgressLock(orderId, () => recordProgress(orderId, user, payload));
+}
+
+async function recordProgress(orderId, user, payload) {
   const order = await Order.findById(orderId);
   if (!order) throw new ApiError(404, 'Order not found');
   if ([ORDER_STATUS.CUSTOMER_ACCEPTED, ORDER_STATUS.CANCELLED].includes(order.status)) {
@@ -43,7 +62,10 @@ async function addProgress(orderId, user, payload) {
     allowed = Boolean(legacy);
   }
   if (!allowed) {
-    throw new ApiError(409, 'Deposit must be paid before work can start');
+    if (order.status === ORDER_STATUS.QUOTATION_ACCEPTED && nextStatus === PROGRESS_STATUS.STARTED) {
+      throw new ApiError(409, 'Deposit must be paid before work can start');
+    }
+    throw new ApiError(409, 'Invalid progress transition');
   }
   if (nextStatus === PROGRESS_STATUS.STARTED) {
     const deposit = await Payment.findOne({ orderId: order._id, type: PAYMENT_TYPE.DEPOSIT });
