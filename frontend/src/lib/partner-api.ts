@@ -21,6 +21,7 @@ const origin = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '')
 export function mediaUrl(url?: string) {
   const value = (url || '').trim();
   if (!value) return '';
+  if (value.startsWith('private:')) return '';
   if (/^(https?:|blob:|data:)/i.test(value)) return value;
   const filePath = value.startsWith('/') ? value : `/${value}`;
   return `${origin}${filePath}`;

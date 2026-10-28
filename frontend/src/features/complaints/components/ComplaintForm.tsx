@@ -21,6 +21,7 @@ export function ComplaintForm({
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
+        if (busy) return;
         onSubmit({ reason, description });
       }}
     >

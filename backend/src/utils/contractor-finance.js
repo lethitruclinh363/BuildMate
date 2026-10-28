@@ -170,6 +170,13 @@ function canStartWork(orderStatus, escrowStatus) {
   return orderStatus === 'DEPOSIT_PAID' && escrowStatus === ESCROW_STATUS.HELD;
 }
 
+function isDisputeFreeze(escrow) {
+  return (
+    escrow.status === ESCROW_STATUS.FROZEN
+    && (!escrow.cancelCase || escrow.cancelCase === CANCEL_CASE.DISPUTE)
+  );
+}
+
 function canReleaseEscrow({ escrow, customerAccepted, remainingSettled, openComplaint, depositPaid = true }) {
   if (!depositPaid) return { ok: false, code: 'DEPOSIT_NOT_PAID' };
   if (openComplaint) return { ok: false, code: 'ESCROW_FROZEN_BY_COMPLAINT' };
@@ -179,9 +186,15 @@ function canReleaseEscrow({ escrow, customerAccepted, remainingSettled, openComp
   if (escrow.status === ESCROW_STATUS.REFUNDED || escrow.status === ESCROW_STATUS.CANCELLED_SETTLED) {
     return { ok: false, code: 'ESCROW_CLOSED' };
   }
-  if (escrow.status === ESCROW_STATUS.FROZEN) return { ok: false, code: 'ESCROW_FROZEN' };
+  if (escrow.status === ESCROW_STATUS.FROZEN && !isDisputeFreeze(escrow)) {
+    return { ok: false, code: 'ESCROW_FROZEN' };
+  }
   if (escrow.status === ESCROW_STATUS.REFUND_PENDING) return { ok: false, code: 'REFUND_IN_FLIGHT' };
-  if (escrow.status !== ESCROW_STATUS.HELD && escrow.status !== ESCROW_STATUS.RELEASE_PENDING) {
+  if (
+    escrow.status !== ESCROW_STATUS.HELD
+    && escrow.status !== ESCROW_STATUS.RELEASE_PENDING
+    && !isDisputeFreeze(escrow)
+  ) {
     return { ok: false, code: 'ESCROW_NOT_HELD' };
   }
   if (availableBalance(escrow) < roundVnd(escrow.contractorHoldAmount)) {

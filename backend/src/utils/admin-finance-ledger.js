@@ -21,8 +21,10 @@ function emptyLedger() {
   };
 }
 
-function addDepositRow(ledger, { finance = {}, escrow = {}, paymentStatus } = {}) {
-  ledger.acceptedQuoteTotal += roundVnd(finance.totalAmount);
+function addDepositRow(ledger, { finance = {}, escrow = {}, paymentStatus, includeQuote = true } = {}) {
+  if (includeQuote) {
+    ledger.acceptedQuoteTotal += roundVnd(finance.totalAmount);
+  }
   if (paymentStatus === 'PAID' || paymentStatus === 'REFUNDED') {
     ledger.capturedDeposit += roundVnd(finance.depositAmount || escrow.grossAmount);
   }

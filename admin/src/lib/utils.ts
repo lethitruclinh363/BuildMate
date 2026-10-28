@@ -65,6 +65,7 @@ export function shortenId(id: string) {
 
 export function mediaUrl(url?: string) {
   if (!url) return '';
+  if (url.startsWith('private:')) return '';
   if (url.startsWith('http') || url.startsWith('blob:')) return url;
   const origin = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace(/\/api\/v1\/?$/, '');
   return `${origin}${url.startsWith('/') ? url : `/${url}`}`;

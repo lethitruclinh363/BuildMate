@@ -309,8 +309,7 @@ async function processVerification(userId, profile, files) {
   record.markModified('faceMatch');
   await record.save();
 
-  const tail = String(record.ocr.idNumber || '').slice(-4);
-  console.info(`[ekyc] processed status=${status} decision=${match.decision || ''} idTail=${tail}`);
+  console.info(`[ekyc] processed status=${status} decision=${match.decision || ''}`);
   return record.toPublic();
 }
 

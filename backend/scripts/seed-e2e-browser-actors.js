@@ -30,6 +30,7 @@ const { STORE_STATUS, STORE_TYPE } = require('../src/models/Store');
 const { PROFILE_STATUS } = require('../src/models/user.model');
 const { ensureSystemCatalog } = require('../src/services/catalogService');
 const { ensureDefaultPolicies } = require('../src/services/policy.service');
+const { ensureE2ePlaceholderFile } = require('./test-db/ensure-e2e-placeholder');
 
 const CAN_THO = { type: 'Point', coordinates: [105.7469, 10.0452] };
 const PLACEHOLDER = '/uploads/e2e-placeholder.png';
@@ -116,12 +117,14 @@ async function ensureMaterial(store, spec) {
     existing.price = spec.price;
     existing.stock = spec.stock;
     existing.isActive = true;
+    if (!existing.images?.length) existing.images = [PLACEHOLDER];
     await existing.save();
     return existing;
   }
   return Material.create({
     storeId: store._id,
     isActive: true,
+    images: [PLACEHOLDER],
     ...spec,
   });
 }
@@ -132,6 +135,7 @@ async function main() {
     throw new Error('Refusing to seed browser fixtures outside BuilMate_test');
   }
 
+  ensureE2ePlaceholderFile();
   await ensureDefaultPolicies();
   await ensureSystemCatalog();
 

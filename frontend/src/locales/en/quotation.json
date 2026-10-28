@@ -35,6 +35,7 @@
   "daysWork": "{n} days of work",
   "sendToChat": "Send quotation to chat",
   "addFirst": "Add materials or labor first.",
+  "totalMin": "Quotation total must be greater than zero.",
   "sendFail": "Could not send quotation",
   "note": "Note",
   "transportField": "Transport (VND)",

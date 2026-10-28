@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { Prisma } = require('@prisma/client');
+const { Prisma } = require('../../prisma/generated/client');
 const { prisma } = require('../config/prisma');
 const { ensureSaleColumns } = require('./column-ensure');
 const { listingOf, saleStateOf } = require('../utils/material-sale');

@@ -87,6 +87,7 @@ async function main() {
     locationConfirmed: true,
     locationSource: 'GPS',
   });
+  await repairService.setStatus(request.id, contractorId, 'ACCEPTED');
   const quote = await quotationService.createQuotation(contractorId, {
     requestId: request.id,
     transportCost: 20000,

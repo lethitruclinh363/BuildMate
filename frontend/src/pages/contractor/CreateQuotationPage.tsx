@@ -13,7 +13,7 @@ import { contractorApi } from '@/lib/partner-api';
 import { vnd } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
 import type { CatalogService } from '@/types/partner';
-import type { QuotationItem, RepairRequest } from '@/types/sprint4';
+import { canCreateQuotation, type QuotationItem, type RepairRequest } from '@/types/sprint4';
 
 export function CreateQuotationPage() {
   const { t, te } = useI18n();
@@ -52,8 +52,12 @@ export function CreateQuotationPage() {
         setLockedReason(te('A quotation was already accepted'));
       } else if (next.status === 'REJECTED') {
         setLockedReason(te('This request was rejected'));
+      } else if (next.status === 'CANCELLED') {
+        setLockedReason(te('This request was cancelled'));
       } else if (next.status === 'COMPLETED') {
         setLockedReason(te('This request is already completed'));
+      } else if (!canCreateQuotation(next.status)) {
+        setLockedReason(te('Accept this request before sending a quotation'));
       } else {
         setLockedReason('');
       }
@@ -80,6 +84,10 @@ export function CreateQuotationPage() {
     }
     if (!requestId || items.length === 0) {
       setError(t('quote.addFirst'));
+      return;
+    }
+    if (totals.total <= 0) {
+      setError(t('quote.totalMin'));
       return;
     }
     setSaving(true);

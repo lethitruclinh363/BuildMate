@@ -45,7 +45,7 @@ async function createParty(stamp = Date.now(), { totalCost = 750000 } = {}) {
     title: `E2E leak ${stamp}`,
     description: 'Sprint 5.3 fixture request for the locked quotation-to-order flow.',
     address: '12 Nguyen Van Cu, Ninh Kieu',
-    status: REQUEST_STATUS.PENDING,
+    status: REQUEST_STATUS.ACCEPTED,
   });
 
   const quotation = await Quotation.create({

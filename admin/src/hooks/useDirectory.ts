@@ -25,9 +25,13 @@ async function fetchAdminDirectory() {
   ]);
 
   const users = composeUsers(verifications, complaints);
-  const orderIds = collectOrderIds(complaints, audit);
-  const orders = await settleAll(orderIds.slice(0, 30).map((id) => adminApi.getOrder(id)));
-  const paymentBundles = await settleAll(orders.map((order) => adminApi.getOrderPayments(order.id)));
+  const listed = await adminApi.listRepairOrders().catch(() => [] as OrderDetail[]);
+  const fallbackIds = collectOrderIds(complaints, audit);
+  const extra = listed.length
+    ? []
+    : await settleAll(fallbackIds.slice(0, 30).map((id) => adminApi.getOrder(id)));
+  const orders = listed.length ? listed : extra;
+  const paymentBundles = await settleAll(orders.slice(0, 40).map((order) => adminApi.getOrderPayments(order.id)));
   const payments = paymentBundles.flatMap((bundle) => bundle.items);
 
   const contractorIds = [...new Set(verifications.map((row) => asId(row.user?.id || row.userId)).filter(Boolean))];

@@ -21,8 +21,17 @@ const chatRoomSchema = new mongoose.Schema(
     requestId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'RepairRequest',
-      required: true,
       unique: true,
+      sparse: true,
+    },
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Store',
+      index: true,
+    },
+    roomKind: {
+      type: String,
+      default: 'CUSTOMER_CONTRACTOR',
     },
     lastMessage: { type: String, default: '' },
     lastMessageAt: { type: Date, default: Date.now },
@@ -39,6 +48,8 @@ chatRoomSchema.methods.toPublic = function toPublic() {
     customerId: this.customerId,
     contractorId: this.contractorId,
     requestId: this.requestId,
+    storeId: this.storeId,
+    roomKind: this.roomKind || 'CUSTOMER_CONTRACTOR',
     lastMessage: this.lastMessage,
     lastMessageAt: this.lastMessageAt,
     createdAt: this.createdAt,

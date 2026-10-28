@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FileText, ShieldCheck } from 'lucide-react';
@@ -13,9 +13,10 @@ import { Spinner } from '@/components/Spinner';
 import { StatCard } from '@/components/StatCard';
 import { TextArea } from '@/components/Input';
 import { EkycReviewPanel } from '@/pages/verification/EkycReviewPanel';
+import { AdminLocationSection } from '@/pages/verification/AdminLocationSection';
 import { getApiErrorMessage } from '@/services/api';
 import { mediaUrl } from '@/lib/utils';
-import type { DocumentType, PartnerApplication, VerificationStatus } from '@/types/admin';
+import type { DocumentType, PartnerApplication, VerificationDocument, VerificationStatus } from '@/types/admin';
 import { useToastStore } from '@/stores/toast.store';
 
 function serviceTitle(translate: (key: string) => string, name: string) {
@@ -112,8 +113,12 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
     }
   };
 
-  const imageDocuments = documents.filter((doc) => doc.mimeType?.startsWith('image/') && !String(doc.url || '').startsWith('private:'));
-  const fileDocuments = documents.filter((doc) => !doc.mimeType?.startsWith('image/') && !String(doc.url || '').startsWith('private:'));
+  const imageDocuments = documents.filter(
+    (doc) => doc.mimeType?.startsWith('image/') && !String(doc.url || '').startsWith('private:ekyc:')
+  );
+  const fileDocuments = documents.filter(
+    (doc) => !doc.mimeType?.startsWith('image/') && !String(doc.url || '').startsWith('private:ekyc:')
+  );
 
   return (
     <div>
@@ -321,47 +326,30 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
                 {selected.publicProfile.deliveryNote ? <p className="mt-2 text-sm text-white/70">{selected.publicProfile.deliveryNote}</p> : null}
               </div>
             ) : null}
+            <AdminLocationSection application={selected} actor={actor} />
             <h3 className="mt-6 font-display text-lg">{t('verify.images')}</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {imageDocuments.map((doc) => (
-                <a
+                <AdminDocCard
                   key={doc._id}
-                  href={mediaUrl(doc.url)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="overflow-hidden rounded-2xl border border-white/10 bg-navy-950/40"
-                >
-                  <img src={mediaUrl(doc.url)} alt="" className="h-32 w-full object-cover" />
-                  <div className="p-3">
-                    <p className="text-sm font-semibold">{docTitle(doc.type, t)}</p>
-                    <p className="truncate text-xs text-white/40">{doc.originalName}</p>
-                  </div>
-                </a>
+                  profileId={selected.id}
+                  doc={doc}
+                  title={docTitle(doc.type, t)}
+                  tone="dark"
+                />
               ))}
             </div>
             {imageDocuments.length === 0 && actor !== 'CONTRACTOR' ? <p className="mt-2 text-sm text-white/45">{t('verify.noPortfolio')}</p> : null}
             <h3 className="mt-6 font-display text-lg">{t('verify.documents')}</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {fileDocuments.map((doc) => (
-                <a
+                <AdminDocCard
                   key={doc._id}
-                  href={mediaUrl(doc.url)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="overflow-hidden rounded-2xl border border-[#E1E7ED] bg-white text-[#16283C] shadow-sm hover:border-[#2B6280]/40 transition"
-                >
-                  {doc.mimeType.startsWith('image/') ? (
-                    <img src={mediaUrl(doc.url)} alt="" className="h-32 w-full object-cover" />
-                  ) : (
-                    <div className="grid h-32 place-items-center text-[#2B6280]">
-                      <FileText className="h-6 w-6" />
-                    </div>
-                  )}
-                  <div className="p-3">
-                    <p className="text-sm font-semibold text-[#16283C]">{docTitle(doc.type, t)}</p>
-                    <p className="truncate text-xs text-[#526477]">{doc.originalName}</p>
-                  </div>
-                </a>
+                  profileId={selected.id}
+                  doc={doc}
+                  title={docTitle(doc.type, t)}
+                  tone="light"
+                />
               ))}
             </div>
             {selected.rejectionReason ? (
@@ -402,6 +390,73 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
         )}
       </div>
     </div>
+  );
+}
+
+function AdminDocCard({
+  profileId,
+  doc,
+  title,
+  tone,
+}: {
+  profileId: string;
+  doc: VerificationDocument;
+  title: string;
+  tone: 'dark' | 'light';
+}) {
+  const privateDoc = String(doc.url || '').startsWith('private:');
+  const [src, setSrc] = useState(() => (privateDoc ? '' : mediaUrl(doc.url)));
+
+  useEffect(() => {
+    if (!privateDoc) {
+      setSrc(mediaUrl(doc.url));
+      return undefined;
+    }
+    let blobUrl = '';
+    let cancelled = false;
+    adminApi
+      .verificationFile(profileId, doc._id)
+      .then((url) => {
+        blobUrl = url;
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        setSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc('');
+      });
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [privateDoc, profileId, doc._id, doc.url]);
+
+  const dark = tone === 'dark';
+  return (
+    <a
+      href={src || undefined}
+      target="_blank"
+      rel="noreferrer"
+      className={
+        dark
+          ? 'overflow-hidden rounded-2xl border border-white/10 bg-navy-950/40'
+          : 'overflow-hidden rounded-2xl border border-[#E1E7ED] bg-white text-[#16283C] shadow-sm hover:border-[#2B6280]/40 transition'
+      }
+    >
+      {doc.mimeType.startsWith('image/') ? (
+        src ? <img src={src} alt="" className="h-32 w-full object-cover" /> : <div className="h-32 bg-black/10" />
+      ) : (
+        <div className={`grid h-32 place-items-center ${dark ? 'text-white/60' : 'text-[#2B6280]'}`}>
+          <FileText className="h-6 w-6" />
+        </div>
+      )}
+      <div className="p-3">
+        <p className={`text-sm font-semibold ${dark ? '' : 'text-[#16283C]'}`}>{title}</p>
+        <p className={`truncate text-xs ${dark ? 'text-white/40' : 'text-[#526477]'}`}>{doc.originalName}</p>
+      </div>
+    </a>
   );
 }
 

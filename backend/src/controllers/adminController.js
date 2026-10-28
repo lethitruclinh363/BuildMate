@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const adminService = require('../services/adminService');
@@ -13,6 +14,11 @@ const stats = asyncHandler(async (_req, res) => {
 const listCustomers = asyncHandler(async (_req, res) => {
   const data = await adminService.listCustomers();
   return success(res, data, 'Customers retrieved');
+});
+
+const listRepairOrders = asyncHandler(async (_req, res) => {
+  const data = await adminService.listRepairOrders();
+  return success(res, data, 'Repair orders retrieved');
 });
 
 const getCustomer = asyncHandler(async (req, res) => {
@@ -38,6 +44,18 @@ const approve = asyncHandler(async (req, res) => {
 const reject = asyncHandler(async (req, res) => {
   const data = await adminService.reject(req.params.id, req.user.id, req.body.reason);
   return success(res, data, 'Partner rejected');
+});
+
+const serveDocument = asyncHandler(async (req, res, next) => {
+  const opened = await adminService.openDocumentFile(req.params.id, req.params.documentId, req.user);
+  res.setHeader('Content-Type', opened.contentType);
+  res.setHeader('Cache-Control', 'private, no-store');
+  const stream = fs.createReadStream(opened.full);
+  stream.on('error', (err) => {
+    if (!res.headersSent) return next(err);
+    res.end();
+  });
+  stream.pipe(res);
 });
 
 const auditLogs = asyncHandler(async (req, res) => {
@@ -129,9 +147,11 @@ const setCommissionRule = asyncHandler(async (req, res) => {
 module.exports = {
   stats,
   listCustomers,
+  listRepairOrders,
   getCustomer,
   list,
   getOne,
+  serveDocument,
   approve,
   reject,
   auditLogs,

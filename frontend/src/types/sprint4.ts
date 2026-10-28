@@ -7,7 +7,11 @@ export const REPAIR_CATEGORIES = [
 ] as const;
 
 export type RepairCategory = (typeof REPAIR_CATEGORIES)[number]['value'];
-export type RequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED';
+export type RequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
+
+export function canCreateQuotation(status?: RequestStatus | null) {
+  return status === 'ACCEPTED';
+}
 export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'QUOTATION' | 'LOCATION';
 export type QuotationStatus =
   | 'DRAFT'
@@ -89,6 +93,10 @@ export interface ChatRoom {
   customerId: string;
   contractorId: string;
   requestId: string;
+  storeId?: string;
+  roomKind?: 'CUSTOMER_CONTRACTOR' | 'CUSTOMER_MATERIAL_STORE';
+  storeName?: string;
+  storeAvatar?: string;
   lastMessage: string;
   lastMessageAt: string;
   otherUser?: { id: string; name: string; avatar: string } | null;

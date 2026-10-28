@@ -10,6 +10,7 @@ const { ApiError } = require('../utils/ApiError');
 const { publicPricedServiceMatch } = require('../constants/contractorServices');
 const { assertDeliveryPolicy } = require('../utils/delivery-policy');
 const { hasValidLocation } = require('./activation.service');
+const { assertLocationNotDirectlyModifiable } = require('../utils/locationGuard');
 const reviewService = require('./reviewService');
 
 function presentPublicProfile(store) {
@@ -167,6 +168,7 @@ async function updatePublicProfile(userId, body) {
     throw new ApiError(422, 'Verified details cannot be changed from the public profile');
   }
   const { store } = await loadApprovedStore(userId);
+  assertLocationNotDirectlyModifiable(true, body);
   const map = {
     displayName: 'name',
     slogan: 'slogan',
@@ -286,6 +288,7 @@ async function updateMaterialPublicProfile(userId, body) {
     throw new ApiError(422, 'Verified details cannot be changed from the public profile');
   }
   const { store } = await loadApprovedMaterialStore(userId);
+  assertLocationNotDirectlyModifiable(true, body);
   const map = {
     displayName: 'name',
     slogan: 'slogan',

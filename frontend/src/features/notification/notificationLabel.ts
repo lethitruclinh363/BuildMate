@@ -13,5 +13,8 @@ export function notificationTitle(
 ) {
   const fromType = item.type ? LEGACY_WORKER_NOTICE[item.type] : undefined;
   const fromTitle = LEGACY_WORKER_NOTICE[item.title];
-  return labeled(t, 'notify.titles', fromType || fromTitle || item.title);
+  const raw = fromType || fromTitle || item.title;
+  const hit = labeled(t, 'notify.titles', raw);
+  if (!hit || hit === '—' || hit === `notify.titles.${raw}`) return raw;
+  return hit;
 }

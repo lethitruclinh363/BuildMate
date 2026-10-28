@@ -35,6 +35,7 @@
   "daysWork": "{n} ngày thi công",
   "sendToChat": "Gửi báo giá vào chat",
   "addFirst": "Thêm vật liệu hoặc nhân công trước.",
+  "totalMin": "Tổng báo giá phải lớn hơn 0.",
   "sendFail": "Không gửi được báo giá",
   "note": "Ghi chú",
   "transportField": "Vận chuyển (VNĐ)",

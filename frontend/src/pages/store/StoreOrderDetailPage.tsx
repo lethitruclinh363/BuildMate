@@ -67,7 +67,7 @@ export function StoreOrderDetailPage() {
   const next = order ? nextStoreStatus(order.status) : null;
 
   async function advance() {
-    if (!next) return;
+    if (!next || busy) return;
     setBusy(true);
     try {
       const res = await materialStoreOrderApi.updateStatus(id, next);
@@ -174,6 +174,7 @@ export function StoreOrderDetailPage() {
               variant="outline"
               disabled={busy}
               onClick={() => {
+                if (busy) return;
                 setBusy(true);
                 void materialStoreOrderApi
                   .collectPayment(id)

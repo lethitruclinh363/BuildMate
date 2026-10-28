@@ -19,7 +19,10 @@ function MixBars({ items }: { items: Array<{ label: string; value: number }> }) 
             <span className="font-semibold text-[#16283C]">{typeof item.value === 'number' && item.value > 1000 ? vnd(item.value) : item.value}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-[#E1E7ED]">
-            <div className="h-full rounded-full bg-[#2B6280]" style={{ width: `${Math.max((item.value / max) * 100, 4)}%` }} />
+            <div
+              className="h-full rounded-full bg-[#2B6280]"
+              style={{ width: `${item.value > 0 ? Math.max((item.value / max) * 100, 4) : 0}%` }}
+            />
           </div>
         </div>
       ))}
@@ -58,11 +61,16 @@ export function AnalyticsPage() {
         <StatCard label={t('pages.users')} value={data.users.total} />
         <StatCard label={t('pages.customers')} value={data.users.customer} />
         <StatCard label={t('pages.contractors')} value={data.users.contractor} />
+        <StatCard label={t('pages.storeOwners')} value={data.users.storeOwner || 0} />
+        <StatCard label={t('pages.liveContractors')} value={data.users.liveContractor || 0} />
+        <StatCard label={t('pages.liveStores')} value={data.users.liveStore || 0} />
         <StatCard label={t('pages.orders')} value={data.orders.total} />
         <StatCard label={t('pages.completed')} value={data.orders.completed} />
         <StatCard label={t('pages.cancelled')} value={data.orders.cancelled} />
+        <StatCard label={t('pages.materialOrders')} value={data.orders.materialTotal || 0} />
         <StatCard label={t('pages.commission')} value={vnd(data.finance.commission)} />
-        <StatCard label={t('pages.gmv')} value={vnd(data.finance.capturedDeposits || 0)} />
+        <StatCard label={t('pages.gmv')} value={vnd(data.finance.gmv || 0)} />
+        <StatCard label={t('pages.capturedDeposits')} value={vnd(data.finance.capturedDeposits || 0)} />
         <StatCard label={t('pages.materialGmv')} value={vnd(data.finance.materialGmv || 0)} />
         <StatCard label={t('pages.earning')} value={vnd(data.finance.contractorEarning)} />
         <StatCard label={t('pages.rating')} value={data.reviews.average.toFixed(1)} />

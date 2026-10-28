@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:test": "vite --port 5176 --mode test",
+    "dev:mrl": "vite --port 5178 --mode mrl",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },

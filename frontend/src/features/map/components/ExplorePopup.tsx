@@ -45,6 +45,15 @@ export function ExplorePopup({
       navigate(withAuthRedirect(fallback, role));
       return;
     }
+    if (kind === 'store') {
+      try {
+        const opened = await chatApi.openStoreRoom(place.id);
+        navigate(`/customer/chat/${opened.data.data.id}`);
+      } catch {
+        navigate(withAuthRedirect(fallback, role));
+      }
+      return;
+    }
     try {
       const rooms = await chatApi.rooms();
       const existing = (rooms.data.data || []).find(

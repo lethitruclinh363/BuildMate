@@ -106,6 +106,28 @@ describe('escrow state machine (TC05-TC15)', () => {
     assert.equal(gate.code, 'ESCROW_FROZEN_BY_COMPLAINT');
   });
 
+  it('allows settle after a dispute freeze once the complaint is closed and other gates pass', () => {
+    const frozen = freezeEscrow(funded());
+    assert.equal(frozen.escrow.cancelCase, CANCEL_CASE.DISPUTE);
+    const stillShort = canReleaseEscrow({
+      escrow: frozen.escrow,
+      customerAccepted: true,
+      remainingSettled: false,
+      openComplaint: false,
+    });
+    assert.equal(stillShort.ok, false);
+    const gate = canReleaseEscrow({
+      escrow: frozen.escrow,
+      customerAccepted: true,
+      remainingSettled: true,
+      openComplaint: false,
+    });
+    assert.equal(gate.ok, true);
+    const pending = markReleasePending(frozen.escrow);
+    assert.equal(pending.ok, true);
+    assert.equal(pending.escrow.status, ESCROW_STATUS.RELEASE_PENDING);
+  });
+
   it('does not payout before customer acceptance even when remaining is marked settled', () => {
     const escrow = funded();
     escrow.remainingSettled = true;

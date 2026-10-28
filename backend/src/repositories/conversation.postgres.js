@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { prisma } = require('../config/prisma');
 const { legacyClause, enumClause, compareClause } = require('./scopedQuery');
+const { ensureChatColumns } = require('./column-ensure');
 
 function newId() {
   return crypto.randomBytes(12).toString('hex');
@@ -183,7 +184,11 @@ class PgRoom {
       id: this._id,
       customerId: legacyOf(this.customerId),
       contractorId: legacyOf(this.contractorId),
-      requestId: legacyOf(this.requestId),
+      requestId: this.requestId ? legacyOf(this.requestId) : '',
+      storeId: this.storeId ? legacyOf(this.storeId) : '',
+      roomKind: this.roomKind || 'CUSTOMER_CONTRACTOR',
+      storeName: this.storeName || '',
+      storeAvatar: this.storeAvatar || '',
       lastMessage: this.lastMessage || '',
       lastMessageAt: this.lastMessageAt,
       createdAt: this.createdAt,
@@ -332,6 +337,11 @@ function roomFromRow(row) {
     customerId: row.users_chat_rooms_customer_user_idTousers?.legacy_mongo_id || '',
     contractorId: row.users_chat_rooms_contractor_user_idTousers?.legacy_mongo_id || '',
     requestId: row.repair_requests?.legacy_mongo_id || '',
+    storeId: row.store?.legacy_mongo_id || '',
+    roomKind: row.room_kind || 'CUSTOMER_CONTRACTOR',
+    storeName: row.store?.name || '',
+    storeAvatar: row.store?.avatar_url || row.store?.logo_url || '',
+    storeStatus: row.store?.status || '',
     lastMessage: row.last_message || '',
     lastMessageAt: row.last_message_at,
     createdAt: row.created_at,
@@ -340,12 +350,9 @@ function roomFromRow(row) {
 }
 
 async function allRooms() {
+  await ensureChatColumns();
   return (await prisma.chat_rooms.findMany({
-    include: {
-      users_chat_rooms_customer_user_idTousers: { select: { legacy_mongo_id: true } },
-      users_chat_rooms_contractor_user_idTousers: { select: { legacy_mongo_id: true } },
-      repair_requests: { select: { legacy_mongo_id: true } },
-    },
+    include: roomInclude,
   })).map(roomFromRow);
 }
 
@@ -450,6 +457,9 @@ async function persistRequest(doc, tx) {
       });
   doc.pgId = row.id;
   doc._id = row.legacy_mongo_id || doc._id;
+  doc.status = row.status;
+  doc.createdAt = row.created_at || doc.createdAt;
+  doc.updatedAt = row.updated_at || doc.updatedAt;
   if (catalog) doc.catalogServiceId = catalog.code || catalog.legacy_mongo_id || doc.catalogServiceId;
   await db.repair_request_media.deleteMany({ where: { repair_request_id: row.id } });
   const media = [
@@ -465,29 +475,62 @@ async function persistRequest(doc, tx) {
 }
 
 async function persistRoom(doc, tx) {
+  await ensureChatColumns();
   const db = client(tx);
   const customer = await userId(doc.customerId, tx);
   const contractor = await userId(doc.contractorId, tx);
-  const request = await db.repair_requests.findFirst({
-    where: { legacy_mongo_id: legacyOf(doc.requestId) },
-    select: { id: true },
-  });
-  if (!customer || !contractor || !request) throw new Error('Chat room customer, contractor, or request is not in PostgreSQL');
+  const kind = doc.roomKind || (doc.storeId ? 'CUSTOMER_MATERIAL_STORE' : 'CUSTOMER_CONTRACTOR');
+  let requestPk = null;
+  let storePk = null;
+  if (kind === 'CUSTOMER_MATERIAL_STORE') {
+    const store = await db.stores.findFirst({
+      where: { legacy_mongo_id: legacyOf(doc.storeId) },
+      select: { id: true },
+    });
+    if (!customer || !contractor || !store) {
+      throw new Error('Chat room customer, store owner, or store is not in PostgreSQL');
+    }
+    storePk = store.id;
+  } else {
+    const request = await db.repair_requests.findFirst({
+      where: { legacy_mongo_id: legacyOf(doc.requestId) },
+      select: { id: true },
+    });
+    if (!customer || !contractor || !request) throw new Error('Chat room customer, contractor, or request is not in PostgreSQL');
+    requestPk = request.id;
+  }
   const data = {
     customer_user_id: customer,
     contractor_user_id: contractor,
-    repair_request_id: request.id,
+    repair_request_id: requestPk,
+    store_id: storePk,
+    room_kind: kind,
     last_message: text(doc.lastMessage, 4000),
     last_message_at: doc.lastMessageAt || new Date(),
     updated_at: new Date(),
   };
-  const row = doc.pgId
-    ? await db.chat_rooms.update({ where: { id: doc.pgId }, data })
-    : await db.chat_rooms.create({
-        data: { ...data, legacy_mongo_id: doc._id || newId(), created_at: doc.createdAt || new Date() },
+  try {
+    const row = doc.pgId
+      ? await db.chat_rooms.update({ where: { id: doc.pgId }, data })
+      : await db.chat_rooms.create({
+          data: { ...data, legacy_mongo_id: doc._id || newId(), created_at: doc.createdAt || new Date() },
+        });
+    doc.pgId = row.id;
+    doc._id = row.legacy_mongo_id || doc._id;
+  } catch (error) {
+    if (kind === 'CUSTOMER_MATERIAL_STORE' && error?.code === 'P2002') {
+      const existing = await db.chat_rooms.findFirst({
+        where: { customer_user_id: customer, store_id: storePk, room_kind: kind },
+        include: roomInclude,
       });
-  doc.pgId = row.id;
-  doc._id = row.legacy_mongo_id || doc._id;
+      if (existing) {
+        const mapped = roomFromRow(existing);
+        Object.assign(doc, mapped);
+        return;
+      }
+    }
+    throw error;
+  }
 }
 
 async function persistMessage(doc, tx) {
@@ -629,6 +672,12 @@ function roomWhere(filter) {
       const part = idFilter(value, 'users_chat_rooms_contractor_user_idTousers');
       if (!part) return null;
       Object.assign(where, part);
+    } else if (key === 'storeId') {
+      const part = idFilter(value, 'store');
+      if (!part) return null;
+      Object.assign(where, part);
+    } else if (key === 'roomKind') {
+      where.room_kind = String(value);
     } else if (key === '_id') {
       const part = idFilter(value);
       if (!part) return null;
@@ -796,22 +845,53 @@ const roomInclude = {
   users_chat_rooms_customer_user_idTousers: { select: { legacy_mongo_id: true } },
   users_chat_rooms_contractor_user_idTousers: { select: { legacy_mongo_id: true } },
   repair_requests: { select: { legacy_mongo_id: true } },
+  store: { select: { legacy_mongo_id: true, name: true, avatar_url: true, logo_url: true, status: true } },
 };
 
+const requestModel = model(allRequests, PgRequest, {
+  where: requestWhere,
+  rows: (where, state) => prisma.repair_requests.findMany({
+    where,
+    include: requestInclude,
+    orderBy: state?.sort?.createdAt < 0 ? { created_at: 'desc' } : state?.sort?.createdAt > 0 ? { created_at: 'asc' } : undefined,
+  }).then((rows) => rows.map(requestFromRow)),
+  count: (where) => prisma.repair_requests.count({ where }),
+});
+
+async function claimPending(id, contractorId, status) {
+  const where = requestWhere({ _id: id, contractorId, status: 'PENDING' });
+  if (!where) return null;
+  const result = await prisma.repair_requests.updateMany({
+    where,
+    data: { status, updated_at: new Date() },
+  });
+  if (result.count === 0) return null;
+  return requestModel.findOne({ _id: id, contractorId });
+}
+
+async function claimCustomerPending(id, customerId, status) {
+  const where = requestWhere({ _id: id, customerId, status: 'PENDING' });
+  if (!where) return null;
+  const result = await prisma.repair_requests.updateMany({
+    where,
+    data: { status, updated_at: new Date() },
+  });
+  if (result.count === 0) return null;
+  return requestModel.findOne({ _id: id, customerId });
+}
+
 module.exports = {
-  RepairRequest: model(allRequests, PgRequest, {
-    where: requestWhere,
-    rows: (where, state) => prisma.repair_requests.findMany({
-      where,
-      include: requestInclude,
-      orderBy: state?.sort?.createdAt < 0 ? { created_at: 'desc' } : state?.sort?.createdAt > 0 ? { created_at: 'asc' } : undefined,
-    }).then((rows) => rows.map(requestFromRow)),
-    count: (where) => prisma.repair_requests.count({ where }),
-  }),
+  RepairRequest: Object.assign(requestModel, { claimPending, claimCustomerPending }),
   ChatRoom: model(allRooms, PgRoom, {
     where: roomWhere,
-    rows: (where) => prisma.chat_rooms.findMany({ where, include: roomInclude }).then((rows) => rows.map(roomFromRow)),
-    count: (where) => prisma.chat_rooms.count({ where }),
+    rows: async (where) => {
+      await ensureChatColumns();
+      return prisma.chat_rooms.findMany({ where, include: roomInclude }).then((rows) => rows.map(roomFromRow));
+    },
+    count: async (where) => {
+      await ensureChatColumns();
+      return prisma.chat_rooms.count({ where });
+    },
   }),
   Message: model(allMessages, PgMessage, {
     where: messageWhere,

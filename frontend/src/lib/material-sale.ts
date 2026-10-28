@@ -31,6 +31,11 @@ export function purchasable(item: SaleInput) {
   return saleState(item) === 'selling';
 }
 
+/** Public catalog may list a discontinued product, but must not show its selling price. */
+export function publicPriceVisible(item: SaleInput) {
+  return saleState(item) !== 'discontinued';
+}
+
 export function saleTone(state: SaleState): 'success' | 'warn' | 'mist' | 'danger' {
   if (state === 'selling') return 'success';
   if (state === 'out') return 'warn';

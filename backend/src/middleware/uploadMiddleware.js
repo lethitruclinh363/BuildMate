@@ -3,7 +3,7 @@ const fs = require('fs');
 const multer = require('multer');
 const { env } = require('../config/env');
 const { ApiError } = require('../utils/ApiError');
-const { UPLOAD_SCOPES, isAllowedFile, secureFilename } = require('../utils/upload');
+const { UPLOAD_SCOPES, isAllowedFile, isChatMedia, secureFilename, maxBytesFor } = require('../utils/upload');
 
 const uploadRoot = path.resolve(__dirname, '../../', env.uploadDir);
 
@@ -37,7 +37,8 @@ function createUploader(scope) {
   });
 
   function fileFilter(_req, file, cb) {
-    if (!isAllowedFile(file)) {
+    const allowed = folderName === UPLOAD_SCOPES.chat ? isChatMedia(file) : isAllowedFile(file);
+    if (!allowed) {
       return cb(new ApiError(400, 'Unsupported file type'));
     }
     return cb(null, true);
@@ -46,7 +47,13 @@ function createUploader(scope) {
   return multer({
     storage,
     fileFilter,
-    limits: { fileSize: env.maxFileSizeMb * 1024 * 1024, files: 6 },
+    limits: {
+      fileSize: maxBytesFor(
+        { originalname: scope === 'repair' || scope === 'chat' ? '.mp4' : '.jpg' },
+        env.maxFileSizeMb
+      ),
+      files: scope === 'repair' ? 10 : 6,
+    },
   });
 }
 

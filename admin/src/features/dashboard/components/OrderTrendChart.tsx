@@ -2,6 +2,7 @@ import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { GlassCard } from '@/components/GlassCard';
+import { chartHasValues } from '@/features/dashboard/lib/format';
 import type { Point, TrendRange } from '@/features/dashboard/types/dashboard.types';
 
 const ranges: Array<{ id: TrendRange; label: string }> = [
@@ -36,6 +37,9 @@ export const OrderTrendChart = memo(function OrderTrendChart({ series }: { serie
         </div>
       </div>
       <div className="h-64">
+        {!chartHasValues(series[range] || [], ['created', 'completed']) ? (
+          <p className="flex h-full items-center justify-center text-sm text-[#526477]">{t('dash.noChartData')}</p>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={series[range]}>
             <CartesianGrid stroke="#E1E7ED" vertical={false} />
@@ -48,6 +52,7 @@ export const OrderTrendChart = memo(function OrderTrendChart({ series }: { serie
             <Line type="monotone" dataKey="completed" name={t('dash.legendCompleted')} stroke="#16A34A" strokeWidth={2.4} dot={false} animationDuration={800} />
           </LineChart>
         </ResponsiveContainer>
+        )}
       </div>
     </GlassCard>
   );

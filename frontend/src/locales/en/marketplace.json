@@ -222,6 +222,11 @@
     "emptyTitle": "No requests yet",
     "emptyBody": "Pin a job site on the map, pick a crew, and send a brief with site photos.",
     "openChat": "Open chat",
+    "cancelCta": "Cancel request",
+    "cancelTitle": "Cancel this repair request?",
+    "cancelBody": "The crew has not accepted yet. After you cancel, they cannot take this job. Chat history and older alerts stay.",
+    "confirmCancel": "Confirm cancel",
+    "cancelBack": "Go back",
     "titleMin": "Add a short title",
     "descMin": "Describe the problem"
   },

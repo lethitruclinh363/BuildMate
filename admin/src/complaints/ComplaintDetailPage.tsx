@@ -50,7 +50,8 @@ export function ComplaintDetailPage() {
   }, [id]);
 
   const row = data?.row;
-  const steps = useMemo(() => ['OPEN', 'PROCESSING', 'RESOLVED'] as const, []);
+  const steps = useMemo(() => ['OPEN', 'PROCESSING', 'RESOLVED', 'REJECTED'] as const, []);
+  const closed = row?.status === 'RESOLVED' || row?.status === 'REJECTED';
 
   if (loading) return <Spinner />;
   if (error) return <ErrorState body={error} onRetry={reload} />;
@@ -99,13 +100,30 @@ export function ComplaintDetailPage() {
         </GlassCard>
         <GlassCard className="space-y-4">
           <TextArea label={t('pages.adminNote')} value={note} onChange={setNote} />
-          <Button className="w-full" variant="outline" loading={busy} onClick={() => void patch('PROCESSING')}>
+          <Button
+            className="w-full"
+            variant="outline"
+            loading={busy}
+            disabled={busy || closed || row.status !== 'OPEN'}
+            onClick={() => void patch('PROCESSING')}
+          >
             {t('pages.process')}
           </Button>
-          <Button className="w-full" loading={busy} onClick={() => void patch('RESOLVED')}>
+          <Button
+            className="w-full"
+            loading={busy}
+            disabled={busy || closed || row.status !== 'PROCESSING'}
+            onClick={() => void patch('RESOLVED')}
+          >
             {t('pages.resolve')}
           </Button>
-          <Button className="w-full" variant="danger" loading={busy} onClick={() => void patch('REJECTED')}>
+          <Button
+            className="w-full"
+            variant="danger"
+            loading={busy}
+            disabled={busy || closed || row.status !== 'PROCESSING'}
+            onClick={() => void patch('REJECTED')}
+          >
             {t('pages.reject')}
           </Button>
         </GlassCard>

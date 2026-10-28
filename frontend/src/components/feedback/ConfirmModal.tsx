@@ -8,6 +8,7 @@ interface ConfirmModalProps {
   title: string;
   description?: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   tone?: 'default' | 'danger';
   busy?: boolean;
   onOpenChange: (open: boolean) => void;
@@ -20,6 +21,7 @@ export function ConfirmModal({
   title,
   description,
   confirmLabel,
+  cancelLabel,
   tone = 'default',
   busy,
   onOpenChange,
@@ -32,7 +34,7 @@ export function ConfirmModal({
       {children}
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-          {t('common.cancel')}
+          {cancelLabel || t('common.cancel')}
         </Button>
         <Button
           variant={tone === 'danger' ? 'outline' : 'copper'}

@@ -1,0 +1,14 @@
+{
+  "database": "BuilMate_test",
+  "api": "http://127.0.0.1:5055",
+  "guestUnknownContractorCccd": 404,
+  "guestLegacyCccd": 404,
+  "guestMissingStoreCover": 404,
+  "guestMissingUserAvatar": 404,
+  "guestContractorDocumentFile": 401,
+  "guestAdminDocumentFile": 401,
+  "guestAdminAnalytics": 401,
+  "customerContractorDocumentFile": 403,
+  "customerAdminAnalytics": 403,
+  "adminAnalytics": 200
+}

@@ -14,6 +14,9 @@ const catalogService = require('./catalogService');
 const materialCategoryService = require('./material-category.service');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
+const { assertCanReadVerificationDoc } = require('../utils/verification-docs');
+const { isLocationPayloadPresent, LOCATION_LOCKED_MESSAGE } = require('../utils/locationGuard');
+const verificationStorage = require('./verificationStorage');
 const {
   MAX_PROJECTS,
   MAX_PROJECT_IMAGES,
@@ -46,11 +49,14 @@ function resolvedMime(file) {
   return fromName || file.mimeType || '';
 }
 
-function assertVerificationEditable(profile) {
+function assertVerificationEditable(profile, payload) {
   if (profile.verificationStatus === VERIFICATION_STATUS.SUBMITTED) {
     throw new ApiError(409, 'Profile is locked while under review');
   }
   if (profile.verificationStatus === VERIFICATION_STATUS.APPROVED) {
+    if (payload && isLocationPayloadPresent(payload)) {
+      throw new ApiError(409, LOCATION_LOCKED_MESSAGE);
+    }
     throw new ApiError(409, 'Verified details can only change through a new review');
   }
 }
@@ -64,13 +70,46 @@ async function getProfile(userId) {
 async function updateProfile(userId, payload) {
   const profile = await ensureContractorProfile(userId);
 
-  assertVerificationEditable(profile);
+  assertVerificationEditable(profile, payload);
 
   const user = await loadUser(userId);
   const rest = { ...payload };
   delete rest.services;
   delete rest.completedSteps;
   delete rest.materialCategories;
+  delete rest.lat;
+  delete rest.lng;
+  delete rest.latitude;
+  delete rest.longitude;
+  delete rest.locationConfirmed;
+  delete rest.locationSource;
+  delete rest.providerRefId;
+
+  if (payload.lat !== undefined || payload.latitude !== undefined) {
+    const rawLat = payload.lat !== undefined ? payload.lat : payload.latitude;
+    profile.lat = rawLat != null ? Number(rawLat) : null;
+    profile.latitude = profile.lat;
+  }
+  if (payload.lng !== undefined || payload.longitude !== undefined) {
+    const rawLng = payload.lng !== undefined ? payload.lng : payload.longitude;
+    profile.lng = rawLng != null ? Number(rawLng) : null;
+    profile.longitude = profile.lng;
+  }
+  if (payload.locationConfirmed !== undefined) {
+    profile.locationConfirmed = Boolean(payload.locationConfirmed);
+    if (profile.locationConfirmed) {
+      profile.locationConfirmedAt = new Date();
+    } else {
+      profile.locationConfirmedAt = null;
+    }
+  }
+  if (payload.locationSource !== undefined) {
+    profile.locationSource = payload.locationSource || '';
+  }
+  if (payload.providerRefId !== undefined) {
+    profile.providerRefId = payload.providerRefId || null;
+  }
+
   if (
     user?.role === 'MATERIAL_STORE_OWNER' &&
     (Array.isArray(payload.materialCategories) || Array.isArray(payload.serviceAreas))
@@ -117,12 +156,13 @@ async function updateProfile(userId, payload) {
     await setProfileStatus(userId, PROFILE_STATUS.DRAFT);
   }
   if (
-    user?.role === 'CONTRACTOR' &&
+    (user?.role === 'CONTRACTOR' || user?.role === 'MATERIAL_STORE_OWNER') &&
     profile.businessName &&
     profile.address &&
     profile.verificationStatus !== VERIFICATION_STATUS.APPROVED
   ) {
-    await storeService.syncOwnerStore(userId, STORE_TYPE.SERVICES, {
+    const lockedType = user?.role === 'MATERIAL_STORE_OWNER' ? STORE_TYPE.MATERIALS : STORE_TYPE.SERVICES;
+    await storeService.syncOwnerStore(userId, lockedType, {
       name: profile.businessName,
       address: profile.address,
       city: profile.city,
@@ -178,6 +218,30 @@ async function removeDocument(userId, documentId) {
   profile.documents = profile.documents.filter((d) => d._id.toString() !== documentId);
   await profile.save();
   return profile.toPublic();
+}
+
+function ekycKindFromUrl(url) {
+  const value = String(url || '');
+  if (!value.startsWith('private:ekyc:')) return null;
+  return value.slice('private:ekyc:'.length);
+}
+
+async function openDocumentFile(userId, documentId, actor) {
+  const profile = await ensureContractorProfile(userId);
+  const ownerId = String(profile.userId || userId);
+  assertCanReadVerificationDoc({
+    role: actor?.role,
+    userId: actor?.id || actor?.userId,
+    ownerId,
+  });
+  const doc = profile.documents.find((item) => String(item._id) === String(documentId));
+  if (!doc) throw new ApiError(404, 'Document not found');
+  const ekycKind = ekycKindFromUrl(doc.url);
+  if (ekycKind) {
+    const contractorEkycService = require('./contractorEkycService');
+    return contractorEkycService.openForOwner(ownerId, ekycKind);
+  }
+  return verificationStorage.openFromUrl(doc.url, doc.mimeType);
 }
 
 async function addPortfolioFile(userId, file, slotName) {
@@ -355,10 +419,24 @@ function verificationDocsReady(profile, role) {
   return true;
 }
 
+function hasValidRegistrationLocation(profile) {
+  const lat = profile.lat !== undefined && profile.lat !== null ? profile.lat : profile.latitude;
+  const lng = profile.lng !== undefined && profile.lng !== null ? profile.lng : profile.longitude;
+  if (lat == null || lng == null) return false;
+  const numLat = Number(lat);
+  const numLng = Number(lng);
+  if (!Number.isFinite(numLat) || Number.isNaN(numLat) || numLat < -90 || numLat > 90) return false;
+  if (!Number.isFinite(numLng) || Number.isNaN(numLng) || numLng < -180 || numLng > 180) return false;
+  if (numLat === 0 && numLng === 0) return false;
+  if (!profile.locationConfirmed) return false;
+  return true;
+}
+
 function applicationReady(profile, role) {
   if (!profile.businessName || profile.businessName.trim().length < 2) return false;
   if (!profile.address || profile.address.trim().length < 4) return false;
   if (!profile.city || profile.city.trim().length < 2) return false;
+  if (!hasValidRegistrationLocation(profile)) return false;
   if (!verificationDocsReady(profile, role)) return false;
   if (role === 'CONTRACTOR') {
     return (profile.representativeName || '').trim().length >= 2
@@ -418,6 +496,10 @@ async function submitVerification(userId, payload) {
     profile.serviceAreas = resolved.map((item) => item.name);
     profile.markModified('materialCategories');
     profile.markModified('serviceAreas');
+  }
+
+  if (!hasValidRegistrationLocation(profile)) {
+    throw new ApiError(400, 'A valid confirmed location is required before submitting your application');
   }
 
   if (!applicationReady(profile, user?.role)) {
@@ -519,6 +601,7 @@ module.exports = {
   updateProfile,
   addDocument,
   removeDocument,
+  openDocumentFile,
   addPortfolioFile,
   removePortfolioFile,
   createPortfolioProject,

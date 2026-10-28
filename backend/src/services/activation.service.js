@@ -252,6 +252,7 @@ async function activate(userId) {
   store.status = STORE_STATUS.LIVE;
   store.verified = true;
   await store.save();
+  require('./featuredProvider.service').clearFeaturedCache();
   return getActivationReadiness(userId);
 }
 
@@ -267,6 +268,7 @@ async function pause(userId) {
   }
   store.status = STORE_STATUS.PAUSED;
   await store.save();
+  require('./featuredProvider.service').clearFeaturedCache();
   return getActivationReadiness(userId);
 }
 
