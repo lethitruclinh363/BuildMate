@@ -1,10 +1,14 @@
 const { ROLES } = require('../models/User');
 const { userRepository } = require('../repositories/userRepository');
 const { ORDER_STATUS } = require('../models/Order');
-const { PAYMENT_STATUS } = require('../models/Payment');
+const { PAYMENT_STATUS, PAYMENT_TYPE } = require('../models/Payment');
 const { COMMISSION_STATUS } = require('../models/Commission');
 const { COMPLAINT_STATUS } = require('../models/Complaint');
+const { STORE_STATUS, STORE_TYPE } = require('../models/Store');
 const { Order, Payment, Commission, Review, Complaint } = require('../repositories/commerceAccess');
+const { Store } = require('../repositories/partnerAccess');
+const { roundVnd } = require('../utils/contractor-finance');
+const { buildAdminSeries } = require('../utils/admin-analytics-series');
 
 const TTL_MS = 60 * 1000;
 let cache = { at: 0, data: null };
@@ -13,15 +17,46 @@ function invalidateAnalyticsCache() {
   cache = { at: 0, data: null };
 }
 
+function idOf(row) {
+  return String(row?._id || row?.id || '');
+}
+
+async function countLiveStores(storeType) {
+  try {
+    return await Store.countDocuments({
+      status: STORE_STATUS.LIVE,
+      storeType: { $in: storeType },
+    });
+  } catch (_err) {
+    return 0;
+  }
+}
+
+async function loadMaterialRows() {
+  try {
+    const { MaterialOrder } = require('../repositories/materialOrderAccess');
+    const [all, completed] = await Promise.all([
+      MaterialOrder.find({}),
+      MaterialOrder.find({ status: { $in: ['COMPLETED', 'CUSTOMER_RECEIVED'] } }),
+    ]);
+    return { all, completed };
+  } catch (_err) {
+    return { all: [], completed: [] };
+  }
+}
+
 async function computeAnalytics() {
   const [
     totalUsers,
     customerCount,
     contractorCount,
+    storeOwnerCount,
     adminCount,
-    totalOrders,
-    completedOrders,
-    cancelledOrders,
+    customers,
+    contractors,
+    allOrders,
+    deposits,
+    postedCommissions,
     paidAgg,
     commissionAgg,
     reviewAgg,
@@ -30,14 +65,20 @@ async function computeAnalytics() {
     complaintsResolved,
     complaintsRejected,
     complaintsTotal,
+    liveContractorStores,
+    liveMaterialStores,
+    material,
   ] = await Promise.all([
     userRepository.countAll(),
     userRepository.countByRole(ROLES.CUSTOMER),
     userRepository.countByRole(ROLES.CONTRACTOR),
+    userRepository.countByRole(ROLES.MATERIAL_STORE_OWNER),
     userRepository.countByRole(ROLES.ADMIN),
-    Order.countDocuments(),
-    Order.countDocuments({ status: ORDER_STATUS.CUSTOMER_ACCEPTED }),
-    Order.countDocuments({ status: ORDER_STATUS.CANCELLED }),
+    userRepository.listByRole(ROLES.CUSTOMER),
+    userRepository.listByRole(ROLES.CONTRACTOR),
+    Order.find({}),
+    Payment.find({ type: PAYMENT_TYPE.DEPOSIT }),
+    Commission.find({ status: COMMISSION_STATUS.POSTED }),
     Payment.aggregate([
       { $match: { status: PAYMENT_STATUS.PAID } },
       { $group: { _id: null, revenue: { $sum: '$amount' }, count: { $sum: 1 } } },
@@ -59,42 +100,96 @@ async function computeAnalytics() {
     Complaint.countDocuments({ status: COMPLAINT_STATUS.RESOLVED }),
     Complaint.countDocuments({ status: COMPLAINT_STATUS.REJECTED }),
     Complaint.countDocuments(),
+    countLiveStores([STORE_TYPE.SERVICES, STORE_TYPE.BOTH]),
+    countLiveStores([STORE_TYPE.MATERIALS, STORE_TYPE.BOTH]),
+    loadMaterialRows(),
   ]);
 
   const paid = paidAgg[0] || { revenue: 0, count: 0 };
   const commission = commissionAgg[0] || { platform: 0, contractor: 0, count: 0 };
   const reviews = reviewAgg[0] || { avg: 0, count: 0 };
 
-  let materialGmv = 0;
-  let materialCompleted = 0;
-  try {
-    const { MaterialOrder } = require('../repositories/materialOrderAccess');
-    const materialRows = await MaterialOrder.find({
-      status: { $in: ['COMPLETED', 'CUSTOMER_RECEIVED'] },
-    }).select('totalAmount platformFeeAmount');
-    materialCompleted = materialRows.length;
-    materialGmv = materialRows.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);
-  } catch (_err) {
-    materialGmv = 0;
+  const totalOrders = allOrders.length;
+  const completedOrders = allOrders.filter((row) => row.status === ORDER_STATUS.CUSTOMER_ACCEPTED).length;
+  const cancelledOrders = allOrders.filter((row) => row.status === ORDER_STATUS.CANCELLED).length;
+  const byStatus = {};
+  for (const row of allOrders) {
+    const status = String(row.status || 'UNKNOWN');
+    byStatus[status] = (byStatus[status] || 0) + 1;
   }
 
   const adminFinanceService = require('./adminFinanceService');
+  const escrowService = require('./escrowService');
   const ledger = await adminFinanceService.buildLedger();
+
+  const orderById = new Map(allOrders.map((order) => [idOf(order), order]));
+  const quotedOrders = new Set();
+  const gmvEvents = [];
+  const depositEvents = [];
+  for (const payment of deposits) {
+    const orderId = String(payment.orderId);
+    const order = orderById.get(orderId);
+    const { finance } = escrowService.financeOf(payment);
+    if (order && order.status !== ORDER_STATUS.CANCELLED && !quotedOrders.has(orderId)) {
+      quotedOrders.add(orderId);
+      gmvEvents.push({
+        at: payment.createdAt || order.createdAt,
+        amount: roundVnd(finance.totalAmount),
+      });
+    }
+    if (payment.status === PAYMENT_STATUS.PAID || payment.status === PAYMENT_STATUS.REFUNDED) {
+      depositEvents.push({
+        at: payment.createdAt,
+        amount: roundVnd(payment.amount || finance.depositAmount),
+      });
+    }
+  }
+
+  const materialCompleted = material.completed.length;
+  const materialGmv = material.completed.reduce((sum, row) => sum + roundVnd(row.totalAmount), 0);
+  for (const row of material.completed) {
+    gmvEvents.push({
+      at: row.updatedAt || row.createdAt,
+      amount: roundVnd(row.totalAmount),
+    });
+  }
+
+  const gmv = roundVnd((ledger.acceptedQuoteTotal || 0) + (ledger.materialGmv || materialGmv || 0));
+  const series = buildAdminSeries(new Date(), {
+    orders: allOrders,
+    gmvEvents,
+    depositEvents,
+    commissionEvents: postedCommissions.map((row) => ({
+      at: row.createdAt,
+      platformAmount: roundVnd(row.platformAmount),
+      contractorAmount: roundVnd(row.contractorAmount),
+    })),
+    customers,
+    contractors,
+  });
 
   return {
     users: {
       total: totalUsers,
       customer: customerCount,
       contractor: contractorCount,
+      storeOwner: storeOwnerCount,
       admin: adminCount,
+      liveContractor: liveContractorStores,
+      liveStore: liveMaterialStores,
     },
     orders: {
       total: totalOrders,
       completed: completedOrders,
       cancelled: cancelledOrders,
+      inProgress: Math.max(totalOrders - completedOrders - cancelledOrders, 0),
+      materialTotal: material.all.length,
+      materialCompleted,
+      byStatus,
     },
     finance: {
       revenue: commission.platform,
+      gmv,
       capturedDeposits: paid.revenue,
       paidCount: paid.count,
       commission: commission.platform,
@@ -115,6 +210,7 @@ async function computeAnalytics() {
       resolved: complaintsResolved,
       rejected: complaintsRejected,
     },
+    series,
   };
 }
 

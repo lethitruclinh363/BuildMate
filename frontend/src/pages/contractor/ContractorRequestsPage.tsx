@@ -14,7 +14,7 @@ import { getApiErrorMessage } from '@/lib/api';
 import { mediaUrl } from '@/lib/partner-api';
 import { useReturnState } from '@/lib/navigation';
 import { labeled, useI18n } from '@/locales';
-import type { RepairRequest } from '@/types/sprint4';
+import { canCreateQuotation, type RepairRequest } from '@/types/sprint4';
 
 export function ContractorRequestsPage() {
   const { t, te } = useI18n();
@@ -65,7 +65,17 @@ export function ContractorRequestsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap gap-2">
                     <Badge tone="copper">{labeled(t, 'category', item.category)}</Badge>
-                    <Badge tone={item.status === 'PENDING' ? 'warn' : item.status === 'ACCEPTED' ? 'success' : 'mist'}>
+                    <Badge
+                      tone={
+                        item.status === 'PENDING'
+                          ? 'warn'
+                          : item.status === 'ACCEPTED'
+                            ? 'success'
+                            : item.status === 'CANCELLED' || item.status === 'REJECTED'
+                              ? 'danger'
+                              : 'mist'
+                      }
+                    >
                       {labeled(t, 'status', item.status)}
                     </Badge>
                   </div>
@@ -77,6 +87,9 @@ export function ContractorRequestsPage() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(item.images || []).map((src) => (
                       <img key={src} src={mediaUrl(src)} alt="" width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 rounded-xl object-cover" />
+                    ))}
+                    {(item.videos || []).map((src) => (
+                      <video key={src} src={mediaUrl(src)} className="h-16 w-16 rounded-xl object-cover" muted playsInline />
                     ))}
                   </div>
                 </div>
@@ -96,9 +109,16 @@ export function ContractorRequestsPage() {
                       <Link to={`/contractor/chat/${item.roomId}`} state={back}>{t('request.openChat')}</Link>
                     </Button>
                   ) : null}
-                  <Button asChild size="sm" variant="outline">
-                    <Link to={`/contractor/quotation/create/${item.id}`} state={back}>{t('contractorRequests.createQuote')}</Link>
-                  </Button>
+                  {canCreateQuotation(item.status) ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={`/contractor/quotation/create/${item.id}`} state={back}>{t('contractorRequests.createQuote')}</Link>
+                    </Button>
+                  ) : null}
+                  {item.status === 'ACCEPTED' || item.status === 'COMPLETED' ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={`/contractor/material-requirements/new/${item.id}`} state={back}>{t('mrl.open')}</Link>
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             </ListRow>

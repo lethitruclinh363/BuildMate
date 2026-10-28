@@ -28,6 +28,8 @@ describe('chat location messages', () => {
   it('still accepts a text message and requires a location for LOCATION', () => {
     assert.equal(sendMessageSchema.safeParse({ type: 'TEXT', content: 'Xin chào' }).success, true);
     assert.equal(sendMessageSchema.safeParse({ type: 'IMAGE', content: '/uploads/a.jpg' }).success, true);
+    assert.equal(sendMessageSchema.safeParse({ type: 'IMAGE', content: '' }).success, false);
+    assert.equal(sendMessageSchema.safeParse({ type: 'VIDEO' }).success, false);
     assert.equal(sendMessageSchema.safeParse({ type: 'LOCATION' }).success, false);
     const parsed = sendMessageSchema.safeParse({
       type: 'LOCATION',

@@ -17,7 +17,7 @@ import { getApiErrorMessage } from '@/lib/api';
 import { mediaUrl } from '@/lib/partner-api';
 import { useRoomMessages, useSocket } from '@/providers/SocketProvider';
 import { useAuthStore } from '@/store/auth.store';
-import type { ChatMessage, ChatRoom } from '@/types/sprint4';
+import { canCreateQuotation, type ChatMessage, type ChatRoom } from '@/types/sprint4';
 import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
 
@@ -38,23 +38,50 @@ export function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<number | undefined>(undefined);
+  const sendingText = useRef(false);
+  const sendingFile = useRef(false);
 
   const isCustomer = user?.role === 'CUSTOMER';
   const chatBase =
     user?.role === 'MATERIAL_STORE_OWNER' ? '/store/chat' : isCustomer ? '/customer/chat' : '/contractor/chat';
-
-  useEffect(() => {
-    if (!roomId) return;
+  const [trackId, setTrackId] = useState(roomId);
+  if (trackId !== roomId) {
+    setTrackId(roomId);
     setLoading(true);
     setError(null);
-    Promise.all([chatApi.room(roomId), chatApi.messages(roomId), chatApi.rooms()])
-      .then(([r, m, list]) => {
+    if (!roomId) {
+      setRoom(null);
+      setMessages([]);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    void (async () => {
+      try {
+        const listRes = await chatApi.rooms();
+        if (cancelled) return;
+        setRooms(listRes.data.data);
+        if (!roomId) {
+          setRoom(null);
+          setMessages([]);
+          return;
+        }
+        const [r, m] = await Promise.all([chatApi.room(roomId), chatApi.messages(roomId)]);
+        if (cancelled) return;
         setRoom(r.data.data);
         setMessages(m.data.data);
-        setRooms(list.data.data);
-      })
-      .catch((err) => setError(te(getApiErrorMessage(err))))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        if (!cancelled) setError(te(getApiErrorMessage(err)));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [roomId]);
 
   useRoomMessages(roomId, (msg) => {
@@ -94,11 +121,19 @@ export function ChatPage() {
 
   const sendText = async () => {
     const content = text.trim();
-    if (!content || !roomId) return;
+    if (!content || !roomId || sendingText.current) return;
+    sendingText.current = true;
     setText('');
     emitTyping(false);
-    const { data } = await chatApi.send(roomId, content);
-    setMessages((prev) => (prev.some((p) => p.id === data.data.id) ? prev : [...prev, data.data]));
+    try {
+      const { data } = await chatApi.send(roomId, content);
+      setMessages((prev) => (prev.some((p) => p.id === data.data.id) ? prev : [...prev, data.data]));
+    } catch (err) {
+      setText(content);
+      setError(te(getApiErrorMessage(err)));
+    } finally {
+      sendingText.current = false;
+    }
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -132,14 +167,26 @@ export function ChatPage() {
   };
 
   const onFile = async (file?: File) => {
-    if (!file || !roomId) return;
-    const { data } = await chatApi.media(roomId, file);
-    setMessages((prev) => [...prev, data.data]);
+    if (!file || !roomId || sendingFile.current) return;
+    sendingFile.current = true;
+    try {
+      const { data } = await chatApi.media(roomId, file);
+      setMessages((prev) => (prev.some((item) => item.id === data.data.id) ? prev : [...prev, data.data]));
+    } catch (err) {
+      setError(te(getApiErrorMessage(err)));
+    } finally {
+      sendingFile.current = false;
+    }
   };
 
+  const isStoreRoom = room?.roomKind === 'CUSTOMER_MATERIAL_STORE';
+
   if (loading) return <DashboardSkeleton />;
-  if (error || !room || !other) {
-    return <ErrorState body={error || t('errors.api.Chat room not found')} onRetry={() => window.location.reload()} />;
+  if (error) {
+    return <ErrorState body={error} onRetry={() => window.location.reload()} />;
+  }
+  if (roomId && (!room || !other)) {
+    return <ErrorState body={t('errors.api.Chat room not found')} onRetry={() => window.location.reload()} />;
   }
 
   return (
@@ -148,7 +195,7 @@ export function ChatPage() {
         <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-navy-800/8 bg-white md:block">
           <p className="px-4 py-4 font-display text-lg text-navy-800">{t('chat.conversations')}</p>
           {rooms.length === 0 ? (
-            <p className="px-4 pb-4 text-sm text-ink-400">{t('notify.empty')}</p>
+            <p className="px-4 pb-4 text-sm text-ink-400">{t('chat.emptyInbox')}</p>
           ) : (
           rooms.map((item) => {
             const peer = item.otherUser;
@@ -165,7 +212,7 @@ export function ChatPage() {
                 <Avatar name={peer?.name || t('chat.crewFallback')} src={peer?.avatar} size="sm" />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold text-navy-800">
-                    {peer?.name}
+                    {peer?.name || t('chat.crewFallback')}
                   </span>
                   <span className="block truncate text-xs text-ink-400">{item.lastMessage}</span>
                 </span>
@@ -183,14 +230,14 @@ export function ChatPage() {
                   user?.role === 'CONTRACTOR'
                     ? '/contractor/requests'
                     : user?.role === 'MATERIAL_STORE_OWNER'
-                      ? '/store/dashboard'
-                      : '/customer/request/history'
+                      ? '/store/chat'
+                      : '/customer/chat'
                 }
                 className="mb-0 md:hidden"
               />
-              <Avatar name={other.name} src={other.avatar} />
+              {other ? <Avatar name={other.name} src={other.avatar} /> : null}
               <div>
-                <p className="font-display text-lg text-navy-800">{other.name}</p>
+                <p className="font-display text-lg text-navy-800">{other?.name || t('chat.conversations')}</p>
                 <p className="text-xs text-ink-400">
                   <span
                     className={cn(
@@ -198,11 +245,12 @@ export function ChatPage() {
                       otherOnline ? 'bg-emerald-500' : 'bg-ink-200'
                     )}
                   />
-                  {otherOnline ? t('chat.online') : t('chat.offline')} · {room.request?.title}
+                  {other ? (otherOnline ? t('chat.online') : t('chat.offline')) : t('chat.pickConversation')}
+                  {isStoreRoom ? ` · ${t('chat.storeChat')}` : room?.request?.title ? ` · ${room.request.title}` : ''}
                 </p>
               </div>
             </div>
-            {user?.role === 'CONTRACTOR' && room.request ? (
+            {user?.role === 'CONTRACTOR' && !isStoreRoom && canCreateQuotation(room?.request?.status) ? (
               <Button asChild size="sm" variant="copper">
                 <Link to={`/contractor/quotation/create/${room.requestId}`}>{t('chat.createQuote')}</Link>
               </Button>
@@ -210,7 +258,10 @@ export function ChatPage() {
           </header>
 
           <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-            {room.request?.images?.[0] ? (
+            {!room ? (
+              <p className="px-2 py-10 text-center text-sm text-ink-400">{t('chat.pickConversation')}</p>
+            ) : null}
+            {room?.request?.images?.[0] ? (
               <div className="mx-auto max-w-md rounded-2xl bg-white p-3 text-center shadow-card">
                 <p className="text-xs uppercase tracking-[0.16em] text-copper-600">{t('chat.sitePhotos')}</p>
                 <img
@@ -267,6 +318,10 @@ export function ChatPage() {
           </div>
 
           <form onSubmit={onSubmit} className="flex items-end gap-2 border-t border-navy-800/8 bg-white p-3">
+            {!room ? (
+              <p className="w-full py-2 text-center text-sm text-ink-400">{t('chat.pickConversation')}</p>
+            ) : (
+            <>
             <button
               type="button"
               className="inline-flex h-11 items-center gap-2 rounded-full bg-paper-100 px-3 text-sm font-semibold text-navy-800"
@@ -291,12 +346,14 @@ export function ChatPage() {
               onChange={(e) => setText(e.target.value)}
               onKeyDown={onKey}
               rows={1}
-              placeholder={t('chat.placeholder')}
+              placeholder={isStoreRoom ? t('chat.storePlaceholder') : t('chat.placeholder')}
               className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-navy-800/10 px-4 py-2.5 text-sm outline-none focus:ring-4 focus:ring-navy-500/10"
             />
             <Button type="submit" size="icon" disabled={!text.trim()} aria-label={t('chat.sendMessage')}>
               <Send className="h-4 w-4" />
             </Button>
+            </>
+            )}
           </form>
           <SendLocationModal
             open={locationOpen}

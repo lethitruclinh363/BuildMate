@@ -13,6 +13,7 @@ const { publicPricedServiceMatch } = require('../constants/contractorServices');
 const { ORDER_STATUS } = require('../utils/order.rules');
 const { MATERIAL_ORDER_STATUS } = require('../utils/material-order.rules');
 const score = require('./featuredScore');
+const activationService = require('./activation.service');
 
 const CACHE_MS = 8 * 60 * 1000;
 const COMPLETED_JOBS = [ORDER_STATUS.COMPLETED, ORDER_STATUS.CUSTOMER_ACCEPTED];
@@ -239,10 +240,39 @@ async function loadCandidates() {
     (store) => profileByUser.has(String(store.contractorId)) && userById.has(String(store.contractorId))
   );
   if (!visible.length) return [];
-  const signals = await loadSignals(visible);
-  return visible.map((store) =>
-    toCandidate(store, profileByUser.get(String(store.contractorId)), userById.get(String(store.contractorId)), signals)
-  );
+  const entries = visible.map((store) => ({
+    userId: store.contractorId,
+    user: userById.get(String(store.contractorId)),
+    profile: profileByUser.get(String(store.contractorId)),
+    store,
+  }));
+  const categoriesByProfile = new Map();
+  for (const entry of entries) {
+    if (!entry.profile) continue;
+    if (entry.store?.storeType === STORE_TYPE.MATERIALS || entry.user?.role === 'MATERIAL_STORE_OWNER') {
+      categoriesByProfile.set(
+        String(entry.profile._id),
+        Array.isArray(entry.profile.materialCategories) ? entry.profile.materialCategories : []
+      );
+    }
+  }
+  const readiness = await activationService.readinessForLoaded(entries, categoriesByProfile);
+  const publicStores = visible.filter((store) => readiness.get(String(store.contractorId))?.visible);
+  if (!publicStores.length) return [];
+  const signals = await loadSignals(publicStores);
+  return publicStores.map((store) => {
+    const gate = readiness.get(String(store.contractorId));
+    return {
+      ...toCandidate(
+        store,
+        profileByUser.get(String(store.contractorId)),
+        userById.get(String(store.contractorId)),
+        signals
+      ),
+      profileReady: Boolean(gate?.profileReady),
+      visible: Boolean(gate?.visible),
+    };
+  });
 }
 
 async function getFeaturedProviders() {

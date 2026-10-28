@@ -57,6 +57,7 @@ export function MaterialOrderDetailPage() {
   }, [tick, load]);
 
   async function run(action: () => Promise<{ data: { data: MaterialOrder } }>, title: string) {
+    if (busy) return;
     setBusy(true);
     try {
       const res = await action();

@@ -123,6 +123,7 @@ async function geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog }) {
   const stores = await prisma.stores.findMany({
     where: {
       status: STORE_STATUS.LIVE,
+      verified: true,
       ...(storeTypes?.length ? { store_type: { in: storeTypes } } : {}),
     },
     include: {
@@ -298,7 +299,7 @@ async function geoNearby({ lat, lng, radiusKm, storeTypes, catalog }) {
     return geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog });
   }
   const { Store } = require('../models/Store');
-  const query = { status: STORE_STATUS.LIVE };
+  const query = { status: STORE_STATUS.LIVE, verified: true };
   if (storeTypes?.length) query.storeType = { $in: storeTypes };
   const shelf = catalogLookup(catalog);
 

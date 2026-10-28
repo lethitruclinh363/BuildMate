@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getApiErrorMessage } from '@/lib/api';
+import type { AxiosError } from 'axios';
 import { getOtpCooldown, setOtpCooldown } from '@/lib/otp-cooldown';
 import { useI18n } from '@/locales';
 import { authApi } from '@/services/auth.api';
@@ -81,8 +82,11 @@ export default function VerifyEmail() {
       const message = getApiErrorMessage(err);
       setError(message);
       pushToast({ kind: 'error', title: t('auth.resendFail'), body: message });
-      setOtpCooldown(email, 60);
-      setCountdown(60);
+      const status = (err as AxiosError)?.response?.status;
+      if (status === 429) {
+        setOtpCooldown(email, 60);
+        setCountdown(60);
+      }
     } finally {
       setResending(false);
     }

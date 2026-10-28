@@ -28,6 +28,7 @@ describe('marketplace catalog LIVE+APPROVED gate', { timeout: 90000 }, () => {
   const cleanup = { users: [], stores: [], services: [], materials: [], profiles: [] };
 
   after(async () => {
+    if (!testDatabaseReady() || !cleanup.users.length) return;
     await deleteFixtureUsers(cleanup.users);
   });
 

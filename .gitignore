@@ -12,6 +12,7 @@ backend/.env.test
 backend/.env.test.admin
 backend/.env.test.docker
 backend/.env.migration
+backend/.env.dev
 ekyc-service/.env
 backend/scripts/migration/output/*.json
 
@@ -20,6 +21,7 @@ dist/
 build/
 coverage/
 *.tsbuildinfo
+backend/prisma/generated/
 
 # Logs
 logs/

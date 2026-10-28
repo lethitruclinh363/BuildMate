@@ -164,6 +164,13 @@ export const adminApi = {
     return URL.createObjectURL(response.data);
   },
 
+  verificationFile: async (id: string, documentId: string) => {
+    const response = await api.get<Blob>(`/admin/verifications/${id}/documents/${documentId}/file`, {
+      responseType: 'blob',
+    });
+    return URL.createObjectURL(response.data);
+  },
+
   reviewCatalogService: async (id: string, decision: 'approve' | 'reject') =>
     bustCache(unwrap((await api.post<ApiResponse<{ id: string; status: string }>>(`/admin/service-catalog/${id}/review`, { decision })).data)),
 
@@ -239,6 +246,11 @@ export const adminApi = {
   refundEscrow: async (orderId: string, reason?: string) =>
     bustCache(
       unwrap((await api.post<ApiResponse<{ mock: boolean }>>(`/admin/orders/${orderId}/escrow/refund`, { reason })).data)
+    ),
+
+  listRepairOrders: () =>
+    cached('admin-repair-orders', 60_000, async () =>
+      unwrap((await api.get<ApiResponse<OrderDetail[]>>('/admin/orders')).data)
     ),
 
   getOrder: async (id: string) => unwrap((await api.get<ApiResponse<OrderDetail>>(`/orders/${id}`)).data),

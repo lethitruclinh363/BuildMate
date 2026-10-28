@@ -16,6 +16,8 @@ const commissionService = require('./commissionService');
 const materialCategoryService = require('./material-category.service');
 const activationService = require('./activation.service');
 const contractorEkycService = require('./contractorEkycService');
+const { assertCanReadVerificationDoc } = require('../utils/verification-docs');
+const verificationStorage = require('./verificationStorage');
 
 function customerPublic(user, city = '') {
   return {
@@ -183,6 +185,23 @@ async function getVerification(id) {
   };
 }
 
+async function openDocumentFile(profileId, documentId, actor) {
+  const profile = await ContractorProfile.findById(profileId);
+  if (!profile) throw new ApiError(404, 'Partner application not found');
+  assertCanReadVerificationDoc({
+    role: actor?.role || 'ADMIN',
+    userId: actor?.id || actor?.userId,
+    ownerId: String(profile.userId),
+  });
+  const doc = (profile.documents || []).find((item) => String(item._id) === String(documentId));
+  if (!doc) throw new ApiError(404, 'Document not found');
+  const ekycUrl = String(doc.url || '');
+  if (ekycUrl.startsWith('private:ekyc:')) {
+    return contractorEkycService.openForAdmin(profileId, ekycUrl.slice('private:ekyc:'.length));
+  }
+  return verificationStorage.openFromUrl(doc.url, doc.mimeType);
+}
+
 async function approve(id, adminId) {
   const profile = await ContractorProfile.findById(id);
   if (!profile) throw new ApiError(404, 'Partner application not found');
@@ -190,10 +209,12 @@ async function approve(id, adminId) {
     throw new ApiError(409, 'Only submitted applications can be approved');
   }
 
+  const approvalDate = new Date();
   profile.verificationStatus = VERIFICATION_STATUS.APPROVED;
-  profile.reviewedAt = new Date();
+  profile.reviewedAt = approvalDate;
   profile.reviewedBy = adminId;
   profile.rejectionReason = '';
+  profile.locationApprovedAt = approvalDate;
   await profile.save();
   try {
     await contractorEkycService.recordAdminDecision(profile.userId, adminId, 'APPROVE');
@@ -206,6 +227,28 @@ async function approve(id, adminId) {
     profileStatus: 'APPROVED',
   });
   const storeType = user?.role === ROLES.MATERIAL_STORE_OWNER ? STORE_TYPE.MATERIALS : STORE_TYPE.SERVICES;
+
+  const rawLat = profile.lat !== undefined && profile.lat !== null ? profile.lat : profile.latitude;
+  const rawLng = profile.lng !== undefined && profile.lng !== null ? profile.lng : profile.longitude;
+  const hasCoordinates = rawLat != null && rawLng != null && Number.isFinite(Number(rawLat)) && Number.isFinite(Number(rawLng));
+  const approvedLat = hasCoordinates ? Number(rawLat) : null;
+  const approvedLng = hasCoordinates ? Number(rawLng) : null;
+
+  const storeLocationData = hasCoordinates
+    ? {
+        location: { type: 'Point', coordinates: [approvedLng, approvedLat] },
+        lat: approvedLat,
+        lng: approvedLng,
+        locationConfirmed: true,
+        locationSource: profile.locationSource || 'VIETMAP_PLACE',
+        locationConfirmedAt: profile.locationConfirmedAt || approvalDate,
+        locationApprovedAt: approvalDate,
+        providerRefId: profile.providerRefId || null,
+      }
+    : {
+        locationApprovedAt: approvalDate,
+      };
+
   const existing = await Store.findOne({ contractorId: profile.userId });
   if (!existing) {
     await Store.create({
@@ -217,6 +260,7 @@ async function approve(id, adminId) {
       storeType,
       status: STORE_STATUS.INACTIVE,
       verified: true,
+      ...storeLocationData,
     });
   } else {
     existing.storeType = storeType;
@@ -225,6 +269,19 @@ async function approve(id, adminId) {
     if (!existing.publicSeeded) {
       if (profile.businessName) existing.name = profile.businessName;
       if (profile.address) existing.address = profile.address;
+      if (profile.city) existing.city = profile.city;
+    }
+    if (hasCoordinates) {
+      existing.location = { type: 'Point', coordinates: [approvedLng, approvedLat] };
+      existing.lat = approvedLat;
+      existing.lng = approvedLng;
+      existing.locationConfirmed = true;
+      existing.locationSource = profile.locationSource || 'VIETMAP_PLACE';
+      existing.locationConfirmedAt = profile.locationConfirmedAt || approvalDate;
+      existing.locationApprovedAt = approvalDate;
+      existing.providerRefId = profile.providerRefId || null;
+    } else {
+      existing.locationApprovedAt = approvalDate;
     }
     await existing.save();
   }
@@ -269,6 +326,7 @@ async function reject(id, adminId, reason) {
   profile.reviewedAt = new Date();
   profile.reviewedBy = adminId;
   profile.rejectionReason = reason;
+  profile.locationApprovedAt = null;
   await profile.save();
   try {
     await contractorEkycService.recordAdminDecision(profile.userId, adminId, 'REJECT', reason);
@@ -282,7 +340,7 @@ async function reject(id, adminId, reason) {
   });
   await Store.findOneAndUpdate(
     { contractorId: profile.userId },
-    { status: STORE_STATUS.DRAFT, verified: false }
+    { status: STORE_STATUS.DRAFT, verified: false, locationApprovedAt: null }
   );
   await writeAudit({
     actorId: adminId,
@@ -293,6 +351,11 @@ async function reject(id, adminId, reason) {
     meta: { userId: String(profile.userId), reason },
   });
   return getVerification(id);
+}
+
+async function listRepairOrders() {
+  const rows = await Order.find({}).sort({ createdAt: -1 }).limit(200);
+  return rows.map((row) => (typeof row.toPublic === 'function' ? row.toPublic() : row));
 }
 
 async function adminStats() {
@@ -330,8 +393,10 @@ async function setCommissionRule(body, adminId) {
 module.exports = {
   listCustomers,
   getCustomer,
+  listRepairOrders,
   listVerifications,
   getVerification,
+  openDocumentFile,
   approve,
   reject,
   adminStats,

@@ -67,12 +67,12 @@ export function ContractorResultCard({
         </div>
       </div>
       <div className="mt-4 space-y-1.5 text-sm text-ink-600">
-        <p className="inline-flex flex-wrap items-center gap-x-2">
+        <p className="flex flex-wrap items-center gap-x-2">
           <MapPin className="h-4 w-4 text-copper-500" />
           <span>{formatDistance(place.distanceMeters ?? place.distance * 1000)}</span>
           {place.city ? <span>· {place.city}</span> : null}
         </p>
-        <p className="inline-flex items-center gap-1 font-semibold text-navy-800">
+        <p className="flex items-center gap-1 font-semibold text-navy-800">
           <Star className="h-4 w-4 fill-copper-400 text-copper-400" />
           {exploreTrustText(place, t)}
         </p>

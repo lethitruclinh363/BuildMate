@@ -5,6 +5,8 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const { env } = require('./config/env');
 const { uploadRoot } = require('./middleware/uploadMiddleware');
+const { isBlockedPublicUpload } = require('./utils/public-uploads');
+const { canServeContractorPublicFile } = require('./utils/contractor-public-upload');
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { mongoSanitize } = require('./middleware/sanitizeMiddleware');
@@ -76,6 +78,20 @@ function createApp() {
   app.use('/api/admin/auth', authRate);
   app.use('/api/v1/admin/auth', authRate);
 
+  app.use('/uploads', (req, res, next) => {
+    if (!isBlockedPublicUpload(req.path)) return next();
+    Promise.resolve(canServeContractorPublicFile(req.path))
+      .then((allowed) => {
+        if (!allowed) {
+          res.status(404).type('text/plain').send('Not found');
+          return;
+        }
+        next();
+      })
+      .catch(() => {
+        res.status(404).type('text/plain').send('Not found');
+      });
+  });
   app.use('/uploads', express.static(uploadRoot));
   app.use('/api', apiRoutes);
   app.use('/api/v1', apiRoutes);

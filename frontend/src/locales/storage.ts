@@ -54,6 +54,7 @@ const PREFIX_NS: Record<string, (typeof NAMESPACES)[number]> = {
   analytics: 'finance',
   toast: 'finance',
   ekyc: 'ekyc',
+  mrl: 'common',
 };
 
 export function readStoredLanguage(): Locale {

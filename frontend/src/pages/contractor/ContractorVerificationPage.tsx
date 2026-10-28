@@ -8,6 +8,7 @@ import { PageTransition } from '@/components/motion/PageTransition';
 import { Card } from '@/components/ui/Card';
 import { catalogPickLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
+import { VerificationDocThumb } from '@/components/partner/VerificationDocThumb';
 import { mediaUrl } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import type { ContractorProfile, DocumentType, VerificationDocument } from '@/types/partner';
@@ -244,7 +245,7 @@ function DocumentGroups({ documents }: { documents: VerificationDocument[] }) {
                 {files.map((doc) => (
                   <li key={doc._id} className="flex items-center gap-3">
                     {doc.mimeType.startsWith('image/') ? (
-                      <img src={mediaUrl(doc.url)} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                      <VerificationDocThumb doc={doc} kind="contractor" className="h-12 w-12 rounded-xl object-cover" />
                     ) : (
                       <span className="grid h-12 w-12 place-items-center rounded-xl bg-navy-800 text-white">
                         <FileText className="h-4 w-4" />

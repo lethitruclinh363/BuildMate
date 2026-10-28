@@ -37,6 +37,12 @@ export interface ContractorProfile {
   taxCode: string;
   address: string;
   city: string;
+  lat?: number | null;
+  lng?: number | null;
+  locationConfirmed?: boolean;
+  locationConfirmedAt?: string | null;
+  locationSource?: 'VIETMAP_PLACE' | 'VIETMAP_AUTOCOMPLETE' | 'GPS' | 'MANUAL_PIN' | 'MAP_PIN' | string | null;
+  providerRefId?: string | null;
   description: string;
   yearsExperience: number;
   serviceAreas: string[];

@@ -64,8 +64,13 @@ export const useAuthStore = create<AuthState>()(
             return;
           }
           set({ user: data.data, loading: false });
-        } catch {
-          set({ user: null, token: null, loading: false });
+        } catch (error) {
+          const status = (error as { response?: { status?: number } })?.response?.status;
+          if (status === 401 || status === 403) {
+            set({ user: null, token: null, loading: false });
+            return;
+          }
+          set({ loading: false });
         }
       },
       dashboardPath: () => homeForRole(get().user?.role),

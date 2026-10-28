@@ -6,6 +6,7 @@ const { distanceKm } = require('../utils/geo');
 const { normalizeDeliveryPolicy } = require('../utils/delivery-policy');
 const { summarizeMaterialCheckout } = require('../utils/material-checkout');
 const { purchaseBlock } = require('../utils/material-sale');
+const activationService = require('./activation.service');
 
 function mergeLines(items) {
   const quantities = new Map();
@@ -21,8 +22,14 @@ async function prepare(body, { requireLive = false } = {}) {
   if (!store || store.storeType !== STORE_TYPE.MATERIALS) {
     throw new ApiError(404, 'Material store not found');
   }
-  if (requireLive && store.status !== STORE_STATUS.LIVE) {
-    throw new ApiError(409, 'Material store is not open for orders');
+  if (requireLive) {
+    if (store.status !== STORE_STATUS.LIVE) {
+      throw new ApiError(409, 'Material store is not open for orders');
+    }
+    const readiness = await activationService.getActivationReadiness(store.contractorId);
+    if (!readiness.visible) {
+      throw new ApiError(409, 'Material store is not open for orders');
+    }
   }
 
   const coordinates = store.location?.coordinates;
@@ -93,7 +100,7 @@ async function prepare(body, { requireLive = false } = {}) {
 }
 
 async function quote(body) {
-  const prepared = await prepare(body);
+  const prepared = await prepare(body, { requireLive: true });
   return prepared.summary;
 }
 

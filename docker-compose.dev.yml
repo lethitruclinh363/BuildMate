@@ -1,0 +1,32 @@
+# Isolated PostgreSQL for Prompt 18+ feature work.
+# Does not replace BuilMate_test (:55432) or the group database (:5432).
+name: buildmate-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: buildmate-dev-pg
+    restart: "no"
+    ports:
+      - "127.0.0.1:55433:5432"
+    environment:
+      POSTGRES_USER: buildmate_dev
+      POSTGRES_PASSWORD: ${DEV_PGPASSWORD:?Set DEV_PGPASSWORD}
+      POSTGRES_DB: BuilMate_dev
+    volumes:
+      - buildmate_dev_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U buildmate_dev -d BuilMate_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - buildmate_dev_net
+
+volumes:
+  buildmate_dev_pgdata:
+    name: buildmate_dev_pgdata
+
+networks:
+  buildmate_dev_net:
+    name: buildmate_dev_net

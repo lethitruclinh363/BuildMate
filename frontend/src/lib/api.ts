@@ -87,7 +87,8 @@ api.interceptors.response.use(
       localStorage.removeItem('buildmate-auth');
       localStorage.removeItem('buildmate-token');
       localStorage.removeItem('buildmate-user');
-      // Không window.location.assign — tránh reload treo. Router tự đẩy về /login.
+      window.dispatchEvent(new Event('buildmate-session-cleared'));
+      // Không window.location.assign — tránh reload treo. AuthContext xóa phiên, ProtectedRoute đẩy về /login.
     }
 
     if (!silent && !onAuthPage && (!error.response || status === 500)) {

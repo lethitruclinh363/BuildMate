@@ -15,9 +15,10 @@ import type { MaterialCategoryPick } from '@/data/material-categories';
 import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 import { locationApi } from '@/features/map/services/location.api';
+import { ChatStoreButton } from '@/features/chat/components/ChatStoreButton';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
 import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
-import { saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
+import { publicPriceVisible, saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
 import { mediaUrl, vnd } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
 import type { CatalogMaterial, CatalogService, Storefront } from '@/types/partner';
@@ -144,9 +145,12 @@ export function StorePublicPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {sellsMaterials ? (
-                <Button asChild variant="copper">
-                  <Link to="#materials">{t('explore.buy')}</Link>
-                </Button>
+                <>
+                  <ChatStoreButton storeId={store.id} />
+                  <Button asChild variant="copper">
+                    <Link to="#materials">{t('explore.buy')}</Link>
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button asChild variant="outline">
@@ -186,9 +190,11 @@ export function StorePublicPage() {
                   <Badge tone={saleTone(saleState(m))}>{t(saleLabelKey(saleState(m)))}</Badge>
                   <Link to={`/stores/${store.id}/materials/${m.id}`} className="mt-3 block font-display text-lg text-navy-800">{m.name}</Link>
                   <p className="text-xs text-ink-400">{t('public.skuStock', { sku: m.sku, stock: m.stock })}</p>
-                  <p className="mt-3 font-display text-xl text-navy-800">
-                    {vnd(m.price)} <span className="text-sm font-sans font-normal text-ink-400">/{m.unit}</span>
-                  </p>
+                  {publicPriceVisible(m) ? (
+                    <p className="mt-3 font-display text-xl text-navy-800">
+                      {vnd(m.price)} <span className="text-sm font-sans font-normal text-ink-400">/{m.unit}</span>
+                    </p>
+                  ) : null}
                   <AddToMaterialCart material={m} storeId={String(store.id)} storeName={store.name} />
                 </Card>
               ))}

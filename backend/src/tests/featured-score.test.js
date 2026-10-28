@@ -54,6 +54,12 @@ describe('featured provider ranking', () => {
     assert.deepEqual(picked.items, []);
   });
 
+  it('uses the same public visibility gate as marketplace search', () => {
+    assert.equal(isEligibleProvider(crew({ visible: false })), false);
+    assert.equal(isEligibleProvider(crew({ profileReady: false })), false);
+    assert.equal(isEligibleProvider(crew({ visible: true, profileReady: true })), true);
+  });
+
   it('keeps a live provider with no reviews in cold start', () => {
     const picked = selectFeatured([crew({ reviewCount: 0, averageRating: 0 })], contractorFeaturedScore);
     assert.equal(picked.mode, 'cold-start');

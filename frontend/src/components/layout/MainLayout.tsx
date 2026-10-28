@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 
 /** Nút landing theo role. Khách chưa đăng nhập không có nút này. */
 const LANDING_ENTRY = {
-  CUSTOMER: { to: '/customer/profile', labelKey: 'common.openProfile' },
+  CUSTOMER: { to: '/customer/dashboard', labelKey: 'common.openDashboard' },
   CONTRACTOR: { to: '/contractor/dashboard', labelKey: 'common.openDashboard' },
   MATERIAL_STORE_OWNER: { to: '/store/dashboard', labelKey: 'common.openDashboard' },
   STORE: { to: '/store/dashboard', labelKey: 'common.openDashboard' },

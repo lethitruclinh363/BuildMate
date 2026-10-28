@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Wrench } from 'lucide-react';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { ConfirmModal } from '@/components/feedback/ConfirmModal';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +22,7 @@ const tones: Record<RepairRequest['status'], 'warn' | 'success' | 'danger' | 'mi
   ACCEPTED: 'success',
   REJECTED: 'danger',
   COMPLETED: 'mist',
+  CANCELLED: 'danger',
 };
 
 export function RequestHistoryPage() {
@@ -30,6 +32,9 @@ export function RequestHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [target, setTarget] = useState<RepairRequest | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const cancelling = useRef(false);
 
   const load = (first = false) => {
     if (first) setLoading(true);
@@ -51,6 +56,27 @@ export function RequestHistoryPage() {
     load(true);
   }, []);
 
+  async function confirmCancel() {
+    if (!target || cancelling.current) return;
+    cancelling.current = true;
+    setCancellingId(target.id);
+    setError(null);
+    try {
+      const { data } = await repairApi.cancel(target.id);
+      setRows((current) => current.map((row) => (row.id === data.data.id ? { ...row, ...data.data } : row)));
+      setTarget(null);
+    } catch (err) {
+      setError(te(getApiErrorMessage(err)));
+      repairApi
+        .mine()
+        .then((res) => setRows(res.data.data || []))
+        .catch(() => {});
+    } finally {
+      cancelling.current = false;
+      setCancellingId(null);
+    }
+  }
+
   if (loading) return <DashboardSkeleton />;
   if (error && rows.length === 0) return <ErrorState body={error} pending={pending} onRetry={() => load(false)} />;
 
@@ -66,6 +92,7 @@ export function RequestHistoryPage() {
           </Button>
         }
       />
+      {error ? <p className="mb-3 text-sm text-red-700">{error}</p> : null}
       {rows.length === 0 ? (
         <EmptyState
           icon={<Wrench className="h-5 w-5" />}
@@ -89,15 +116,41 @@ export function RequestHistoryPage() {
                   <img src={mediaUrl(item.images[0])} alt="" width={80} height={80} loading="lazy" decoding="async" className="h-20 w-20 rounded-2xl object-cover" />
                 ) : null}
               </div>
-              {item.roomId ? (
-                <Button asChild size="sm" className="mt-4">
-                  <Link to={`/customer/chat/${item.roomId}`} state={back}>{t('request.openChat')}</Link>
-                </Button>
-              ) : null}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {item.status === 'PENDING' ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-200 text-red-700"
+                    disabled={Boolean(cancellingId)}
+                    onClick={() => setTarget(item)}
+                  >
+                    {t('request.cancelCta')}
+                  </Button>
+                ) : null}
+                {item.roomId ? (
+                  <Button asChild size="sm">
+                    <Link to={`/customer/chat/${item.roomId}`} state={back}>{t('request.openChat')}</Link>
+                  </Button>
+                ) : null}
+              </div>
             </ListRow>
           ))}
         </div>
       )}
+      <ConfirmModal
+        open={Boolean(target)}
+        title={t('request.cancelTitle')}
+        description={t('request.cancelBody')}
+        confirmLabel={t('request.confirmCancel')}
+        cancelLabel={t('request.cancelBack')}
+        tone="danger"
+        busy={Boolean(cancellingId)}
+        onOpenChange={(open) => {
+          if (!open && !cancellingId) setTarget(null);
+        }}
+        onConfirm={() => void confirmCancel()}
+      />
     </PageTransition>
   );
 }

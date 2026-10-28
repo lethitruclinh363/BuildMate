@@ -40,6 +40,16 @@ export interface PartnerApplication {
   taxCode: string;
   address: string;
   city: string;
+  lat?: number | null;
+  lng?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  locationConfirmed?: boolean;
+  locationConfirmedAt?: string | null;
+  locationApprovedAt?: string | null;
+  locationSource?: string | null;
+  providerRefId?: string | null;
+  location?: { type?: string; coordinates?: number[] } | null;
   description: string;
   yearsExperience: number;
   serviceAreas: string[];
@@ -128,11 +138,41 @@ export interface AdminStats {
   draft: number;
 }
 
+export interface AnalyticsSeriesPoint {
+  key: string;
+  label: string;
+  created?: number;
+  completed?: number;
+  gmv?: number;
+  payment?: number;
+  commission?: number;
+  earning?: number;
+  customer?: number;
+  contractor?: number;
+}
+
 export interface AnalyticsPayload {
-  users: { total: number; customer: number; contractor: number; admin: number };
-  orders: { total: number; completed: number; cancelled: number };
+  users: {
+    total: number;
+    customer: number;
+    contractor: number;
+    admin: number;
+    storeOwner?: number;
+    liveContractor?: number;
+    liveStore?: number;
+  };
+  orders: {
+    total: number;
+    completed: number;
+    cancelled: number;
+    inProgress?: number;
+    materialTotal?: number;
+    materialCompleted?: number;
+    byStatus?: Record<string, number>;
+  };
   finance: {
     revenue: number;
+    gmv?: number;
     paidCount: number;
     commission: number;
     contractorEarning: number;
@@ -156,6 +196,18 @@ export interface AnalyticsPayload {
   };
   reviews: { total: number; average: number };
   complaints: { total: number; open: number; processing: number; resolved: number; rejected: number };
+  series?: {
+    days7: AnalyticsSeriesPoint[];
+    days30: AnalyticsSeriesPoint[];
+    months12: AnalyticsSeriesPoint[];
+    deltas?: {
+      users: number;
+      contractors: number;
+      orders: number;
+      gmv: number;
+      commission: number;
+    };
+  };
 }
 
 export interface AuditLog {

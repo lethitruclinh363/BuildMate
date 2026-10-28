@@ -10,11 +10,14 @@ export const repairApi = {
   get: (id: string) => api.get<ApiResponse<RepairRequest>>(`/repair-requests/${id}`),
   accept: (id: string) => api.patch<ApiResponse<RepairRequest>>(`/repair-requests/${id}/accept`),
   reject: (id: string) => api.patch<ApiResponse<RepairRequest>>(`/repair-requests/${id}/reject`),
+  cancel: (id: string) => api.patch<ApiResponse<RepairRequest>>(`/repair-requests/${id}/cancel`),
 };
 
 export const chatApi = {
   rooms: () => api.get<ApiResponse<ChatRoom[]>>('/chat/rooms'),
   room: (id: string) => api.get<ApiResponse<ChatRoom>>(`/chat/rooms/${id}`),
+  openStoreRoom: (storeId: string) =>
+    api.post<ApiResponse<ChatRoom>>(`/chat/stores/${storeId}/rooms`, {}),
   messages: (id: string, limit = 50) =>
     api.get<ApiResponse<ChatMessage[]>>(`/chat/rooms/${id}/messages`, { params: { limit } }),
   send: (id: string, content: string) =>

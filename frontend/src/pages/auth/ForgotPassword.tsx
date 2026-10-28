@@ -62,15 +62,13 @@ export default function ForgotPassword() {
     return () => clearInterval(timer);
   }, [countdown]);
 
-  // Check cooldown if email is updated/restored
+  // Restore cooldown when the email changes. Do not depend on countdown —
+  // that resyncs the timer from sessionStorage on every tick.
   useEffect(() => {
-    if (email.trim()) {
-      const remaining = getOtpCooldown(email.trim());
-      if (remaining > 0 && remaining !== countdown) {
-        setCountdown(remaining);
-      }
-    }
-  }, [email, countdown]);
+    if (!email.trim()) return;
+    const remaining = getOtpCooldown(email.trim());
+    if (remaining > 0) setCountdown(remaining);
+  }, [email]);
 
   const passwordMessage = !password
     ? t('auth.passwordRequired')
@@ -276,7 +274,7 @@ export default function ForgotPassword() {
             <div className="space-y-4 pt-1">
               {/* Thông báo kiểm tra email ngay dưới ô email */}
               <div className="rounded-2xl border border-emerald-500/20 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                {t('auth.checkInboxSpam')}
+                {info || t('auth.checkInboxSpam')}
               </div>
 
               {/* Ô OTP 6 số nằm ngay dưới thông báo */}

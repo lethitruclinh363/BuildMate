@@ -1,6 +1,9 @@
+const fs = require('fs');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success, created } = require('../utils/response');
 const { publicFileUrl } = require('../middleware/uploadMiddleware');
+const { isSensitiveDocumentType, privateDocumentUrl } = require('../utils/verification-docs');
+const verificationStorage = require('../services/verificationStorage');
 const contractorService = require('../services/contractorService');
 const publicProfileService = require('../services/publicProfileService');
 const reviewService = require('../services/reviewService');
@@ -92,13 +95,35 @@ const uploadDocument = asyncHandler(async (req, res) => {
   if (!req.file) {
     throw new ApiError(400, 'Choose a file to upload');
   }
+  let url = publicFileUrl(req.file.path);
+  if (isSensitiveDocumentType(req.body.type)) {
+    const relative = verificationStorage.saveFromDisk(req.user.id, req.file.path, req.file.mimetype);
+    url = privateDocumentUrl(relative);
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch {
+      /* public copy already moved */
+    }
+  }
   const data = await contractorService.addDocument(req.user.id, {
-    url: publicFileUrl(req.file.path),
+    url,
     originalName: req.file.originalname,
     mimeType: req.file.mimetype,
     size: req.file.size,
   }, req.body.type);
   return created(res, data, 'Document uploaded');
+});
+
+const serveDocument = asyncHandler(async (req, res, next) => {
+  const opened = await contractorService.openDocumentFile(req.user.id, req.params.documentId, req.user);
+  res.setHeader('Content-Type', opened.contentType);
+  res.setHeader('Cache-Control', 'private, no-store');
+  const stream = fs.createReadStream(opened.full);
+  stream.on('error', (err) => {
+    if (!res.headersSent) return next(err);
+    res.end();
+  });
+  stream.pipe(res);
 });
 
 const removeDocument = asyncHandler(async (req, res) => {
@@ -173,6 +198,7 @@ module.exports = {
   getProfile,
   updateProfile,
   uploadDocument,
+  serveDocument,
   uploadPortfolio,
   removePortfolio,
   createPortfolioProject,
