@@ -9,6 +9,8 @@ import { ContractorsPage, MaterialStoresPage } from '@/contractors/ContractorsPa
 import { AdminVerificationPage } from '@/pages/verification/AdminVerificationPage';
 import { OrdersPage } from '@/orders/OrdersPage';
 import { OrderDetailPage } from '@/orders/OrderDetailPage';
+import { AdminMaterialOrdersPage } from '@/pages/orders/AdminMaterialOrdersPage';
+import { AdminMaterialOrderDetailPage } from '@/pages/orders/AdminMaterialOrderDetailPage';
 import { PaymentsPage } from '@/payments/PaymentsPage';
 import { EscrowPage } from '@/finance/EscrowPage';
 import { CommissionPage } from '@/commissions/CommissionPage';
@@ -48,6 +50,8 @@ export function AppRouter() {
             <Route path="/verification" element={<Navigate to="/partners/contractors" replace />} />
             <Route path="/verifications" element={<Navigate to="/partners/contractors" replace />} />
             <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/material-orders" element={<AdminMaterialOrdersPage />} />
+            <Route path="/material-orders/:id" element={<AdminMaterialOrderDetailPage />} />
             <Route path="/services" element={<ServiceCatalogPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/payments" element={<PaymentsPage />} />

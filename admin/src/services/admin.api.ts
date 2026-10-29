@@ -11,6 +11,8 @@ import type {
   OrderPaymentsPayload,
   CustomerAccount,
   CustomerDetail,
+  MaterialOrder,
+  AdminMaterialOrderPayload,
   PartnerApplication,
   ReviewListPayload,
   VerificationStatus,
@@ -252,6 +254,19 @@ export const adminApi = {
     cached('admin-repair-orders', 60_000, async () =>
       unwrap((await api.get<ApiResponse<OrderDetail[]>>('/admin/orders')).data)
     ),
+
+  listMaterialOrders: async (params?: {
+    q?: string;
+    status?: string;
+    paymentStatus?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }) => unwrap((await api.get<ApiResponse<AdminMaterialOrderPayload>>('/admin/material-orders', { params })).data),
+
+  getMaterialOrder: async (id: string) =>
+    unwrap((await api.get<ApiResponse<MaterialOrder>>(`/admin/material-orders/${id}`)).data),
 
   getOrder: async (id: string) => unwrap((await api.get<ApiResponse<OrderDetail>>(`/orders/${id}`)).data),
 

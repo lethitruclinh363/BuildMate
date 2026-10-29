@@ -91,6 +91,21 @@ export function nextStoreStatus(status: MaterialOrder['status']) {
   return NEXT_STORE_STATUS[status] || null;
 }
 
+// Trạng thái mà cửa hàng còn được phép hủy đơn (khớp backend STORE_CANCELLABLE_STATUSES).
+const STORE_CANCELLABLE_STATUSES: MaterialOrder['status'][] = [
+  'PENDING_PAYMENT',
+  'PENDING_CONFIRMATION',
+  'DEPOSIT_PAID',
+  'CONFIRMED',
+  'PREPARING',
+  'READY_FOR_DELIVERY',
+];
+
+export function canStoreCancel(status: MaterialOrder['status'], paymentStatus?: MaterialOrder['paymentStatus']) {
+  if (paymentStatus === 'PAID') return false;
+  return STORE_CANCELLABLE_STATUSES.includes(status);
+}
+
 export function isLegacyMaterialOrder(order: Pick<MaterialOrder, 'depositRateSnapshot' | 'depositAmount'>) {
   return Number(order.depositRateSnapshot || 0) > 0 || Number(order.depositAmount || 0) > 0;
 }
@@ -123,6 +138,12 @@ export const materialStoreOrderApi = {
   get: (id: string) => api.get<{ data: MaterialOrder }>(`/material-store/orders/${id}`, { silent: true }),
   updateStatus: (id: string, status: MaterialOrder['status']) =>
     api.patch<{ data: MaterialOrder }>(`/material-store/orders/${id}`, { status }, { silent: true }),
+  cancel: (id: string, reason?: string) =>
+    api.patch<{ data: MaterialOrder }>(
+      `/material-store/orders/${id}`,
+      { status: 'CANCELLED', note: reason?.trim() || '' },
+      { silent: true }
+    ),
   collectPayment: (id: string) =>
     api.post<{ data: MaterialOrder }>(`/material-store/orders/${id}/collected`, {}, { silent: true }),
   earnings: () => api.get<{ data: MaterialEarnings }>('/material-store/earnings', { silent: true }),

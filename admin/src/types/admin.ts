@@ -267,6 +267,86 @@ export interface Order {
   updatedAt: string;
 }
 
+export type MaterialOrderStatus =
+  | 'PENDING_PAYMENT'
+  | 'PENDING_CONFIRMATION'
+  | 'DEPOSIT_PAID'
+  | 'CONFIRMED'
+  | 'PREPARING'
+  | 'READY_FOR_DELIVERY'
+  | 'DELIVERING'
+  | 'DELIVERED'
+  | 'CUSTOMER_RECEIVED'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export interface MaterialOrderItem {
+  materialId: string;
+  nameSnapshot: string;
+  imageSnapshot: string;
+  unitSnapshot: string;
+  priceSnapshot: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface MaterialOrder {
+  id: string;
+  orderCode: string;
+  customerId: string;
+  storeId: string;
+  storeOwnerId: string;
+  items: MaterialOrderItem[];
+  deliveryAddress: string;
+  deliveryLocation: { type: string; coordinates: number[] } | null;
+  distanceKm: number;
+  materialSubtotal: number;
+  shippingFee: number;
+  totalAmount: number;
+  depositRateSnapshot: number;
+  depositAmount: number;
+  platformFeeRateSnapshot: number;
+  platformFeeAmount: number;
+  storeDepositAmount: number;
+  remainingAmount: number;
+  paymentStatus: PaymentStatus;
+  status: MaterialOrderStatus;
+  statusHistory: Array<{
+    status: string;
+    actorId: string | null;
+    actorRole: string;
+    note: string;
+    createdAt: string;
+  }>;
+  customerNote: string;
+  remainingSettledOffline: boolean;
+  remainingSettledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  customer?: { id: string; name: string };
+  storeName?: string;
+}
+
+export interface AdminMaterialOrderPayload {
+  items: MaterialOrder[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+  stats: {
+    orderCount: number;
+    processingCount: number;
+    deliveringCount: number;
+    completedCount: number;
+    cancelledCount: number;
+    orderValue: number;
+    collectedAmount: number;
+    uncollectedAmount: number;
+  };
+}
+
 export interface Payment {
   id: string;
   orderId: string;

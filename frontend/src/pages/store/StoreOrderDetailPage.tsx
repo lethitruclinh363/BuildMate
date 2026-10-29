@@ -8,11 +8,18 @@ import { PageTransition } from '@/components/motion/PageTransition';
 import { BackButton } from '@/components/navigation/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { TextArea } from '@/components/ui/TextArea';
 import { SiteLocationCard } from '@/features/map/components/SiteLocationCard';
 import { placeFromRecord } from '@/features/map/lib/location';
 import { useMaterialOrderLiveStore } from '@/features/material-orders/material-order-live';
 import { getApiErrorMessage } from '@/lib/api';
-import { isLegacyMaterialOrder, materialStoreOrderApi, nextStoreStatus, type MaterialOrder } from '@/lib/material-order-api';
+import {
+  canStoreCancel,
+  isLegacyMaterialOrder,
+  materialStoreOrderApi,
+  nextStoreStatus,
+  type MaterialOrder,
+} from '@/lib/material-order-api';
 import { mediaUrl, vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
@@ -35,6 +42,8 @@ export function StoreOrderDetailPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const load = useCallback(
     async (silent = false) => {
@@ -81,11 +90,29 @@ export function StoreOrderDetailPage() {
     }
   }
 
+  async function cancelOrder() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await materialStoreOrderApi.cancel(id, cancelReason);
+      setOrder(res.data.data);
+      setCancelOpen(false);
+      setCancelReason('');
+      pushToast({ kind: 'success', title: t('materialOrder.storeCancelDone') });
+    } catch (err) {
+      // Giữ modal mở khi API lỗi để cửa hàng đọc thông báo và thử lại.
+      pushToast({ kind: 'error', title: getApiErrorMessage(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) return <DashboardSkeleton />;
   if (error || !order) return <ErrorState body={error || undefined} onRetry={() => void load(false)} />;
 
   const delivery = placeFromRecord(order);
   const legacy = isLegacyMaterialOrder(order);
+  const cancellable = canStoreCancel(order.status, order.paymentStatus);
 
   return (
     <PageTransition>
@@ -194,6 +221,21 @@ export function StoreOrderDetailPage() {
               {t(`materialOrder.action.${next}`)}
             </Button>
           ) : null}
+          {cancellable ? (
+            <div className="mt-6 border-t border-navy-800/10 pt-4">
+              <Button
+                variant="outline"
+                className="border-red-200 text-red-700 hover:bg-red-50"
+                disabled={busy}
+                onClick={() => {
+                  setCancelReason('');
+                  setCancelOpen(true);
+                }}
+              >
+                {t('materialOrder.storeCancel')}
+              </Button>
+            </div>
+          ) : null}
         </Card>
         <Card hover={false}>
           <h2 className="font-display text-2xl text-navy-800">{t('materialOrder.timeline')}</h2>
@@ -215,6 +257,36 @@ export function StoreOrderDetailPage() {
         onConfirm={() => void advance()}
         confirmLabel={next ? t(`materialOrder.action.${next}`) : ''}
       />
+      <ConfirmModal
+        open={cancelOpen}
+        title={t('materialOrder.storeCancelTitle')}
+        description={t('materialOrder.storeCancelBody')}
+        confirmLabel={t('materialOrder.storeCancelConfirm')}
+        cancelLabel={t('materialOrder.storeCancelBack')}
+        tone="danger"
+        busy={busy}
+        onOpenChange={(open) => {
+          if (busy) return;
+          setCancelOpen(open);
+        }}
+        onConfirm={() => void cancelOrder()}
+      >
+        <p className="mt-3 text-sm font-semibold text-navy-800">
+          {t('materialOrder.storeCancelOrder', { code: order.orderCode })}
+        </p>
+        <div className="mt-3">
+          <TextArea
+            id="material-order-cancel-reason"
+            rows={3}
+            maxLength={500}
+            label={t('materialOrder.storeCancelReason')}
+            placeholder={t('materialOrder.storeCancelReasonPlaceholder')}
+            value={cancelReason}
+            disabled={busy}
+            onChange={(event) => setCancelReason(event.target.value)}
+          />
+        </div>
+      </ConfirmModal>
     </PageTransition>
   );
 }

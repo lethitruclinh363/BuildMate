@@ -120,6 +120,8 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
 
 async function geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog }) {
   const { prisma } = require('../config/prisma');
+  const { ensureLocationColumns } = require('../repositories/column-ensure');
+  await ensureLocationColumns();
   const stores = await prisma.stores.findMany({
     where: {
       status: STORE_STATUS.LIVE,

@@ -9,7 +9,7 @@ const path = require('path');
 const { connectMongo, connectPostgres, closeConnections } = require('./lib/connections');
 const { prisma } = require('../../src/config/prisma');
 
-const ORDER_STATUS = new Set(['PENDING_PAYMENT', 'DEPOSIT_PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_DELIVERY', 'DELIVERING', 'DELIVERED', 'CUSTOMER_RECEIVED', 'COMPLETED', 'CANCELLED']);
+const ORDER_STATUS = new Set(['PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'DEPOSIT_PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_DELIVERY', 'DELIVERING', 'DELIVERED', 'CUSTOMER_RECEIVED', 'COMPLETED', 'CANCELLED']);
 const PAYMENT_STATUS = new Set(['UNPAID', 'PENDING', 'PAID', 'FAILED', 'REFUNDED']);
 const ACTOR = new Set(['CUSTOMER', 'STORE', 'SYSTEM']);
 const COMMISSION_STATUS = new Set(['POSTED', 'REVERSED']);

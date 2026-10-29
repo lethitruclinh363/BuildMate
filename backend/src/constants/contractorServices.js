@@ -97,7 +97,7 @@ function normalizeServiceName(value) {
   return collapseServiceName(value).toLocaleLowerCase('vi');
 }
 
-function foldServiceName(value) {
+function foldServiceName(value) { 
   return normalizeServiceName(value)
     .replace(/đ/g, 'd')
     .normalize('NFD')

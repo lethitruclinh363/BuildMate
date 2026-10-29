@@ -7,6 +7,7 @@ const { authorize } = require('../middleware/roleMiddleware');
 const { validate } = require('../utils/validator');
 const {
   storeSchema,
+  storeUpdateSchema,
   materialSchema,
   profileSchema,
   documentTypeSchema,
@@ -92,7 +93,7 @@ router.patch('/public-profile', ...owner, validate(storePublicProfileSchema), ma
 
 router.get('/store', ...owner, storeController.getStore);
 router.post('/store', ...owner, validate(storeSchema), storeController.createStore);
-router.patch('/store', ...owner, validate(storeSchema.partial()), storeController.updateStore);
+router.patch('/store', ...owner, validate(storeUpdateSchema), storeController.updateStore);
 
 router.get('/store-categories', ...owner, requireApprovedOwner, loadStore, requireMaterialStore, materialController.listStoreCategories);
 router.post('/store-categories', ...owner, requireApprovedOwner, loadStore, requireMaterialStore, validate(storeCategorySchema), materialController.createStoreCategory);
