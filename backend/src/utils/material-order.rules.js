@@ -71,6 +71,17 @@ const ACTOR_MOVES = Object.freeze({
   }),
 });
 
+// Trạng thái mà MATERIAL_STORE_OWNER được phép hủy đơn vật liệu COD.
+// Đơn đã giao, đang giao, khách đã nhận hoặc hoàn thành đều không được hủy.
+const STORE_CANCELLABLE_STATUSES = Object.freeze([
+  MATERIAL_ORDER_STATUS.PENDING_PAYMENT,
+  MATERIAL_ORDER_STATUS.PENDING_CONFIRMATION,
+  MATERIAL_ORDER_STATUS.DEPOSIT_PAID,
+  MATERIAL_ORDER_STATUS.CONFIRMED,
+  MATERIAL_ORDER_STATUS.PREPARING,
+  MATERIAL_ORDER_STATUS.READY_FOR_DELIVERY,
+]);
+
 const STORE_FORWARD = Object.freeze({
   PENDING_CONFIRMATION: MATERIAL_ORDER_STATUS.CONFIRMED,
   DEPOSIT_PAID: MATERIAL_ORDER_STATUS.CONFIRMED,
@@ -132,6 +143,18 @@ function materialStatusNotice(status, orderCode) {
     return { audience: 'store', title: 'Khách đã nhận hàng', message: `${code} đã được khách xác nhận nhận` };
   }
   return null;
+}
+
+/**
+ * Thông báo cho khách hàng khi CHÍNH CỬA HÀNG hủy đơn vật liệu.
+ *
+ * Tách riêng khỏi materialStatusNotice vì trạng thái CANCELLED dùng chung cho cả
+ * khách tự hủy và cửa hàng hủy; nếu dựa theo status thì khách tự hủy cũng sẽ nhận
+ * thông báo "cửa hàng hủy đơn" (sai). Chỉ luồng cửa hàng hủy mới gọi helper này.
+ */
+function storeCancelNotice(orderCode) {
+  const code = orderCode || '';
+  return { audience: 'customer', title: 'Cửa hàng đã hủy đơn', message: `${code} đã bị cửa hàng hủy` };
 }
 
 function generateMaterialOrderCode() {
@@ -210,6 +233,7 @@ module.exports = {
   MATERIAL_PAYMENT_STATUS,
   MATERIAL_ACTOR,
   TRANSITIONS,
+  STORE_CANCELLABLE_STATUSES,
   generateMaterialOrderCode,
   priceMaterialOrder,
   materialCommissionSnapshot,
@@ -218,4 +242,5 @@ module.exports = {
   nextStoreFulfillment,
   summarizeMaterialEarnings,
   materialStatusNotice,
+  storeCancelNotice,
 };

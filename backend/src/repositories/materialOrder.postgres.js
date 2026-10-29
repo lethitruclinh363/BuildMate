@@ -635,6 +635,50 @@ async function persistCommission(doc) {
   doc._id = row.legacy_mongo_id;
 }
 
+/**
+ * Hủy đơn vật liệu bằng cập nhật có điều kiện (atomic).
+ *
+ * Chỉ cập nhật sang CANCELLED khi trạng thái hiện tại vẫn nằm trong
+ * `allowedStatuses`. Nhờ vậy hai request hủy (hoặc hủy chạy đua với một
+ * transition khác) chỉ có đúng một request thắng; request còn lại nhận
+ * `CONFLICT` và không ghi thêm history cũng như không gửi notification trùng.
+ */
+async function cancelOrderAtomic({ orderId, allowedStatuses, actorUserId, actorRole, note }) {
+  const legacyId = legacyOf(orderId);
+  if (!legacyId) return { ok: false, reason: 'NOT_FOUND' };
+
+  const order = await db().material_orders.findFirst({
+    where: { legacy_mongo_id: legacyId },
+    select: { id: true, status: true },
+  });
+
+  if (!order) return { ok: false, reason: 'NOT_FOUND' };
+
+  if (order.status === 'CANCELLED') return { ok: false, reason: 'ALREADY_CANCELLED' };
+
+  const updated = await db().material_orders.updateMany({
+    where: { id: order.id, status: { in: [...allowedStatuses] } },
+    data: { status: 'CANCELLED', updated_at: new Date() },
+  });
+
+  if (updated.count !== 1) return { ok: false, reason: 'CONFLICT' };
+
+  const actor = actorUserId ? await userId(actorUserId) : null;
+
+  await db().material_order_status_history.create({
+    data: {
+      material_order_id: order.id,
+      status: 'CANCELLED',
+      actor_user_id: actor,
+      actor_role: actorRole,
+      note: text(note, 500),
+      created_at: new Date(),
+    },
+  });
+
+  return { ok: true };
+}
+
 module.exports = {
   MaterialOrder: model(allOrders, PgMaterialOrder, persistOrder, {
     where: materialOrderWhere,
@@ -647,4 +691,5 @@ module.exports = {
   }),
   MaterialOrderPayment: model(allPayments, PgMaterialPayment, persistPayment),
   MaterialCommission: model(allCommissions, PgMaterialCommission, persistCommission),
+  cancelOrderAtomic,
 };

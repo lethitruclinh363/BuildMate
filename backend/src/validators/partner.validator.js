@@ -197,7 +197,7 @@ const verificationChangeSchema = z.object({
   note: z.string().trim().min(8).max(500),
 }).strict();
 
-const storeSchema = z.object({
+const storeBaseSchema = z.object({
   name: z.string().trim().min(2).max(100),
   slogan: z.string().trim().max(140).optional().or(z.literal('')),
   description: z.string().trim().max(2000).optional().or(z.literal('')),
@@ -223,17 +223,23 @@ const storeSchema = z.object({
   locationConfirmed: z.boolean().optional(),
   locationSource: z.enum(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']).optional().or(z.literal('')).or(z.null()),
   providerRefId: z.string().trim().max(2000).optional().or(z.literal('')).or(z.null()),
-}).superRefine((data, ctx) => {
-  const lat = data.lat !== undefined ? data.lat : data.latitude;
-  const lng = data.lng !== undefined ? data.lng : data.longitude;
-  if (data.locationConfirmed && lat === 0 && lng === 0) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Coordinates (0, 0) cannot be used as a valid confirmed location',
-      path: ['lat'],
-    });
-  }
 });
+
+const withStoreLocationGuard = (schema) =>
+  schema.superRefine((data, ctx) => {
+    const lat = data.lat !== undefined ? data.lat : data.latitude;
+    const lng = data.lng !== undefined ? data.lng : data.longitude;
+    if (data.locationConfirmed && lat === 0 && lng === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Coordinates (0, 0) cannot be used as a valid confirmed location',
+        path: ['lat'],
+      });
+    }
+  });
+
+const storeSchema = withStoreLocationGuard(storeBaseSchema);
+const storeUpdateSchema = withStoreLocationGuard(storeBaseSchema.partial());
 
 const catalogCheckSchema = z.object({
   name: z.string().trim().min(1, 'Enter a service name').max(120),
@@ -357,6 +363,7 @@ module.exports = {
   storePublicProfileSchema,
   verificationChangeSchema,
   storeSchema,
+  storeUpdateSchema,
   registerServiceSchema,
   offeringUpdateSchema,
   catalogCheckSchema,

@@ -4,6 +4,7 @@ const { success } = require('../utils/response');
 const adminService = require('../services/adminService');
 const catalogService = require('../services/catalogService');
 const materialCategoryService = require('../services/material-category.service');
+const materialOrderService = require('../services/material-order.service');
 const { CATALOG_STATUS } = require('../models/CatalogService');
 
 const stats = asyncHandler(async (_req, res) => {
@@ -19,6 +20,16 @@ const listCustomers = asyncHandler(async (_req, res) => {
 const listRepairOrders = asyncHandler(async (_req, res) => {
   const data = await adminService.listRepairOrders();
   return success(res, data, 'Repair orders retrieved');
+});
+
+const listMaterialOrders = asyncHandler(async (req, res) => {
+  const data = await materialOrderService.listAllForAdmin(req.query);
+  return success(res, data, 'Material orders retrieved');
+});
+
+const getMaterialOrder = asyncHandler(async (req, res) => {
+  const data = await materialOrderService.getForAdmin(req.params.id);
+  return success(res, data, 'Material order retrieved');
 });
 
 const getCustomer = asyncHandler(async (req, res) => {
@@ -148,6 +159,8 @@ module.exports = {
   stats,
   listCustomers,
   listRepairOrders,
+  listMaterialOrders,
+  getMaterialOrder,
   getCustomer,
   list,
   getOne,

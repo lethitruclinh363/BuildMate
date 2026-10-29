@@ -21,6 +21,7 @@ const {
   projectImageRemoveSchema,
   submitSchema,
   storeSchema,
+  storeUpdateSchema,
   registerServiceSchema,
   offeringUpdateSchema,
   catalogCheckSchema,
@@ -150,7 +151,7 @@ router.get('/ekyc/files/:kind', ...contractorOnly, contractorEkycController.file
 
 router.get('/store', ...storeWrite, loadStore, storeController.getStore);
 router.post('/store', ...storeWrite, validate(storeSchema), storeController.createStore);
-router.patch('/store', ...storeWrite, validate(storeSchema.partial()), storeController.updateStore);
+router.patch('/store', ...storeWrite, validate(storeUpdateSchema), storeController.updateStore);
 router.delete('/store', ...storeWrite, storeController.deleteStore);
 
 router.get('/service-catalog/check', ...contractorOnly, validate(catalogCheckSchema, 'query'), contractorController.checkServiceCatalog);

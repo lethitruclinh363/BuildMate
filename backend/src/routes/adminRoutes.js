@@ -26,6 +26,8 @@ router.get('/stats', ...adminOnly, adminController.stats);
 router.get('/customers', ...adminOnly, adminController.listCustomers);
 router.get('/customers/:id', ...adminOnly, adminController.getCustomer);
 router.get('/orders', ...adminOnly, adminController.listRepairOrders);
+router.get('/material-orders', ...adminOnly, adminController.listMaterialOrders);
+router.get('/material-orders/:id', ...adminOnly, adminController.getMaterialOrder);
 router.get('/audit-logs', ...adminOnly, adminController.auditLogs);
 router.get('/verifications', ...adminOnly, adminController.list);
 router.get('/verifications/:id', ...adminOnly, adminController.getOne);

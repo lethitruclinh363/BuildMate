@@ -2,7 +2,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env'
 
 const { connectDatabase } = require('../config/database');
 const { User, ROLES, USER_STATUS } = require('../models/User');
-const { seedMarketplace } = require('./seed-marketplace');
+const { seedMarketplace } = require('./seedMarketPlace');
 const { seedSprint45 } = require('./seed-sprint45');
 const { seedSprint51 } = require('./seed-sprint51');
 const { seedSprint61 } = require('./seed-sprint61');
