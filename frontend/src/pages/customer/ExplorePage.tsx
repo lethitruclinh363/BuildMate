@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { HardHat, MapPin, Store } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -13,6 +12,7 @@ import { ContractorCard } from '@/features/map/components/ContractorCard';
 import { MaterialStoreCard } from '@/features/map/components/MaterialStoreCard';
 import { RadiusSelector } from '@/features/map/components/RadiusSelector';
 import { FilterDrawer, type MarketplaceFilters } from '@/features/map/components/FilterDrawer';
+import { MaterialExplorer } from '@/features/map/components/MaterialExplorer';
 import { useCurrentLocation } from '@/features/map/hooks/useCurrentLocation';
 import { readExplore, rememberExplore } from '@/features/map/lib/explore-memory';
 import { hasCoordinates } from '@/features/map/lib/location';
@@ -21,10 +21,9 @@ import { originFromPlace, reverseGeocode } from '@/features/map/services/geocodi
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api';
-import { publicPriceVisible, saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
-import { SEARCH_CHIPS, type NearbyPlace, type PublicMaterial, type PublicService } from '@/types/marketplace';
+import { SEARCH_CHIPS, type NearbyPlace, type PublicService } from '@/types/marketplace';
 
 export function ExplorePage() {
   const { t, te } = useI18n();
@@ -41,7 +40,6 @@ export function ExplorePage() {
   const [contractors, setContractors] = useState<NearbyPlace[]>([]);
   const [stores, setStores] = useState<NearbyPlace[]>([]);
   const [services, setServices] = useState<PublicService[]>([]);
-  const [materials, setMaterials] = useState<PublicMaterial[]>([]);
   const [pick, setPick] = useState<{ id: string; kind: 'contractor' | 'store'; token: number } | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(saved?.mapCenter || null);
   const [groups, setGroups] = useState<string[]>([]);
@@ -63,18 +61,6 @@ export function ExplorePage() {
       .get<{ data: { category: string }[] }>('/service-catalog', { silent: true })
       .then((res) => setGroups([...new Set((res.data.data || []).map((item) => item.category))]))
       .catch(() => setGroups([]));
-    let cancelled = false;
-    locationApi
-      .searchMaterials({})
-      .then((res) => {
-        if (!cancelled) setMaterials(res.data.data || []);
-      })
-      .catch(() => {
-        if (!cancelled) setMaterials([]);
-      });
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   useEffect(() => {
@@ -293,6 +279,7 @@ export function ExplorePage() {
         </div>
       )}
 
+      {/* Popular Services Section */}
       <section className="mt-12">
         <h2 className="font-display text-[1.75rem] text-navy-800">{t('explore.popular')}</h2>
         {services.length === 0 ? (
@@ -316,34 +303,8 @@ export function ExplorePage() {
         )}
       </section>
 
-      <section className="mt-12">
-        <h2 className="font-display text-[1.75rem] text-navy-800">{t('explore.materials')}</h2>
-        {materials.length === 0 ? (
-          <CompactEmpty
-            title={t('explore.materialsEmpty')}
-            body={t('explore.popularEmptyBody')}
-            action={filters.radius < 10 ? () => setFilters((current) => ({ ...current, radius: 10 })) : undefined}
-            actionLabel={t('explore.widen')}
-          />
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {materials.slice(0, 8).map((m) => (
-              <Card key={m.id}>
-                <Badge tone={saleTone(saleState(m))}>{t(saleLabelKey(saleState(m)))}</Badge>
-                <h3 className="mt-3 font-display text-lg text-navy-800">
-                  {m.store?.id ? <Link to={`/stores/${m.store.id}/materials/${m.id}`}>{m.name}</Link> : m.name}
-                </h3>
-                <p className="mt-1 text-sm text-ink-400">{m.store?.name}</p>
-                {publicPriceVisible(m) ? (
-                  <p className="mt-3 font-display text-xl text-navy-800">
-                    {vnd(m.price)} <span className="text-sm font-sans text-ink-400">/{m.unit}</span>
-                  </p>
-                ) : null}
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
+      {/* Customer Building Materials Explorer Section */}
+      <MaterialExplorer stores={stores} />
     </PageTransition>
   );
 }

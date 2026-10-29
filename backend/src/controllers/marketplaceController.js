@@ -12,6 +12,11 @@ const getContractor = asyncHandler(async (req, res) => {
   return success(res, data, 'Contractor retrieved');
 });
 
+const getMaterialCategories = asyncHandler(async (_req, res) => {
+  const data = await marketplaceService.getPublicMaterialCategories();
+  return success(res, data, 'Material categories retrieved');
+});
+
 const searchMaterials = asyncHandler(async (req, res) => {
   const data = await marketplaceService.searchMaterials(req.query);
   return success(res, data, 'Materials retrieved');
@@ -22,4 +27,10 @@ const searchServices = asyncHandler(async (req, res) => {
   return success(res, data, 'Services retrieved');
 });
 
-module.exports = { getStore, getContractor, searchMaterials, searchServices };
+module.exports = {
+  getStore,
+  getContractor,
+  getMaterialCategories,
+  searchMaterials,
+  searchServices,
+};
