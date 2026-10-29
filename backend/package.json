@@ -5,6 +5,8 @@
   "description": "BuildMate API — local construction & materials platform",
   "main": "src/server.js",
   "scripts": {
+    "prisma:generate": "prisma generate",
+    "postinstall": "prisma generate",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/scripts/seed.js",

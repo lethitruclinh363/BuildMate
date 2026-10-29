@@ -134,10 +134,12 @@ export interface PublicMaterial {
   id: string;
   name: string;
   category: string;
+  categoryId?: string | null;
   sku: string;
   unit: string;
-  price: number;
+  price: number | null;
   stock: number;
+  minOrderQty?: number;
   image: string;
   images: string[];
   description: string;
@@ -145,6 +147,8 @@ export interface PublicMaterial {
   saleAvailability?: 'AVAILABLE' | 'MANUALLY_UNAVAILABLE';
   saleState?: 'selling' | 'out' | 'paused' | 'discontinued';
   isActive?: boolean;
+  storeId?: string;
+  contractorId?: string;
   store?: { id: string; name: string; address: string; city: string; coverImage: string } | null;
 }
 

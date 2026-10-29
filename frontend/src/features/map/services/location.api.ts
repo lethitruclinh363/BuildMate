@@ -5,6 +5,35 @@ import type { NearbyPlace, PublicContractorProfile, PublicHighlights, PublicMate
 import type { MaterialCategoryPick } from '@/data/material-categories';
 import type { CatalogService, CatalogMaterial, Storefront } from '@/types/partner';
 
+export interface MaterialSearchParams {
+  category?: string;
+  categoryId?: string;
+  keyword?: string;
+  store?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sellingStatus?: 'all' | 'selling' | 'out' | 'paused' | 'discontinued';
+  sortBy?: 'default' | 'price_asc' | 'price_desc' | 'newest';
+  page?: number;
+  limit?: number;
+}
+
+export interface MaterialCategoryItem {
+  id: string | null;
+  name: string;
+  type: 'SYSTEM' | 'CUSTOM';
+  labelVi: string;
+  labelEn: string;
+}
+
+export interface MaterialSearchResult {
+  items: PublicMaterial[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export const locationApi = {
   nearbyStores: (lat: number, lng: number, radius: number, extra?: Record<string, string | number | undefined>) =>
     api.get<ApiResponse<NearbyPlace[]>>('/location/stores/nearby', { params: { lat, lng, radius, ...extra } }),
@@ -36,6 +65,8 @@ export const locationApi = {
     >(`/contractors/${id}`),
   searchServices: (params: { category?: string; keyword?: string }) =>
     api.get<ApiResponse<PublicService[]>>('/services/search', { params }),
-  searchMaterials: (params: { category?: string; keyword?: string; store?: string }) =>
-    api.get<ApiResponse<PublicMaterial[]>>('/materials/search', { params }),
+  materialCategories: () =>
+    api.get<ApiResponse<MaterialCategoryItem[]>>('/materials/categories'),
+  searchMaterials: (params: MaterialSearchParams) =>
+    api.get<ApiResponse<PublicMaterial[] | MaterialSearchResult>>('/materials/search', { params }),
 };

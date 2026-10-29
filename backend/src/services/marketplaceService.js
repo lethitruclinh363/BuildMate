@@ -1,9 +1,11 @@
 const { STORE_STATUS } = require('../models/Store');
-const { Service, Material, CatalogService } = require('../repositories/offeringAccess');
+const { Service, Material, CatalogService, MaterialCategory } = require('../repositories/offeringAccess');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
 const { ContractorProfile, Store } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const { publicPricedServiceMatch, foldServiceName } = require('../constants/contractorServices');
+const { MATERIAL_CATEGORIES, MATERIAL_CATEGORY_LABELS, categoryAliases } = require('../constants/material-categories');
+const { saleStateOf } = require('../utils/material-sale');
 const { presentPublicProfile, seedPublicProfile, seedMaterialPublicProfile, loadPublicHighlights } = require('./publicProfileService');
 const reviewService = require('./reviewService');
 const reputationService = require('./reputationService');
@@ -150,7 +152,14 @@ async function getPublicStore(id) {
       : null,
     reputation,
     services: services.map((s) => s.toPublic()),
-    materials: materials.map((m) => m.toPublic()),
+    materials: materials.map((m) => {
+      const pub = m.toPublic();
+      // Ensure discontinued product price is not leaked in public store view
+      if (pub.saleState === 'discontinued') {
+        pub.price = null;
+      }
+      return pub;
+    }),
   };
 }
 
@@ -212,54 +221,234 @@ async function getPublicContractor(id) {
   };
 }
 
-async function searchMaterials({ category, keyword, store }) {
+async function getPublicMaterialCategories() {
+  const custom = await MaterialCategory.find({
+    status: 'APPROVED',
+  });
+  const categoriesMap = new Map();
+  for (const name of MATERIAL_CATEGORIES) {
+    const key = foldServiceName(name);
+    categoriesMap.set(key, {
+      id: null,
+      name,
+      type: 'SYSTEM',
+      labelVi: MATERIAL_CATEGORY_LABELS.vi[name] || name,
+      labelEn: MATERIAL_CATEGORY_LABELS.en[name] || name,
+    });
+  }
+  for (const doc of custom) {
+    const key = foldServiceName(doc.name);
+    const existing = categoriesMap.get(key);
+    if (existing) {
+      existing.id = String(doc._id || doc.id);
+    } else {
+      categoriesMap.set(key, {
+        id: String(doc._id || doc.id),
+        name: doc.name,
+        type: doc.type || 'CUSTOM',
+        labelVi: doc.name,
+        labelEn: doc.name,
+      });
+    }
+  }
+  return Array.from(categoriesMap.values());
+}
+
+async function searchMaterials({
+  category,
+  categoryId,
+  keyword,
+  store,
+  minPrice,
+  maxPrice,
+  sellingStatus,
+  sortBy = 'default',
+  page,
+  limit,
+}) {
   // isActive is publication, not "currently for sale". Paused and discontinued stay listed.
   const match = { isActive: true };
   if (store) {
     const live = await assertApprovedLiveStore(store);
-    if (!live) return [];
+    if (!live) {
+      if (page != null || limit != null) {
+        return {
+          items: [],
+          total: 0,
+          page: Math.max(1, Number(page) || 1),
+          limit: Math.max(1, Number(limit) || 12),
+          totalPages: 1,
+        };
+      }
+      return [];
+    }
     match.storeId = live._id;
   }
-  if (category) match.category = category;
-  if (keyword) {
-    match.name = { $regex: escapeRegex(keyword), $options: 'i' };
-  }
 
-  const rows = (await Material.aggregate([{ $match: match }, ...approvedLiveLookups(48)])).filter((row) =>
+  const isPaginated = page != null || limit != null;
+  const lookupLimit = isPaginated ? 500 : 48;
+  let rows = (await Material.aggregate([{ $match: match }, ...approvedLiveLookups(lookupLimit)])).filter((row) =>
     activationService.rowIsPublic(row, 'STORE')
   );
-  return rows.map((row) => ({
-    id: row._id,
-    storeId: row.storeId,
-    contractorId: row.contractorId,
-    name: row.name,
-    category: row.category,
-    sku: row.sku || '',
-    unit: row.unit,
-    price: row.price,
-    stock: row.stock,
-    minOrderQty: row.minOrderQty,
-    image: row.image || '',
-    images: row.images?.length ? row.images : row.image ? [row.image] : [],
-    description: row.description || '',
-    isActive: row.isActive,
-    listingStatus: row.listingStatus || (row.isActive === false ? 'PAUSED' : 'ACTIVE'),
-    saleAvailability: row.saleAvailability || 'AVAILABLE',
-    restockExpectedOn: row.restockExpectedOn || null,
-    statusNote: row.statusNote || '',
-    saleState: row.saleState,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    store: row.storeDoc
-      ? {
-          id: row.storeDoc._id,
-          name: row.storeDoc.name,
-          address: row.storeDoc.address,
-          city: row.storeDoc.city,
-          coverImage: row.storeDoc.coverImage,
-        }
-      : null,
+
+  // 1. Keyword search (case-insensitive, partial matching, accented and unaccented Vietnamese)
+  if (keyword) {
+    const kw = keyword.trim().toLowerCase();
+    const foldedKw = foldServiceName(kw);
+    rows = rows.filter((row) => {
+      const name = String(row.name || '').toLowerCase();
+      const foldedName = foldServiceName(name);
+      const sku = String(row.sku || '').toLowerCase();
+      const desc = String(row.description || '').toLowerCase();
+      const foldedDesc = foldServiceName(desc);
+      return (
+        name.includes(kw) ||
+        foldedName.includes(foldedKw) ||
+        sku.includes(kw) ||
+        desc.includes(kw) ||
+        foldedDesc.includes(foldedKw)
+      );
+    });
+  }
+
+  // 2. Category / CategoryId filter
+  if (categoryId) {
+    const targetCatId = String(categoryId).trim();
+    rows = rows.filter((row) => {
+      const rowCatId = String(row.categoryId || row.materialCategoryId || row.material_category_id || '');
+      return rowCatId === targetCatId;
+    });
+  } else if (category && category !== 'ALL' && category !== 'Tất cả') {
+    const cat = String(category).trim();
+    const foldedCat = foldServiceName(cat);
+    rows = rows.filter((row) => {
+      const rowCat = String(row.category || '');
+      if (rowCat.toLowerCase() === cat.toLowerCase()) return true;
+      if (foldServiceName(rowCat) === foldedCat) return true;
+      const aliases = categoryAliases(rowCat);
+      return aliases.some((alias) => foldServiceName(alias) === foldedCat);
+    });
+  }
+
+  // 3. Selling status computation & filter
+  rows = rows.map((row) => ({
+    ...row,
+    saleState: saleStateOf(row),
   }));
+
+  if (sellingStatus && sellingStatus !== 'all') {
+    rows = rows.filter((row) => row.saleState === sellingStatus);
+  }
+
+  // 4. Price range filter
+  // Discontinued products have public price hidden; excluded from numerical price filtering
+  const min = minPrice != null && !Number.isNaN(Number(minPrice)) ? Number(minPrice) : null;
+  const max = maxPrice != null && !Number.isNaN(Number(maxPrice)) ? Number(maxPrice) : null;
+  if (min != null || max != null) {
+    rows = rows.filter((row) => {
+      if (row.saleState === 'discontinued') return false;
+      const price = Number(row.price) || 0;
+      if (min != null && price < min) return false;
+      if (max != null && price > max) return false;
+      return true;
+    });
+  }
+
+  // 5. Sorting (stable order with tie-breakers)
+  rows.sort((a, b) => {
+    if (sortBy === 'price_asc') {
+      const aDisc = a.saleState === 'discontinued';
+      const bDisc = b.saleState === 'discontinued';
+      if (aDisc && !bDisc) return 1;
+      if (!aDisc && bDisc) return -1;
+      if (aDisc && bDisc) return String(a._id).localeCompare(String(b._id));
+      const diff = Number(a.price) - Number(b.price);
+      if (diff !== 0) return diff;
+      return String(a._id).localeCompare(String(b._id));
+    }
+    if (sortBy === 'price_desc') {
+      const aDisc = a.saleState === 'discontinued';
+      const bDisc = b.saleState === 'discontinued';
+      if (aDisc && !bDisc) return 1;
+      if (!aDisc && bDisc) return -1;
+      if (aDisc && bDisc) return String(a._id).localeCompare(String(b._id));
+      const diff = Number(b.price) - Number(a.price);
+      if (diff !== 0) return diff;
+      return String(a._id).localeCompare(String(b._id));
+    }
+    if (sortBy === 'newest') {
+      const diff = new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      if (diff !== 0) return diff;
+      return String(a._id).localeCompare(String(b._id));
+    }
+    // Default sorting: stable by createdAt desc then _id
+    const diff = new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    if (diff !== 0) return diff;
+    return String(a._id).localeCompare(String(b._id));
+  });
+
+  const total = rows.length;
+
+  // 6. Pagination
+  let resultRows = rows;
+  const pageNum = Math.max(1, Number(page) || 1);
+  const limitNum = Math.min(100, Math.max(1, Number(limit) || 12));
+
+  if (isPaginated) {
+    const offset = (pageNum - 1) * limitNum;
+    resultRows = rows.slice(offset, offset + limitNum);
+  } else {
+    resultRows = rows.slice(0, 48);
+  }
+
+  const mapped = resultRows.map((row) => {
+    const isDiscontinued = row.saleState === 'discontinued';
+    return {
+      id: row._id,
+      storeId: row.storeId,
+      contractorId: row.contractorId,
+      name: row.name,
+      category: row.category,
+      categoryId: row.categoryId || null,
+      sku: row.sku || '',
+      unit: row.unit,
+      price: isDiscontinued ? null : Number(row.price),
+      stock: Number(row.stock),
+      minOrderQty: Number(row.minOrderQty),
+      image: row.image || '',
+      images: row.images?.length ? row.images : row.image ? [row.image] : [],
+      description: row.description || '',
+      isActive: row.isActive,
+      listingStatus: row.listingStatus || (row.isActive === false ? 'PAUSED' : 'ACTIVE'),
+      saleAvailability: row.saleAvailability || 'AVAILABLE',
+      restockExpectedOn: row.restockExpectedOn || null,
+      statusNote: row.statusNote || '',
+      saleState: row.saleState,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      store: row.storeDoc
+        ? {
+            id: row.storeDoc._id,
+            name: row.storeDoc.name,
+            address: row.storeDoc.address,
+            city: row.storeDoc.city,
+            coverImage: row.storeDoc.coverImage,
+          }
+        : null,
+    };
+  });
+
+  if (isPaginated) {
+    return {
+      items: mapped,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum) || 1,
+    };
+  }
+
+  return mapped;
 }
 
 async function searchServices({ category, keyword, store }) {
@@ -332,6 +521,7 @@ async function searchServices({ category, keyword, store }) {
 module.exports = {
   getPublicStore,
   getPublicContractor,
+  getPublicMaterialCategories,
   searchMaterials,
   searchServices,
   assertApprovedLiveStore,

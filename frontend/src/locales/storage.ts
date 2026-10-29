@@ -37,6 +37,7 @@ const PREFIX_NS: Record<string, (typeof NAMESPACES)[number]> = {
   public: 'marketplace',
   request: 'marketplace',
   cart: 'marketplace',
+  materialSearch: 'marketplace',
   chat: 'chat',
   quote: 'quotation',
   quotation: 'quotation',
