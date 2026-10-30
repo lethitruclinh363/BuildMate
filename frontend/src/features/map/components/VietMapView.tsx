@@ -1,4 +1,5 @@
 import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { MapStyleSwitcher } from '@/features/map/components/MapStyleSwitcher';
 import { circleFeature } from '@/features/map/lib/circle';
 import {
@@ -111,6 +112,8 @@ export function VietMapView({
   onMarkerDrag,
   onSelectMarker,
   onViewChange,
+  callout,
+  calloutContent,
 }: {
   center: VietMapPoint;
   zoom?: number;
@@ -129,11 +132,16 @@ export function VietMapView({
   onMarkerDrag?: (lat: number, lng: number) => void;
   onSelectMarker?: (id: string, kind: 'contractor' | 'store') => void;
   onViewChange?: (point: VietMapPoint) => void;
+  callout?: VietMapPoint | null;
+  calloutContent?: ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<vietmapgl.Map | null>(null);
   const jobRef = useRef<vietmapgl.Marker | null>(null);
   const placeRefs = useRef<Map<string, vietmapgl.Marker>>(new Map());
+  const popupRef = useRef<vietmapgl.Popup | null>(null);
+  const popupKey = useRef('');
+  const [popupHost, setPopupHost] = useState<HTMLDivElement | null>(null);
   const dragging = useRef(false);
   const readyRef = useRef(false);
   const skipFly = useRef(true);
@@ -185,6 +193,7 @@ export function VietMapView({
       ensureRadius(map, business.radiusKm, business.radiusColor, business.center);
       jobRef.current?.addTo(map);
       placeRefs.current.forEach((pin) => pin.addTo(map));
+      popupRef.current?.addTo(map);
     });
   };
 
@@ -272,6 +281,8 @@ export function VietMapView({
     map.on('idle', onIdle);
     map.on('error', onError);
     map.on('click', (event) => {
+      const target = (event.originalEvent as { target?: EventTarget } | undefined)?.target;
+      if (target instanceof Element && target.closest('.bm-pin, .vietmapgl-popup, .bm-map-popup')) return;
       clickRef.current?.(event.lngLat.lat, event.lngLat.lng);
     });
     map.on('moveend', () => {
@@ -286,6 +297,7 @@ export function VietMapView({
       placeRefs.current.clear();
       jobRef.current?.remove();
       jobRef.current = null;
+      popupRef.current?.remove();
       map.remove();
       mapRef.current = null;
       readyRef.current = false;
@@ -341,7 +353,7 @@ export function VietMapView({
       return;
     }
     if (!jobRef.current) {
-      const element = createPinElement('job', true);
+      const element = createPinElement('job');
       const pin = new vietmapgl.Marker({ element, anchor: 'bottom', draggable: Boolean(marker.draggable) })
         .setLngLat([marker.lng, marker.lat])
         .addTo(map);
@@ -382,6 +394,7 @@ export function VietMapView({
       if (!pin) {
         const element = createPinElement(item.kind as PinKind, Boolean(item.selected));
         element.addEventListener('click', (event) => {
+          event.preventDefault();
           event.stopPropagation();
           selectRef.current?.(item.id, item.kind);
         });
@@ -390,11 +403,56 @@ export function VietMapView({
       } else {
         pin.setLngLat([item.lng, item.lat]);
         const element = pin.getElement();
-        element.className = item.selected ? 'bm-pin bm-pin-selected' : 'bm-pin';
+        element.classList.toggle('bm-pin-selected', Boolean(item.selected));
       }
       pin.getElement().style.opacity = item.dimmed ? '0.45' : '1';
     });
   }, [ready, markers]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    if (!callout || !Number.isFinite(callout.lat) || !Number.isFinite(callout.lng) || !calloutContent) {
+      popupRef.current?.remove();
+      popupKey.current = '';
+      return;
+    }
+    if (!popupRef.current) {
+      const host = document.createElement('div');
+      host.className = 'bm-map-callout';
+      const popup = new vietmapgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        closeOnMove: false,
+        focusAfterOpen: false,
+        anchor: 'bottom',
+        offset: 28,
+        maxWidth: 'none',
+        className: 'bm-map-popup',
+      });
+      popup.setDOMContent(host);
+      popupRef.current = popup;
+      setPopupHost(host);
+    }
+    const popup = popupRef.current;
+    popup.setLngLat([callout.lng, callout.lat]).addTo(map);
+    const key = `${callout.lat.toFixed(6)},${callout.lng.toFixed(6)}`;
+    if (popupKey.current === key) return;
+    popupKey.current = key;
+    window.setTimeout(() => {
+      const node = popup.getElement();
+      const frame = map.getContainer();
+      if (!node || !frame || mapRef.current !== map) return;
+      const mapBox = frame.getBoundingClientRect();
+      const popBox = node.getBoundingClientRect();
+      let dx = 0;
+      let dy = 0;
+      if (popBox.top < mapBox.top + 8) dy += popBox.top - mapBox.top - 8;
+      if (popBox.left < mapBox.left + 8) dx += popBox.left - mapBox.left - 8;
+      if (popBox.right > mapBox.right - 8) dx += popBox.right - mapBox.right + 8;
+      if (dx || dy) map.panBy([dx, dy], { duration: 280 });
+    }, 80);
+  }, [ready, callout, calloutContent]);
 
   if (!apiKey) {
     return (
@@ -416,6 +474,7 @@ export function VietMapView({
         {allowSwitcher ? (
           <MapStyleSwitcher value={mapStyle} onChange={(next) => applyStyleRef.current(next)} />
         ) : null}
+        {popupHost && calloutContent ? createPortal(calloutContent, popupHost) : null}
       </div>
     </MapGuard>
   );

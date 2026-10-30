@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getApiErrorMessage } from '@/lib/api';
+import { withNextParam } from '@/routes/ProtectedRoute';
 import type { AxiosError } from 'axios';
 import { getOtpCooldown, setOtpCooldown } from '@/lib/otp-cooldown';
 import { useI18n } from '@/locales';
@@ -55,7 +56,7 @@ export default function VerifyEmail() {
     try {
       await authApi.verifyEmail(email, code);
       pushToast({ kind: 'success', title: t('auth.verifiedTitle'), body: t('auth.verifiedBody') });
-      navigate(`/login?email=${encodeURIComponent(email)}`);
+      navigate(withNextParam(`/login?email=${encodeURIComponent(email)}`, params.get('next')));
     } catch (err) {
       const message = getApiErrorMessage(err);
       setError(message);
@@ -150,7 +151,7 @@ export default function VerifyEmail() {
       </form>
 
       <p className="mt-6 text-center text-sm text-ink-400">
-        <Link to="/login" className="font-semibold text-navy-800 hover:text-copper-500">
+        <Link to={withNextParam('/login', params.get('next'))} className="font-semibold text-navy-800 hover:text-copper-500">
           {t('auth.backToLogin')}
         </Link>
       </p>

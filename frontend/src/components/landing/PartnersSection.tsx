@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useReturnState } from '@/lib/navigation';
 import { BadgeCheck, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { MediaFrame } from '@/components/media/ProfileMedia';
 import { catalogCategoryLabel } from '@/data/contractor-services';
 import { api } from '@/lib/api';
@@ -48,7 +45,6 @@ function RatingLine({ rating, reviewCount }: { rating: number | null; reviewCoun
 
 export function PartnersSection() {
   const { t } = useI18n();
-  const back = useReturnState();
   const [data, setData] = useState<FeaturedProviders | null>(null);
 
   useEffect(() => {
@@ -86,9 +82,9 @@ export function PartnersSection() {
               {contractors.map((crew) => {
                 const trades = crew.services.map((item) => catalogCategoryLabel(item, t)).filter(Boolean);
                 return (
-                  <article key={crew.id} className="flex h-full flex-col rounded-2xl border border-navy-800/10 bg-white p-4">
+                  <article key={crew.id} className="rounded-2xl border border-navy-800/10 bg-white p-4">
                     <div className="flex gap-3">
-                      <Link to={`/contractors/${crew.id}`} state={back} className="h-14 w-14 shrink-0" aria-label={crew.name}>
+                      <div className="h-14 w-14 shrink-0">
                         <MediaFrame
                           src={crew.avatar}
                           alt={crew.name}
@@ -96,12 +92,10 @@ export function PartnersSection() {
                           frameClassName="h-14 w-14 rounded-xl"
                           empty={<span className="absolute inset-0 grid place-items-center bg-navy-800 font-display text-xl text-paper-50">{crew.name.slice(0, 1)}</span>}
                         />
-                      </Link>
+                      </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Link to={`/contractors/${crew.id}`} state={back} className="font-display text-xl text-navy-800 hover:text-copper-600">
-                            {crew.name}
-                          </Link>
+                          <p className="font-display text-xl text-navy-800">{crew.name}</p>
                           {crew.verified ? (
                             <Badge tone="success">
                               <BadgeCheck className="mr-1 h-3.5 w-3.5" />
@@ -116,9 +110,6 @@ export function PartnersSection() {
                       <RatingLine rating={crew.rating} reviewCount={crew.reviewCount} />
                       <p className="text-sm text-ink-600">{t('landing.jobsCompleted', { n: crew.completedJobs })}</p>
                     </div>
-                    <Button asChild size="sm" variant="outline" className="mt-4 w-fit">
-                      <Link to={`/contractors/${crew.id}`} state={back}>{t('explore.viewProfile')}</Link>
-                    </Button>
                   </article>
                 );
               })}
@@ -134,9 +125,9 @@ export function PartnersSection() {
           ) : (
             <div className="mt-6 grid gap-4 border-t border-navy-800/10 pt-4 sm:grid-cols-2 lg:grid-cols-3">
               {stores.map((store) => (
-                <article key={store.id} className="flex h-full flex-col rounded-2xl border border-navy-800/10 bg-white p-4">
+                <article key={store.id} className="rounded-2xl border border-navy-800/10 bg-white p-4">
                   <div className="flex gap-3">
-                    <Link to={`/stores/${store.id}`} state={back} className="h-14 w-14 shrink-0" aria-label={store.name}>
+                    <div className="h-14 w-14 shrink-0">
                       <MediaFrame
                         src={store.image}
                         alt={store.name}
@@ -144,12 +135,10 @@ export function PartnersSection() {
                         frameClassName="h-14 w-14 rounded-xl"
                         empty={<span className="absolute inset-0 grid place-items-center bg-navy-800 font-display text-xl text-paper-50">{store.name.slice(0, 1)}</span>}
                       />
-                    </Link>
+                    </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Link to={`/stores/${store.id}`} state={back} className="font-display text-xl text-navy-800 hover:text-copper-600">
-                          {store.name}
-                        </Link>
+                        <p className="font-display text-xl text-navy-800">{store.name}</p>
                         {store.verified ? (
                           <Badge tone="success">
                             <BadgeCheck className="mr-1 h-3.5 w-3.5" />
@@ -164,9 +153,6 @@ export function PartnersSection() {
                     <RatingLine rating={store.rating} reviewCount={store.reviewCount} />
                     {store.deliveryEnabled ? <p className="text-sm text-ink-600">{t('landing.deliveryOn')}</p> : null}
                   </div>
-                  <Button asChild size="sm" variant="outline" className="mt-4 w-fit">
-                    <Link to={`/stores/${store.id}`} state={back}>{t('landing.viewStore')}</Link>
-                  </Button>
                 </article>
               ))}
             </div>

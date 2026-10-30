@@ -3,6 +3,7 @@ import { LocateFixed, Navigation } from 'lucide-react';
 import { VietMapView, type VietMapPlaceMarker } from '@/features/map/components/VietMapView';
 import type { MapOrigin } from '@/features/map/types';
 import type { NearbyPlace } from '@/types/marketplace';
+import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
 
 function zoomFor(radiusKm: number) {
@@ -34,6 +35,7 @@ export function MapView({
   onViewChange,
   gpsAsking,
   overlay,
+  className,
 }: {
   origin: MapOrigin;
   radiusKm: number;
@@ -50,6 +52,7 @@ export function MapView({
   onViewChange?: (point: { lat: number; lng: number }) => void;
   gpsAsking?: boolean;
   overlay?: ReactNode;
+  className?: string;
 }) {
   const { t } = useI18n();
   const [recenter, setRecenter] = useState(0);
@@ -94,8 +97,10 @@ export function MapView({
     return pins;
   }, [contractors, stores, activeId, activeKind]);
 
+  const mapClassName = className || 'h-[320px] w-full sm:h-[460px]';
+
   return (
-    <div className="relative">
+    <div className={cn('relative min-h-0', mapClassName)}>
       <VietMapView
         center={origin}
         zoom={streetZoom ? 18 : zoomFor(radiusKm)}
@@ -105,21 +110,23 @@ export function MapView({
         focus={focus}
         focusToken={focusToken}
         flyToken={recenter}
-        className="h-[320px] w-full sm:h-[460px]"
+        className="absolute inset-0 h-full w-full"
         onMapClick={onPick}
         onMarkerDrag={onPick}
         onSelectMarker={onSelect}
         onViewChange={onViewChange}
+        callout={activeId && focus ? focus : null}
+        calloutContent={overlay}
       />
-      <div className="pointer-events-none absolute right-3 top-3 z-10 flex flex-col items-end gap-2">
+      <div className="pointer-events-none absolute right-2 top-2 z-10 flex flex-col items-end gap-1.5">
         <button
           type="button"
           aria-label={t('explore.recenter')}
           title={t('explore.recenter')}
-          className="pointer-events-auto grid h-11 w-11 place-items-center rounded-full bg-white text-navy-800 shadow-card"
+          className="pointer-events-auto grid h-9 w-9 place-items-center rounded-full bg-white text-navy-800 shadow-card"
           onClick={() => setRecenter((value) => value + 1)}
         >
-          <LocateFixed className="h-5 w-5" />
+          <LocateFixed className="h-4 w-4" />
         </button>
         {onGps ? (
           <button
@@ -127,7 +134,7 @@ export function MapView({
             aria-label={t('explore.useGps')}
             title={t('explore.useGps')}
             disabled={gpsAsking}
-            className="pointer-events-auto inline-flex h-11 items-center gap-2 rounded-full bg-navy-800 px-4 text-sm font-semibold text-paper-50 shadow-card disabled:opacity-60"
+            className="pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-full bg-navy-800 px-3 text-xs font-semibold text-paper-50 shadow-card disabled:opacity-60 sm:text-sm"
             onClick={onGps}
           >
             <Navigation className="h-4 w-4" /> {t('explore.useGps')}
@@ -144,7 +151,6 @@ export function MapView({
           <p className="rounded-2xl bg-white/95 px-4 py-3 text-sm text-ink-600 shadow-card">{t('explore.mapEmpty')}</p>
         </div>
       ) : null}
-      {overlay}
     </div>
   );
 }
