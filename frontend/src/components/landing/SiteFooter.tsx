@@ -17,14 +17,14 @@ export function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm text-white/60">
             <li><a href="/#why">{t('landing.whyEyebrow')}</a></li>
             <li><a href="/#services">{t('landing.servicesEyebrow')}</a></li>
-            <li><Link to="/register">{t('landing.becomePartner')}</Link></li>
+            <li><Link to="/login">{t('landing.becomePartner')}</Link></li>
           </ul>
         </div>
         <div>
           <p className="text-sm font-semibold">{t('landing.footerAccount')}</p>
           <ul className="mt-3 space-y-2 text-sm text-white/60">
             <li><Link to="/login">{t('common.login')}</Link></li>
-            <li><Link to="/register">{t('landing.createAccount')}</Link></li>
+            <li><Link to="/register?role=CUSTOMER">{t('landing.createAccount')}</Link></li>
           </ul>
         </div>
       </div>

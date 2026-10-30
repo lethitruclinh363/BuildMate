@@ -44,7 +44,7 @@ export function StoreLayout() {
     { to: '/store/profile', label: t('nav.store.account'), icon: UserRound, section: accountGroup },
   ];
 
-  return <DashboardShell variant="contractor" items={items} />;
+  return <DashboardShell variant="store" items={items} />;
 }
 
 export default function StoreDashboard() {

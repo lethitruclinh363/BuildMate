@@ -502,7 +502,8 @@
     "total": "Tổng tạm tính",
     "sendQuote": "Gửi báo giá",
     "quoteLocked": "Danh sách này không còn chờ báo giá.",
-    "confirmedHint": "Contractor đã xác nhận báo giá vật liệu. Không tạo đơn COD, escrow hay cọc sửa chữa."
+    "confirmedHint": "Bạn đã xác nhận báo giá vật liệu. Tiếp theo hãy lập báo giá thi công gửi khách hàng. Không tạo đơn COD hay cọc từ bước này.",
+    "continueQuote": "Tiếp tục lập báo giá thi công"
   },
   "language": {
     "vi": "VI",

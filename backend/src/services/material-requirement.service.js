@@ -98,20 +98,24 @@ async function createList(user, payload) {
   return repo.findByPublicId(created.legacy_mongo_id);
 }
 
-async function listMine(user) {
+async function listMine(user, filters = {}) {
   await ensureTables();
+  const repairRequestId = String(filters.repairRequestId || '').trim();
+  let lists;
   if (user.role === ROLES.CONTRACTOR) {
     const pk = await repo.userPk(user.id);
-    return repo.listByContractor(pk);
-  }
-  if (user.role === ROLES.MATERIAL_STORE_OWNER) {
+    lists = await repo.listByContractor(pk);
+  } else if (user.role === ROLES.MATERIAL_STORE_OWNER) {
     const store = await Store.findOne({ contractorId: user.id });
     if (!store) return [];
     const row = await repo.storeRow(String(store._id));
     if (!row) return [];
-    return repo.listByStore(row.id);
+    lists = await repo.listByStore(row.id);
+  } else {
+    throw new ApiError(403, 'You cannot list material requirement lists');
   }
-  throw new ApiError(403, 'You cannot list material requirement lists');
+  if (!repairRequestId) return lists;
+  return lists.filter((list) => String(list.requestId) === repairRequestId);
 }
 
 async function getOne(user, id) {

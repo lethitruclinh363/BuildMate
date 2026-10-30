@@ -583,12 +583,13 @@
   "contractorRequests": {
     "eyebrow": "Inbound",
     "title": "Repair requests",
-    "description": "Site briefs from nearby homeowners. Chat first, then send a structured quotation.",
+    "description": "Accept the brief → clarify in chat → (optional) ask a material store → send one repair quotation to the customer.",
     "emptyTitle": "No inbound jobs",
     "emptyBody": "When a customer sends a request from the map, it lands here with photos and a chat room.",
     "accept": "Accept brief",
     "decline": "Decline",
-    "createQuote": "Create quotation",
+    "createQuote": "Create repair quotation",
+    "askMaterials": "Ask material prices",
     "siteFallback": "Can Tho job site"
   },
   "forms": {

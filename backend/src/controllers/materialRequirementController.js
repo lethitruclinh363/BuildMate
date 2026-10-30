@@ -8,7 +8,9 @@ const create = asyncHandler(async (req, res) => {
 });
 
 const mine = asyncHandler(async (req, res) => {
-  const data = await service.listMine(req.user);
+  const data = await service.listMine(req.user, {
+    repairRequestId: req.query.repairRequestId,
+  });
   return success(res, data, 'Material requirement lists retrieved');
 });
 

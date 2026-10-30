@@ -105,18 +105,22 @@ export function ContractorRequestsPage() {
                     </>
                   ) : null}
                   {item.roomId ? (
-                    <Button asChild size="sm" variant="copper">
-                      <Link to={`/contractor/chat/${item.roomId}`} state={back}>{t('request.openChat')}</Link>
-                    </Button>
-                  ) : null}
-                  {canCreateQuotation(item.status) ? (
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/contractor/quotation/create/${item.id}`} state={back}>{t('contractorRequests.createQuote')}</Link>
+                      <Link to={`/contractor/chat/${item.roomId}`} state={back}>{t('request.openChat')}</Link>
                     </Button>
                   ) : null}
                   {item.status === 'ACCEPTED' || item.status === 'COMPLETED' ? (
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/contractor/material-requirements/new/${item.id}`} state={back}>{t('mrl.open')}</Link>
+                      <Link to={`/contractor/material-requirements/new/${item.id}`} state={back}>
+                        {t('contractorRequests.askMaterials')}
+                      </Link>
+                    </Button>
+                  ) : null}
+                  {canCreateQuotation(item.status) ? (
+                    <Button asChild size="sm" variant="copper">
+                      <Link to={`/contractor/quotation/create/${item.id}`} state={back}>
+                        {t('contractorRequests.createQuote')}
+                      </Link>
                     </Button>
                   ) : null}
                 </div>

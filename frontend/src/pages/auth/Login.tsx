@@ -1,17 +1,19 @@
 import { motion } from 'framer-motion';
 import { type FormEvent, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { PartnerRegisterPanel } from '@/components/auth/PartnerRegisterPanel';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { BackButton } from '@/components/navigation/BackButton';
 import { getDefaultRouteByRole, isPartnerRole, useAuth } from '@/context/AuthContext';
 import { safeReturnPath, withNextParam } from '@/routes/ProtectedRoute';
+import { withRegisterParams } from '@/lib/register-role';
 import { getApiErrorMessage } from '@/lib/api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { AxiosError } from 'axios';
 
 const fieldClass =
-  'mt-1.5 w-full rounded-2xl border border-navy-800/12 bg-white px-4 py-3 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20';
+  'mt-1.5 h-12 w-full rounded-2xl border border-navy-800/12 bg-white px-4 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -105,10 +107,17 @@ export default function Login() {
 
       <p className="mt-6 text-center text-sm text-ink-400">
         {t('auth.newHere')}{' '}
-        <Link to={withNextParam('/register', params.get('next'))} className="font-semibold text-navy-800 hover:text-copper-500">
+        <Link
+          to={withRegisterParams('CUSTOMER', params.get('next'))}
+          className="font-semibold text-navy-800 hover:text-copper-500"
+        >
           {t('auth.createAccount')}
         </Link>
       </p>
+
+      <div className="mt-6 lg:hidden">
+        <PartnerRegisterPanel variant="light" />
+      </div>
     </motion.div>
   );
 }

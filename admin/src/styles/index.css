@@ -7,8 +7,8 @@
   --admin-bg: #F5F7FA;
   --admin-surface: #F5F7FA;
   --admin-panel: #FFFFFF;
-  --admin-sidebar: #173B4F;
-  --admin-sidebar-strong: #102D3D;
+  --admin-sidebar: #1C4256;
+  --admin-sidebar-strong: #152F40;
   --admin-border: #E1E7ED;
   --admin-text: #16283C;
   --admin-text-soft: #526477;
@@ -21,8 +21,8 @@ html[data-theme='oled'] {
   --admin-bg: #0b1220;
   --admin-surface: #0f1c2b;
   --admin-panel: #12263d;
-  --admin-sidebar: #071e32;
-  --admin-sidebar-strong: #040f1a;
+  --admin-sidebar: #122E3F;
+  --admin-sidebar-strong: #0C2230;
   --admin-border: rgba(255, 255, 255, 0.08);
   --admin-text: #edf3fa;
   --admin-text-soft: #a9bbcf;

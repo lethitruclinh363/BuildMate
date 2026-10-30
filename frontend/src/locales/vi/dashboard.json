@@ -583,12 +583,13 @@
   "contractorRequests": {
     "eyebrow": "Yêu cầu đến",
     "title": "Yêu cầu sửa chữa",
-    "description": "Mô tả hiện trường từ chủ nhà gần bạn. Chat trước, rồi gửi báo giá có cấu trúc.",
+    "description": "Nhận hồ sơ → chat làm rõ → (tuỳ chọn) hỏi cửa hàng vật liệu → lập một báo giá thi công gửi khách.",
     "emptyTitle": "Chưa có việc đến",
     "emptyBody": "Khi khách gửi yêu cầu từ bản đồ, việc sẽ xuất hiện ở đây kèm ảnh và phòng chat.",
     "accept": "Nhận hồ sơ",
     "decline": "Từ chối",
-    "createQuote": "Tạo báo giá",
+    "createQuote": "Lập báo giá thi công",
+    "askMaterials": "Hỏi giá vật liệu",
     "siteFallback": "Công trình tại Cần Thơ"
   },
   "forms": {
