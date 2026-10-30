@@ -217,7 +217,17 @@ export function ContractorMaterialRequirementPage() {
               {t('mrl.confirm')}
             </Button>
           ) : (
-            <p className="mt-3 text-sm text-ink-500">{t('mrl.confirmedHint')}</p>
+            <div className="mt-3 space-y-3">
+              <p className="text-sm text-ink-500">{t('mrl.confirmedHint')}</p>
+              {list.requestId ? (
+                <Button
+                  type="button"
+                  onClick={() => navigate(`/contractor/quotation/create/${list.requestId}`)}
+                >
+                  {t('mrl.continueQuote')}
+                </Button>
+              ) : null}
+            </div>
           )}
         </div>
       ) : null}

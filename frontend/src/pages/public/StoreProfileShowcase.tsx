@@ -7,7 +7,6 @@ import { Card } from '@/components/ui/Card';
 import { ImageViewer, MediaFrame, type ViewerSlide } from '@/components/media/ProfileMedia';
 import { LocationViewer } from '@/features/map/components/LocationViewer';
 import { MapPlaceActions } from '@/features/map/components/MapPlaceActions';
-import { ServiceAreaMap } from '@/pages/public/ServiceAreaMap';
 import { categoryDisplayLabel, foldCategoryName } from '@/data/material-categories';
 import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
 import { publicPriceVisible, saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
@@ -303,11 +302,6 @@ export function StoreProfileShowcase({
               />
             </div>
             <MapPlaceActions lat={profile.areaCenter.lat} lng={profile.areaCenter.lng} />
-          </div>
-        ) : null}
-        {profile.areaCenter ? (
-          <div className="mt-4 overflow-hidden rounded-2xl">
-            <ServiceAreaMap lat={profile.areaCenter.lat} lng={profile.areaCenter.lng} radiusKm={profile.serviceRadiusKm || 5} />
           </div>
         ) : null}
       </Card>

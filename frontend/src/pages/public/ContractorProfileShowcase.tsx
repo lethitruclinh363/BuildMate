@@ -18,7 +18,6 @@ import type { PublicContractorProfile, PublicHighlights } from '@/types/marketpl
 import { ImageViewer, MediaFrame, type ViewerSlide } from '@/components/media/ProfileMedia';
 import { LocationViewer } from '@/features/map/components/LocationViewer';
 import { MapPlaceActions } from '@/features/map/components/MapPlaceActions';
-import { ServiceAreaMap } from './ServiceAreaMap';
 
 const UNITS = {
   JOB: 'forms.perJob',
@@ -270,11 +269,6 @@ export function ContractorProfileShowcase({
                 <LocationViewer lat={profile.areaCenter.lat} lng={profile.areaCenter.lng} address={profile.city || undefined} />
               </div>
               <MapPlaceActions lat={profile.areaCenter.lat} lng={profile.areaCenter.lng} />
-            </div>
-          ) : null}
-          {profile.areaCenter && profile.serviceRadiusKm ? (
-            <div className="mt-4 overflow-hidden rounded-2xl">
-              <ServiceAreaMap lat={profile.areaCenter.lat} lng={profile.areaCenter.lng} radiusKm={profile.serviceRadiusKm} />
             </div>
           ) : null}
         </Card>

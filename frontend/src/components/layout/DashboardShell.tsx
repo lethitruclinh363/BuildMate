@@ -23,7 +23,7 @@ import { useI18n } from '@/locales';
 import { useAuth } from '@/context/AuthContext';
 import type { UserRole } from '@/types/user';
 
-export type DashboardVariant = 'customer' | 'contractor';
+export type DashboardVariant = 'customer' | 'contractor' | 'store';
 
 export type DashboardNavItem = {
   to: string;
@@ -59,6 +59,14 @@ const variantTheme: Record<
   contractor: {
     aside: 'bg-[#29404d]',
     activeNav: 'bg-white/10 font-semibold text-white',
+    header: 'bg-paper-50/95',
+    main: 'bg-[#f3f5f8]',
+    dense: true,
+  },
+  // Same navy-gray family as contractor (#29404d); solid active for store identity
+  store: {
+    aside: 'bg-[#29404d]',
+    activeNav: 'bg-[#3A5866] font-semibold text-white',
     header: 'bg-paper-50/95',
     main: 'bg-[#f3f5f8]',
     dense: true,

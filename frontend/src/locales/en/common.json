@@ -502,7 +502,8 @@
     "total": "Estimated total",
     "sendQuote": "Send quote",
     "quoteLocked": "This list is not waiting for a quote.",
-    "confirmedHint": "The contractor confirmed this material quote. No COD order, escrow, or repair deposit is created."
+    "confirmedHint": "Material quote confirmed. Next, build the repair quotation for the customer. No COD order or deposit is created here.",
+    "continueQuote": "Continue to repair quotation"
   },
   "language": {
     "vi": "VI",

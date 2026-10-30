@@ -67,7 +67,7 @@ export function MainLayout() {
                 </Button>
                 {pathname !== '/register' ? (
                   <Button asChild variant="ghost" size="sm" className="hidden text-white hover:bg-white/10 sm:inline-flex">
-                    <Link to="/register">{t('common.getStarted')}</Link>
+                    <Link to="/register?role=CUSTOMER">{t('common.getStarted')}</Link>
                   </Button>
                 ) : null}
               </>
@@ -102,7 +102,7 @@ export function MainLayout() {
                     </Link>
                   </Button>
                   <Button asChild variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                    <Link to="/register" onClick={() => setOpen(false)}>
+                    <Link to="/register?role=CUSTOMER" onClick={() => setOpen(false)}>
                       {t('common.getStarted')}
                     </Link>
                   </Button>

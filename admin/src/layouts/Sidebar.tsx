@@ -71,15 +71,15 @@ export function Sidebar() {
         onClick={() => setMobileOpen(false)}
         className={({ isActive }) =>
           cn(
-            'group relative flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-2 text-[13px] font-medium leading-none text-[#C4D1DE] transition-all duration-150 hover:bg-white/10 hover:text-white',
+            'group relative flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-2 text-[13px] font-medium leading-none text-[#C1D1DB] transition-all duration-150 hover:bg-white/10 hover:text-white',
             collapsed && 'justify-center px-2',
-            isActive && 'bg-[#234E66] text-white font-semibold shadow-sm'
+            isActive && 'bg-[#28566D] text-white font-semibold shadow-sm'
           )
         }
       >
         {() => (
           <>
-            <span className="grid h-4 w-4 shrink-0 place-items-center">
+            <span className="grid h-4 w-4 shrink-0 place-items-center text-[#D0DEE6]">
               <Icon className="h-4 w-4" />
             </span>
             {!collapsed ? <span className="truncate">{t(`nav.${item.key}`)}</span> : null}
@@ -96,12 +96,12 @@ export function Sidebar() {
         {!collapsed ? (
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-[15px] font-bold tracking-tight text-white">{t('brand')}</p>
-            <p className="truncate text-[10px] font-medium uppercase tracking-[0.12em] text-[#8FB1CA]">{t('tagline')}</p>
+            <p className="truncate text-[10px] font-medium uppercase tracking-[0.12em] text-[#C1D1DB]">{t('tagline')}</p>
           </div>
         ) : null}
         <button
           type="button"
-          className="ml-auto rounded-md bg-white/8 p-1.5 text-[#C4D1DE] transition hover:bg-white/15 hover:text-white"
+          className="ml-auto rounded-md bg-white/8 p-1.5 text-[#D0DEE6] transition hover:bg-white/15 hover:text-white"
           onClick={() => (mobileOpen ? setMobileOpen(false) : toggleCollapsed())}
           aria-label={collapsed ? t('shell.expand') : t('shell.collapse')}
         >
@@ -110,19 +110,19 @@ export function Sidebar() {
       </div>
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-2">
         {items.map((item) => renderNavItem(item))}
-        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7E9DB5]', collapsed && 'px-1 text-center')}>
+        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8BCC8]', collapsed && 'px-1 text-center')}>
           {collapsed ? '•' : t('nav.partners')}
         </p>
         {partnerItems.map((item) => renderNavItem(item))}
-        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7E9DB5]', collapsed && 'px-1 text-center')}>
+        <p className={cn('px-2 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8BCC8]', collapsed && 'px-1 text-center')}>
           {collapsed ? '•' : t('nav.system')}
         </p>
         {systemItems.map((item) => renderNavItem(item))}
       </nav>
       <div className="mt-auto border-t border-white/10 p-2.5">
         {!collapsed && user ? (
-          <div className="flex items-center gap-2.5 rounded-lg bg-[#102D3D] border border-white/10 px-2.5 py-2">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#2B6280] text-[11px] font-bold text-white shadow-inner shadow-white/10">
+          <div className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-[var(--admin-sidebar-strong)] px-2.5 py-2">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#28566D] text-[11px] font-bold text-white shadow-inner shadow-white/10">
               {user.name
                 .split(/\s+/)
                 .filter(Boolean)
@@ -133,7 +133,7 @@ export function Sidebar() {
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{user.name}</p>
-              <p className="truncate text-[10px] tracking-[0.12em] text-[#8FB1CA]">{roleLabel(user.role)}</p>
+              <p className="truncate text-[10px] tracking-[0.12em] text-[#C1D1DB]">{roleLabel(user.role)}</p>
             </div>
           </div>
         ) : null}
