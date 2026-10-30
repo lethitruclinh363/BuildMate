@@ -437,3 +437,69 @@ export interface DirectoryUser {
   status: string;
   source: 'verification' | 'complaint' | 'order';
 }
+
+export interface AdminUserAccount {
+  id: string;
+  numericId?: string;
+  name: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  phoneNumber?: string;
+  role: 'CUSTOMER' | 'CONTRACTOR' | 'MATERIAL_STORE_OWNER' | 'ADMIN' | string;
+  status: 'ACTIVE' | 'BLOCKED' | 'PENDING_EMAIL' | 'PENDING_APPROVAL' | 'REJECTED' | 'INACTIVE' | string;
+  accountStatus: string;
+  avatar: string;
+  emailVerified: boolean;
+  tokenVersion?: number;
+  createdAt: string;
+  updatedAt: string;
+  partnerStatus?: {
+    businessName?: string;
+    verificationStatus?: string;
+    isLive?: boolean;
+    isActive?: boolean;
+    city?: string;
+  };
+  storeStatus?: {
+    storeName?: string;
+    isActive?: boolean;
+    storeType?: string;
+    city?: string;
+  };
+}
+
+export interface AdminUsersPayload {
+  items: AdminUserAccount[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  stats: {
+    total: number;
+    active: number;
+    blocked: number;
+    pending: number;
+  };
+}
+
+export interface AdminUserDetail {
+  user: AdminUserAccount;
+  partnerProfile?: any;
+  store?: any;
+  counts: {
+    repairOrders: number;
+    materialOrders: number;
+    complaints: number;
+  };
+  auditHistory: Array<{
+    id: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    meta: Record<string, any>;
+    ip: string;
+    createdAt: string;
+    actor?: { id: string; name: string; email: string; role: string } | null;
+  }>;
+}

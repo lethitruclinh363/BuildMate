@@ -43,8 +43,8 @@ export function AdminMaterialOrdersPage() {
   const [status, setStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [page, setPage] = useState(1);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, _setStartDate] = useState("");
+  const [endDate, _setEndDate] = useState("");
 
   const { data, loading, error, reload } = useAsync(
     async () =>

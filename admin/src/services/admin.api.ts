@@ -10,6 +10,9 @@ import type {
   OrderDetail,
   OrderPaymentsPayload,
   CustomerAccount,
+  AdminUserAccount,
+  AdminUsersPayload,
+  AdminUserDetail,
   CustomerDetail,
   MaterialOrder,
   AdminMaterialOrderPayload,
@@ -126,6 +129,19 @@ export const adminApi = {
 
   analytics: () =>
     cached('admin-analytics', 60_000, async () => unwrap((await api.get<ApiResponse<AnalyticsPayload>>('/admin/analytics')).data)),
+
+
+  listUsers: async (params?: { page?: number; limit?: number; role?: string; status?: string; keyword?: string }) =>
+    unwrap((await api.get<ApiResponse<AdminUsersPayload>>('/admin/users', { params })).data),
+
+  getUser: async (id: string) =>
+    unwrap((await api.get<ApiResponse<AdminUserDetail>>(`/admin/users/${id}`)).data),
+
+  lockUser: async (id: string, reason?: string) =>
+    bustCache(unwrap((await api.post<ApiResponse<{ success: boolean; message: string; user: AdminUserAccount }>>(`/admin/users/${id}/lock`, { reason })).data)),
+
+  unlockUser: async (id: string, reason?: string) =>
+    bustCache(unwrap((await api.post<ApiResponse<{ success: boolean; message: string; user: AdminUserAccount }>>(`/admin/users/${id}/unlock`, { reason })).data)),
 
   listCustomers: () =>
     cached('admin-customers', 60_000, async () =>

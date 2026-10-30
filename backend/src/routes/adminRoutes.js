@@ -12,6 +12,7 @@ const {
   locationChangeApproveSchema,
 } = require('../validators/partner.validator');
 const { refundSchema, complaintPatchSchema, commissionRuleSchema } = require('../validators/finance.validator');
+const { adminListUsersQuerySchema, adminLockUserSchema, adminUnlockUserSchema } = require('../validators/adminUser.validator');
 const adminController = require('../controllers/adminController');
 const contractorEkycController = require('../controllers/contractorEkycController');
 const paymentController = require('../controllers/paymentController');
@@ -24,6 +25,11 @@ const adminOnly = [authenticate, allowRole('ADMIN')];
 
 router.get('/stats', ...adminOnly, adminController.stats);
 router.get('/customers', ...adminOnly, adminController.listCustomers);
+router.get('/users', ...adminOnly, adminController.listUsers);
+router.get('/users/:id', ...adminOnly, adminController.getUser);
+router.post('/users/:id/lock', ...adminOnly, validate(adminLockUserSchema), adminController.lockUser);
+router.post('/users/:id/unlock', ...adminOnly, validate(adminUnlockUserSchema), adminController.unlockUser);
+
 router.get('/customers/:id', ...adminOnly, adminController.getCustomer);
 router.get('/orders', ...adminOnly, adminController.listRepairOrders);
 router.get('/material-orders', ...adminOnly, adminController.listMaterialOrders);

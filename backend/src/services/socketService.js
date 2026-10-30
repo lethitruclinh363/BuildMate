@@ -42,6 +42,26 @@ function emitToRoom(roomId, event, payload) {
   io.to(`room:${roomId}`).emit(event, payload);
 }
 
+function disconnectUser(userId) {
+  if (!io || !userId) return;
+  const id = String(userId);
+  const sockets = onlineUsers.get(id);
+  if (sockets && sockets.size > 0) {
+    for (const socketId of sockets) {
+      const socket = io.sockets?.sockets?.get?.(socketId) || io.of?.('/').sockets?.get?.(socketId);
+      if (socket) {
+        try {
+          socket.emit('account_suspended', { message: 'This account has been suspended' });
+          socket.disconnect(true);
+        } catch {
+          // ignore closing errors
+        }
+      }
+    }
+    onlineUsers.delete(id);
+  }
+}
+
 function emitPresence(userId, online) {
   if (!io) return;
   io.emit('user_online', { userId: String(userId), online });
@@ -56,4 +76,5 @@ module.exports = {
   emitToUser,
   emitToRoom,
   emitPresence,
+  disconnectUser,
 };

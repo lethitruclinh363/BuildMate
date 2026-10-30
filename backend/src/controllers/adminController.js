@@ -2,6 +2,7 @@ const fs = require('fs');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const adminService = require('../services/adminService');
+const adminUserService = require('../services/adminUserService');
 const catalogService = require('../services/catalogService');
 const materialCategoryService = require('../services/material-category.service');
 const materialOrderService = require('../services/material-order.service');
@@ -155,7 +156,32 @@ const setCommissionRule = asyncHandler(async (req, res) => {
   return success(res, data, 'Commission rule updated');
 });
 
+
+const listUsers = asyncHandler(async (req, res) => {
+  const data = await adminUserService.listUsers(req.query);
+  return success(res, data, 'Users retrieved');
+});
+
+const getUser = asyncHandler(async (req, res) => {
+  const data = await adminUserService.getUser(req.params.id);
+  return success(res, data, 'User retrieved');
+});
+
+const lockUser = asyncHandler(async (req, res) => {
+  const data = await adminUserService.lockUser(req.params.id, req.user.id, req.body?.reason);
+  return success(res, data, data.message);
+});
+
+const unlockUser = asyncHandler(async (req, res) => {
+  const data = await adminUserService.unlockUser(req.params.id, req.user.id, req.body?.reason);
+  return success(res, data, data.message);
+});
+
 module.exports = {
+  listUsers,
+  getUser,
+  lockUser,
+  unlockUser,
   stats,
   listCustomers,
   listRepairOrders,
