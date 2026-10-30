@@ -19,6 +19,9 @@ export function LocationPicker({
   onCancel,
   placeholder,
   note,
+  compact = false,
+  hideGps = false,
+  submitToken = 0,
 }: {
   origin: MapOrigin;
   onPick: (origin: MapOrigin) => void;
@@ -30,6 +33,9 @@ export function LocationPicker({
   onCancel?: () => void;
   placeholder?: string;
   note?: string;
+  compact?: boolean;
+  hideGps?: boolean;
+  submitToken?: number;
 }) {
   const { t } = useI18n();
   const [query, setQuery] = useState(origin.label || origin.address || '');
@@ -142,31 +148,45 @@ export function LocationPicker({
   }
 
   const searchRow = (
-    <div className="flex flex-col gap-2 sm:flex-row">
+    <div className={compact ? 'flex min-w-0 items-center gap-2' : 'flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center'}>
       <AddressSearch
         value={query}
         onChange={setQuery}
         onSelect={(hit) => void choose(hit)}
         focus={autocompleteFocus(origin, mapCenter)}
         placeholder={placeholder}
+        submitToken={submitToken}
       />
-      <Button type="button" variant={variant === 'inline' ? 'copper' : 'outline'} loading={locating || gpsStatus === 'asking'} onClick={() => void useCurrent()}>
-        <Navigation className="h-4 w-4" /> {t('map.useCurrent')}
-      </Button>
+      {hideGps ? null : (
+        <Button
+          type="button"
+          size={compact ? 'sm' : 'md'}
+          variant={variant === 'inline' ? 'copper' : 'outline'}
+          loading={locating || gpsStatus === 'asking'}
+          className={compact ? 'h-10 shrink-0 whitespace-nowrap px-3' : undefined}
+          onClick={() => void useCurrent()}
+        >
+          <Navigation className="h-4 w-4" /> {t('map.useCurrent')}
+        </Button>
+      )}
     </div>
   );
 
   if (variant === 'inline') {
     return (
-      <div className="space-y-3">
+      <div className={compact ? 'min-w-0' : 'space-y-3'}>
         {searchRow}
-        <p className="inline-flex items-center gap-1 text-xs text-ink-400">
-          <MapPin className="h-3.5 w-3.5" />
-          {origin.label || origin.address || t('map.pin', { lat: origin.lat.toFixed(5), lng: origin.lng.toFixed(5) })}
-          {` · ${t('map.coordinates')}: ${formatCoordinates(origin.lat, origin.lng)}`}
-          {gpsMessage ? ` · ${gpsMessage}` : ''}
-        </p>
-        <p className="text-xs text-ink-400">{t('map.clickMap')}</p>
+        {compact ? null : (
+          <>
+            <p className="inline-flex items-center gap-1 text-xs text-ink-400">
+              <MapPin className="h-3.5 w-3.5" />
+              {origin.label || origin.address || t('map.pin', { lat: origin.lat.toFixed(5), lng: origin.lng.toFixed(5) })}
+              {` · ${t('map.coordinates')}: ${formatCoordinates(origin.lat, origin.lng)}`}
+              {gpsMessage ? ` · ${gpsMessage}` : ''}
+            </p>
+            <p className="text-xs text-ink-400">{t('map.clickMap')}</p>
+          </>
+        )}
         {notice ? <p className="text-sm text-red-700">{notice}</p> : null}
         {searching || reversing ? <p className="text-sm text-ink-500">{searching ? t('map.searching') : t('map.reversing')}</p> : null}
       </div>

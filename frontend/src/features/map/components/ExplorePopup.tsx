@@ -1,11 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useReturnState } from '@/lib/navigation';
-import { Navigation, Star, X } from 'lucide-react';
+import { MapPin, Navigation, Star, X, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatDistance } from '@/features/map/lib/distance';
-import { exploreTrustText } from '@/features/map/lib/trustLine';
 import { openGoogleMapsDirections } from '@/features/map/lib/location';
 import { catalogCategoryLabel } from '@/data/contractor-services';
+import { categoryDisplayLabel } from '@/data/material-categories';
+import { trustLineKind } from '@/features/reviews/components/reputationDisplay';
 import { chatApi } from '@/features/chat/services/sprint4.api';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
@@ -18,6 +19,19 @@ function placePoint(place: NearbyPlace) {
   const lat = Number(place.location?.coordinates?.[1]);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   return { lat, lng };
+}
+
+function materialLine(place: NearbyPlace, t: (path: string, vars?: Record<string, string | number>) => string) {
+  const registered = place.materialCategories || [];
+  const fromProducts = [...new Set((place.products || []).map((item) => item.category).filter(Boolean))].map((name) => ({
+    name,
+    type: 'SYSTEM' as const,
+  }));
+  const source = registered.length ? registered : fromProducts;
+  const labels = [...new Set(source.map((item) => categoryDisplayLabel(item, t)))];
+  if (!labels.length) return '';
+  const head = labels.slice(0, 4).join(' · ');
+  return labels.length > 4 ? `${head} ${t('explore.moreCount', { n: labels.length - 4 })}` : head;
 }
 
 export function ExplorePopup({
@@ -36,8 +50,16 @@ export function ExplorePopup({
   const point = placePoint(place);
   const name = place.businessName || place.storeName;
   const distance = formatDistance(place.distanceMeters ?? place.distance * 1000);
-  const categories = [...new Set(place.services.map((service) => catalogCategoryLabel(service.category, t)))].slice(0, 3);
+  const categories = [...new Set(place.services.map((service) => catalogCategoryLabel(service.category, t)))].slice(0, 4);
+  const materials = kind === 'store' ? materialLine(place, t) : '';
   const profilePath = kind === 'contractor' ? `/contractors/${place.contractorId}` : `/stores/${place.id}`;
+  const trustKind = trustLineKind(place.reviewCount, place.reputationScore);
+  const ratingLabel =
+    place.reviewCount > 0 ? `${place.rating.toFixed(1)} (${place.reviewCount})` : t('explore.noRating');
+  const trustNote =
+    trustKind === 'full'
+      ? t('explore.trustScore', { reputation: Number(place.reputationScore).toFixed(1) })
+      : t('explore.trustPending');
 
   async function openChat() {
     const fallback = kind === 'contractor' ? repairCreatePath(place.contractorId) : `/stores/${place.id}`;
@@ -71,44 +93,63 @@ export function ExplorePopup({
   }
 
   return (
-    <div className="pointer-events-auto absolute inset-x-3 bottom-3 z-[600] max-h-[46%] overflow-y-auto rounded-[22px] border border-navy-800/10 bg-white p-4 shadow-lift sm:inset-x-auto sm:right-3 sm:w-[340px]">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.16em] text-copper-500">
+    <div className="pointer-events-auto w-[360px] max-w-[min(360px,calc(100vw-2rem))] p-4">
+      <div className="max-h-[min(22rem,46vh)] overflow-y-auto">
+        <div className="flex items-start justify-between gap-3">
+          <p className="min-w-0 pt-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-copper-500">
             {kind === 'contractor' ? t('explore.contractor') : t('explore.store')}
           </p>
-          <h3 className="mt-1 font-display text-2xl leading-tight text-navy-800">{name}</h3>
+          <button type="button" className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-ink-400 hover:bg-paper-100" onClick={onClose} aria-label={t('common.close')}>
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <button type="button" className="grid h-8 w-8 place-items-center rounded-full text-ink-400 hover:bg-paper-100" onClick={onClose} aria-label={t('common.close')}>
-          <X className="h-4 w-4" />
-        </button>
+        <h3 className="mt-1 font-display text-[17px] leading-snug text-navy-800 sm:text-lg">{name}</h3>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <p className="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold text-navy-800">
+            <Star className="h-4 w-4 shrink-0 fill-copper-400 text-copper-400" />
+            <span>{ratingLabel}</span>
+          </p>
+          {distance ? (
+            <p className="inline-flex items-center gap-1 text-sm text-ink-500">
+              <MapPin className="h-4 w-4 shrink-0 text-copper-500" />
+              <span className="whitespace-nowrap">{distance}</span>
+            </p>
+          ) : null}
+        </div>
+        <p className="mt-1 text-sm text-ink-500">{trustNote}</p>
+
+        {kind === 'contractor' && categories.length ? (
+          <p className="mt-3 flex items-start gap-1.5 text-sm leading-6 text-ink-600">
+            <Zap className="mt-0.5 h-4 w-4 shrink-0 text-copper-500" />
+            <span>{categories.join(' · ')}</span>
+          </p>
+        ) : null}
+        {kind === 'store' ? (
+          <div className="mt-3 space-y-1 text-sm leading-6 text-ink-600">
+            {materials ? <p>{t('explore.materialLine')}: {materials}</p> : null}
+            <p>
+              {t('explore.deliveryRadius', { km: place.serviceRadiusKm || 0 })}
+              {place.deliveryEnabled ? ` · ${t('explore.deliveryFee', { fee: vnd(place.baseDeliveryFee || 0) })}` : ''}
+            </p>
+          </div>
+        ) : null}
       </div>
-      <p className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-navy-800">
-        <Star className="h-4 w-4 fill-copper-400 text-copper-400" />
-        {exploreTrustText(place, t)}
-        {distance ? <span className="font-normal text-ink-500">· {distance}</span> : null}
-      </p>
-      {kind === 'contractor' && categories.length ? (
-        <p className="mt-2 text-sm text-ink-600">{categories.join(' · ')}</p>
-      ) : null}
-      {kind === 'store' ? (
-        <p className="mt-2 text-sm text-ink-600">
-          {t('explore.deliveryRadius', { km: place.serviceRadiusKm || 0 })}
-          {place.deliveryEnabled ? ` · ${t('explore.deliveryFee', { fee: vnd(place.baseDeliveryFee || 0) })}` : ''}
-        </p>
-      ) : null}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button asChild size="sm">
+
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <Button asChild size="sm" className="h-10 min-h-10 px-2">
           <Link to={profilePath} state={back}>{kind === 'contractor' ? t('explore.viewProfile') : t('explore.viewStore')}</Link>
         </Button>
-        <Button type="button" size="sm" variant="outline" onClick={() => void openChat()}>
+        <Button type="button" size="sm" variant="outline" className="h-10 min-h-10 px-2" onClick={() => void openChat()}>
           {t('explore.chat')}
         </Button>
         {point ? (
-          <Button type="button" size="sm" variant="copper" onClick={() => openGoogleMapsDirections(point.lat, point.lng)}>
+          <Button type="button" size="sm" variant="copper" className="h-10 min-h-10 px-2" onClick={() => openGoogleMapsDirections(point.lat, point.lng)}>
             <Navigation className="h-4 w-4" /> {t('explore.directions')}
           </Button>
-        ) : null}
+        ) : (
+          <span />
+        )}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ export function AddressSearch({
   focus,
   placeholder,
   inputId = 'site-address',
+  submitToken = 0,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -17,6 +18,7 @@ export function AddressSearch({
   focus?: SearchFocus | null;
   placeholder?: string;
   inputId?: string;
+  submitToken?: number;
 }) {
   const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -92,6 +94,12 @@ export function AddressSearch({
       setOpen(false);
       return;
     }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (hits[active]) choose(hits[active]);
+      else if (hits[0]) choose(hits[0]);
+      return;
+    }
     if (!open) return;
     if (event.key === 'ArrowDown') {
       event.preventDefault();
@@ -101,11 +109,16 @@ export function AddressSearch({
       event.preventDefault();
       if (!hits.length) return;
       setActive((index) => (index - 1 + hits.length) % hits.length);
-    } else if (event.key === 'Enter') {
-      event.preventDefault();
-      if (hits[active]) choose(hits[active]);
     }
   }
+
+  useEffect(() => {
+    if (!submitToken) return;
+    if (hits[active]) choose(hits[active]);
+    else if (hits[0]) choose(hits[0]);
+    // submitToken is a click counter; reuse the current hit list only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitToken]);
 
   const showList = open && value.trim().length >= 2;
 

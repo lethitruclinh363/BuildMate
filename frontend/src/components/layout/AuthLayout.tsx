@@ -10,9 +10,9 @@ export function AuthLayout() {
     <div className="grid min-h-screen lg:grid-cols-2">
       <aside className="relative hidden overflow-hidden bg-navy-800 lg:flex">
         <img
-          src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=80"
+          src="/images/auth-handshake.jpg"
           alt={t('auth.siteAlt')}
-          className="absolute inset-0 h-full w-full object-cover opacity-45"
+          className="absolute inset-0 h-full w-full object-cover object-[56%_38%] opacity-45"
         />
         <div className="absolute inset-0 bg-hero-wash" />
         <div className="absolute inset-0 blueprint-frame" />

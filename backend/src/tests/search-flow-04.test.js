@@ -64,6 +64,18 @@ describe('Flow 04 public visibility surfaces', () => {
     assert.match(src, /visible/);
   });
 
+  it('keeps homepage featured cards informational without profile or store CTAs', () => {
+    const src = fs.readFileSync(path.join(FRONTEND_ROOT, 'components/landing/PartnersSection.tsx'), 'utf8');
+    assert.match(src, /landing\.partnersTitle/);
+    assert.match(src, /landing\.storesTitle/);
+    assert.doesNotMatch(src, /from 'react-router-dom'/);
+    assert.doesNotMatch(src, /<Link /);
+    assert.doesNotMatch(src, /explore\.viewProfile/);
+    assert.doesNotMatch(src, /landing\.viewStore/);
+    assert.doesNotMatch(src, /\/contractors\//);
+    assert.doesNotMatch(src, /\/stores\//);
+  });
+
   it('clears the featured homepage cache after activate or pause', () => {
     const src = fs.readFileSync(path.resolve(__dirname, '../services/activation.service.js'), 'utf8');
     assert.match(src, /clearFeaturedCache/);
@@ -106,6 +118,17 @@ describe('Flow 04 frontend search and VietMap', () => {
     assert.match(src, /map\.gpsDenied/);
   });
 
+  it('guards /explore with the existing ProtectedRoute and keeps /customer/explore customer-only', () => {
+    const app = fs.readFileSync(path.join(FRONTEND_ROOT, 'App.tsx'), 'utf8');
+    const publicExplore = app.slice(app.indexOf('path="/explore"') - 180, app.indexOf('path="/explore"') + 40);
+    assert.match(publicExplore, /<Route element=\{<ProtectedRoute \/>\}>/);
+    assert.match(app, /<Route path="\/customer\/explore" element=\{<ExplorePage \/>\} \/>/);
+    assert.match(app, /<Route element=\{<ProtectedRoute roles=\{\['CUSTOMER'\]\} \/>\}>/);
+    const guard = fs.readFileSync(path.join(FRONTEND_ROOT, 'routes/ProtectedRoute.tsx'), 'utf8');
+    assert.match(guard, /\/login\?next=/);
+    assert.match(guard, /safeReturnPath/);
+  });
+
   it('keeps VietMap as the map provider and fails closed without a key', () => {
     const view = fs.readFileSync(path.join(FRONTEND_ROOT, 'features/map/components/VietMapView.tsx'), 'utf8');
     const lib = fs.readFileSync(path.join(FRONTEND_ROOT, 'features/map/lib/vietmap.ts'), 'utf8');
@@ -115,9 +138,20 @@ describe('Flow 04 frontend search and VietMap', () => {
     assert.match(view, /map\.unavailable/);
   });
 
-  it('opens the contractor profile and repair request from explore cards', () => {
+  it('opens the contractor profile and directions from explore cards', () => {
     const card = fs.readFileSync(path.join(FRONTEND_ROOT, 'features/map/components/ContractorCard.tsx'), 'utf8');
     assert.match(card, /\/contractors\/\$\{place\.contractorId\}/);
-    assert.match(card, /RequestRepairButton/);
+    assert.match(card, /openGoogleMapsDirections/);
+    assert.match(card, /explore\.directions/);
+    assert.doesNotMatch(card, /RequestRepairButton/);
+  });
+
+  it('opens the store page and directions from explore cards', () => {
+    const card = fs.readFileSync(path.join(FRONTEND_ROOT, 'features/map/components/MaterialStoreCard.tsx'), 'utf8');
+    assert.match(card, /\/stores\/\$\{place\.id\}/);
+    assert.match(card, /openGoogleMapsDirections/);
+    assert.match(card, /explore\.directions/);
+    assert.doesNotMatch(card, /explore\.viewProducts/);
+    assert.doesNotMatch(card, /explore\.buy/);
   });
 });

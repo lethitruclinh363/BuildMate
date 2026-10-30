@@ -11,12 +11,14 @@ export function RequestRepairButton({
   size = 'sm',
   variant = 'copper',
   label,
+  className,
 }: {
   contractorId: string;
   storeId?: string | null;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'primary' | 'copper' | 'outline';
   label?: string;
+  className?: string;
 }) {
   const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
@@ -26,7 +28,7 @@ export function RequestRepairButton({
   const href = withAuthRedirect(path, user?.role);
 
   return (
-    <Button asChild size={size} variant={variant}>
+    <Button asChild size={size} variant={variant} className={className}>
       <Link to={href}>
         <Wrench className="h-4 w-4" /> {text}
       </Link>

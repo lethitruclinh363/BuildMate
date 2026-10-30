@@ -140,7 +140,9 @@ export function App() {
           <Route element={<CustomerSurface />}>
             <Route element={<MainLayout />}>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/explore" element={<ExplorePage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/explore" element={<ExplorePage />} />
+              </Route>
               <Route path="/contractors/:id" element={<ContractorPublicPage />} />
               <Route path="/stores/:id/materials/:materialId" element={<PublicMaterialPage />} />
               <Route path="/stores/:id" element={<StorePublicPage />} />

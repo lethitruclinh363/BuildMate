@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { BackButton } from '@/components/navigation/BackButton';
 import { getDefaultRouteByRole, isPartnerRole, useAuth } from '@/context/AuthContext';
+import { safeReturnPath, withNextParam } from '@/routes/ProtectedRoute';
 import { getApiErrorMessage } from '@/lib/api';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
@@ -29,10 +30,9 @@ export default function Login() {
     setLoading(true);
     try {
       const session = await login(email, password);
-      const next = params.get('next');
-      const safeNext = Boolean(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\') && next !== '/' && next !== '/login');
+      const next = safeReturnPath(params.get('next'));
       const home = getDefaultRouteByRole(session.user);
-      const dest = isPartnerRole(session.user.role) ? home : safeNext && next ? next : home;
+      const dest = isPartnerRole(session.user.role) ? home : next || home;
       pushToast({ kind: 'success', title: t('auth.loginSuccess') });
       navigate(dest, { replace: true });
     } catch (err) {
@@ -41,7 +41,7 @@ export default function Login() {
       setError(message);
       const status = (err as AxiosError)?.response?.status;
       if (status === 403 && String(message).toLowerCase().includes('verify')) {
-        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+        navigate(withNextParam(`/verify-email?email=${encodeURIComponent(email)}`, params.get('next')));
         return;
       }
       pushToast({ kind: 'error', title: t('auth.loginFailTitle'), body: message });
@@ -105,7 +105,7 @@ export default function Login() {
 
       <p className="mt-6 text-center text-sm text-ink-400">
         {t('auth.newHere')}{' '}
-        <Link to="/register" className="font-semibold text-navy-800 hover:text-copper-500">
+        <Link to={withNextParam('/register', params.get('next'))} className="font-semibold text-navy-800 hover:text-copper-500">
           {t('auth.createAccount')}
         </Link>
       </p>

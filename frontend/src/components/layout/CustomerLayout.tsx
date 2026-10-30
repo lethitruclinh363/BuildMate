@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
@@ -28,14 +28,16 @@ const BOTTOM_PATHS = [
 export function CustomerLayout() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { currentUser: user, logout } = useAuth();
   const items = useMemo(() => customerNav(t), [t]);
   const bottom = items.filter((item) => BOTTOM_PATHS.includes(item.to));
+  const exploreView = pathname === '/customer/explore';
 
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#f6f7f4]">
+    <div className={cn('min-h-screen bg-[#f6f7f4]', exploreView && 'explore-customer flex min-h-dvh flex-col overflow-x-hidden')}>
       <header className="sticky top-0 z-40 border-b border-navy-800/8 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4">
           <Logo to="/customer/dashboard" />
@@ -95,7 +97,13 @@ export function CustomerLayout() {
         </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 md:pb-8">
+      <main
+        className={
+          exploreView
+            ? 'w-full flex-1 overflow-x-hidden px-0 pt-0 pb-24 md:pb-8'
+            : 'mx-auto w-full max-w-6xl px-4 py-6 pb-24 md:pb-8'
+        }
+      >
         <OrderRealtimeListener />
         <MaterialOrderLiveListener />
         <FinanceRealtimeListener />

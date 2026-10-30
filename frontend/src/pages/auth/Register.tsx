@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
 import { type FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PolicyConsent } from '@/components/auth/PolicyConsent';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { BackButton } from '@/components/navigation/BackButton';
 import { useAuth } from '@/context/AuthContext';
+import { withNextParam } from '@/routes/ProtectedRoute';
 import { getApiErrorMessage, getApiErrorPayload } from '@/lib/api';
 import { isValidVnMobile, normalizeEmail, normalizeVnMobile } from '@/lib/identity';
 import { setOtpCooldown } from '@/lib/otp-cooldown';
@@ -37,6 +38,7 @@ function controlClass(status: FieldStatus) {
 
 export default function Register() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { register } = useAuth();
   const { t, locale } = useI18n();
   const pushToast = useToastStore((s) => s.push);
@@ -146,7 +148,7 @@ export default function Register() {
         body: sent === false ? t('auth.smtpMissing') : t('auth.checkOtp'),
       });
       setOtpCooldown(email.trim(), 60);
-      navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+      navigate(withNextParam(`/verify-email?email=${encodeURIComponent(email.trim())}`, params.get('next')));
     } catch (err) {
       const payload = getApiErrorPayload(err);
       const message = payload.message || getApiErrorMessage(err);
@@ -304,7 +306,7 @@ export default function Register() {
 
       <p className="mt-6 text-center text-sm text-ink-400">
         {t('auth.hasAccount')}{' '}
-        <Link to="/login" className="font-semibold text-navy-800 hover:text-copper-500">
+        <Link to={withNextParam('/login', params.get('next'))} className="font-semibold text-navy-800 hover:text-copper-500">
           {t('auth.loginBtn')}
         </Link>
       </p>

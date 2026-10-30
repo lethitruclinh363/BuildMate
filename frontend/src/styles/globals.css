@@ -9,6 +9,48 @@
   --bm-paper: #f4f1ea;
 }
 
+.explore-stage {
+  min-height: 18rem;
+  height: calc(100dvh - 4rem);
+  max-height: calc(100dvh - 4rem);
+  overflow-x: hidden;
+}
+
+.explore-customer .explore-stage {
+  height: calc(100dvh - 7.75rem);
+  max-height: calc(100dvh - 7.75rem);
+}
+
+@media (min-width: 768px) {
+  .explore-customer .explore-stage {
+    height: calc(100dvh - 6.75rem);
+    max-height: calc(100dvh - 6.75rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .explore-stage {
+    height: auto;
+    max-height: none;
+    overflow-x: hidden;
+  }
+
+  .explore-split {
+    height: clamp(34rem, calc(100dvh - 12.75rem), 46.25rem);
+    min-height: clamp(34rem, calc(100dvh - 12.75rem), 46.25rem);
+  }
+
+  .explore-customer .explore-stage {
+    height: auto;
+    max-height: none;
+  }
+
+  .explore-customer .explore-split {
+    height: clamp(34rem, calc(100dvh - 15.25rem), 46.25rem);
+    min-height: clamp(34rem, calc(100dvh - 15.25rem), 46.25rem);
+  }
+}
+
 html,
 body,
 #root {
@@ -116,4 +158,38 @@ body {
   line-height: 1;
   box-shadow: 0 8px 18px rgba(11, 46, 74, 0.35);
   cursor: pointer;
+}
+
+.bm-map-popup.vietmapgl-popup {
+  z-index: 600;
+  max-width: min(360px, calc(100% - 16px));
+}
+
+.bm-map-popup .vietmapgl-popup-content {
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgba(11, 46, 74, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(11, 46, 74, 0.18);
+}
+
+.bm-map-popup.vietmapgl-popup-anchor-bottom .vietmapgl-popup-tip,
+.bm-map-popup.vietmapgl-popup-anchor-bottom-left .vietmapgl-popup-tip,
+.bm-map-popup.vietmapgl-popup-anchor-bottom-right .vietmapgl-popup-tip {
+  border-top-color: #fff;
+}
+
+.bm-map-popup.vietmapgl-popup-anchor-top .vietmapgl-popup-tip,
+.bm-map-popup.vietmapgl-popup-anchor-top-left .vietmapgl-popup-tip,
+.bm-map-popup.vietmapgl-popup-anchor-top-right .vietmapgl-popup-tip {
+  border-bottom-color: #fff;
+}
+
+.bm-map-popup.vietmapgl-popup-anchor-left .vietmapgl-popup-tip {
+  border-right-color: #fff;
+}
+
+.bm-map-popup.vietmapgl-popup-anchor-right .vietmapgl-popup-tip {
+  border-left-color: #fff;
 }

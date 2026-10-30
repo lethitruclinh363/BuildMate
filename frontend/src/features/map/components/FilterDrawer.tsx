@@ -43,6 +43,7 @@ export function FilterDrawer({
         type="button"
         variant="outline"
         size="sm"
+        className="h-10 shrink-0"
         onClick={() => {
           setDraft(value);
           setOpen(true);
