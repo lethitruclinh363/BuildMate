@@ -30,7 +30,7 @@ export default function Login() {
     try {
       const session = await login(email, password);
       const next = params.get('next');
-      const safeNext = Boolean(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\'));
+      const safeNext = Boolean(next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\') && next !== '/' && next !== '/login');
       const home = getDefaultRouteByRole(session.user);
       const dest = isPartnerRole(session.user.role) ? home : safeNext && next ? next : home;
       pushToast({ kind: 'success', title: t('auth.loginSuccess') });

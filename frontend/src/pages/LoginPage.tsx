@@ -54,7 +54,7 @@ export function LoginPage() {
       }
       setSession(data.data);
       const next = params.get('next');
-      const dest = next?.startsWith('/') && data.data.user.role === 'CUSTOMER' ? next : home;
+      const dest = next?.startsWith('/') && next !== '/' && next !== '/login' && data.data.user.role === 'CUSTOMER' ? next : home;
       navigate(dest);
     } catch (err) {
       const ax = err as AxiosError<ApiResponse<null>>;
