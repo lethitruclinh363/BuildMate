@@ -1,2 +1,0 @@
-.env.migration
-scripts/migration/output/*.json

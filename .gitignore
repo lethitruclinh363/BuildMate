@@ -53,3 +53,28 @@ ekyc-service/.env
 ekyc-service/.cache/
 *.pyc
 *.zip
+
+# Internal documentation, prompts & reports (preserved locally)
+/docs/
+backend/docs/
+frontend/docs/
+backend/README_PHASE1.md
+backend/gitignore_additions.txt
+
+# Documents & Specifications (preserved locally)
+*.docx
+*.doc
+*.xlsx
+*.xls
+*.pdf
+
+# Temporary debug and administrative scratch scripts (preserved locally)
+/create_admin.js
+/check_admins.js
+/test_admin_orders.js
+backend/query_users.cjs
+
+# Temporary files & backups
+*.tmp
+*.bak
+*.temp
