@@ -85,7 +85,11 @@
     "acceptNote": "Nhà thầu đã nhận công việc sửa chữa",
     "accepted": "Đã nhận công việc",
     "fileCount": "{n} ảnh sẽ được thêm vào lịch sử",
-    "saved": "Đã cập nhật tiến độ công việc."
+    "saved": "Đã cập nhật tiến độ công việc.",
+    "confirmStartTitle": "Xác nhận bắt đầu công việc?",
+    "confirmStartBody": "Bạn có chắc chắn muốn chuyển trạng thái từ \"Đã thanh toán cọc\" sang \"Đã bắt đầu\" không?",
+    "confirmTitle": "Xác nhận cập nhật tiến độ?",
+    "confirmBody": "Bạn có chắc chắn muốn chuyển trạng thái từ \"{from}\" sang \"{to}\" không?"
   },
   "complete": {
     "cta": "Xác nhận hoàn thành",

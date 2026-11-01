@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { itemListClass, ListRow } from '@/components/ui/surfaces';
 import { repairApi } from '@/features/chat/services/sprint4.api';
+import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { getApiErrorMessage } from '@/lib/api';
 import { mediaUrl } from '@/lib/partner-api';
 import { useReturnState } from '@/lib/navigation';
@@ -59,74 +60,83 @@ export function ContractorRequestsPage() {
         />
       ) : (
         <div className={itemListClass}>
-          {rows.map((item) => (
-            <ListRow key={item.id}>
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge tone="copper">{labeled(t, 'category', item.category)}</Badge>
-                    <Badge
-                      tone={
-                        item.status === 'PENDING'
-                          ? 'warn'
-                          : item.status === 'ACCEPTED'
-                            ? 'success'
-                            : item.status === 'CANCELLED' || item.status === 'REJECTED'
-                              ? 'danger'
-                              : 'mist'
-                      }
-                    >
-                      {labeled(t, 'status', item.status)}
-                    </Badge>
+          {rows.map((item) => {
+            const thumb = item.images?.[0];
+            return (
+              <ListRow key={item.id}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex min-w-0 flex-1 gap-3">
+                    {thumb ? (
+                      <img
+                        src={mediaUrl(thumb)}
+                        alt=""
+                        width={72}
+                        height={72}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-[72px] w-[72px] shrink-0 rounded-xl object-cover"
+                      />
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge tone="copper">{catalogCategoryLabel(String(item.category || ''), t)}</Badge>
+                        <Badge
+                          tone={
+                            item.status === 'PENDING'
+                              ? 'warn'
+                              : item.status === 'ACCEPTED'
+                                ? 'success'
+                                : item.status === 'CANCELLED' || item.status === 'REJECTED'
+                                  ? 'danger'
+                                  : 'mist'
+                          }
+                        >
+                          {labeled(t, 'status', item.status)}
+                        </Badge>
+                      </div>
+                      <h2 className="mt-2 font-display text-xl text-navy-800">{item.title}</h2>
+                      {item.serviceName ? (
+                        <p className="text-xs font-medium text-copper-700">{catalogServiceLabel(item.serviceName, t)}</p>
+                      ) : null}
+                      <p className="text-sm text-ink-400">
+                        {item.customer?.name} · {item.address || t('contractorRequests.siteFallback')}
+                      </p>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-600">{item.description}</p>
+                    </div>
                   </div>
-                  <h2 className="mt-2 font-display text-xl text-navy-800">{item.title}</h2>
-                  <p className="text-sm text-ink-400">
-                    {item.customer?.name} · {item.address || t('contractorRequests.siteFallback')}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-ink-600">{item.description}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {(item.images || []).map((src) => (
-                      <img key={src} src={mediaUrl(src)} alt="" width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 rounded-xl object-cover" />
-                    ))}
-                    {(item.videos || []).map((src) => (
-                      <video key={src} src={mediaUrl(src)} className="h-16 w-16 rounded-xl object-cover" muted playsInline />
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {item.status === 'PENDING' ? (
-                    <>
-                      <Button size="sm" onClick={() => void repairApi.accept(item.id).then(load)}>
-                        {t('contractorRequests.accept')}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => void repairApi.reject(item.id).then(load)}>
-                        {t('contractorRequests.decline')}
-                      </Button>
-                    </>
-                  ) : null}
-                  {item.roomId ? (
+                  <div className="flex flex-col gap-2">
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/contractor/chat/${item.roomId}`} state={back}>{t('request.openChat')}</Link>
-                    </Button>
-                  ) : null}
-                  {item.status === 'ACCEPTED' || item.status === 'COMPLETED' ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link to={`/contractor/material-requirements/new/${item.id}`} state={back}>
-                        {t('contractorRequests.askMaterials')}
+                      <Link to={`/contractor/requests/${item.id}`} state={back}>
+                        {t('contractorRequests.viewDetail')}
                       </Link>
                     </Button>
-                  ) : null}
-                  {canCreateQuotation(item.status) ? (
-                    <Button asChild size="sm" variant="copper">
-                      <Link to={`/contractor/quotation/create/${item.id}`} state={back}>
-                        {t('contractorRequests.createQuote')}
-                      </Link>
-                    </Button>
-                  ) : null}
+                    {item.status === 'PENDING' ? (
+                      <>
+                        <Button size="sm" onClick={() => void repairApi.accept(item.id).then(load)}>
+                          {t('contractorRequests.accept')}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => void repairApi.reject(item.id).then(load)}>
+                          {t('contractorRequests.decline')}
+                        </Button>
+                      </>
+                    ) : null}
+                    {item.roomId ? (
+                      <Button asChild size="sm" variant="outline">
+                        <Link to={`/contractor/chat/${item.roomId}`} state={back}>{t('request.openChat')}</Link>
+                      </Button>
+                    ) : null}
+                    {canCreateQuotation(item.status) ? (
+                      <Button asChild size="sm" variant="copper">
+                        <Link to={`/contractor/quotation/create/${item.id}`} state={back}>
+                          {t('contractorRequests.createQuote')}
+                        </Link>
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            </ListRow>
-          ))}
+              </ListRow>
+            );
+          })}
         </div>
       )}
     </PageTransition>

@@ -297,135 +297,8 @@ async function geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog }) {
 }
 
 async function geoNearby({ lat, lng, radiusKm, storeTypes, catalog }) {
-  if (env.databaseProvider === 'postgres') {
-    return geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog });
-  }
-  const { Store } = require('../models/Store');
-  const query = { status: STORE_STATUS.LIVE, verified: true };
-  if (storeTypes?.length) query.storeType = { $in: storeTypes };
-  const shelf = catalogLookup(catalog);
-
-  const rows = await Store.aggregate([
-    {
-      $geoNear: {
-        ...geoNearStage(lat, lng, radiusKm),
-        query,
-      },
-    },
-    {
-      $lookup: {
-        from: shelf.from,
-        let: { sid: '$_id' },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ['$storeId', '$$sid'] },
-                  { $eq: ['$isActive', true] },
-                  ...(catalog === 'services'
-                    ? [{ $gt: ['$basePrice', 0] }, { $ne: ['$completionStatus', 'INCOMPLETE'] }]
-                    : []),
-                ],
-              },
-            },
-          },
-          { $project: shelf.project },
-          { $limit: 8 },
-        ],
-        as: shelf.as,
-      },
-    },
-    {
-      $lookup: {
-        from: 'contractorprofiles',
-        localField: 'contractorId',
-        foreignField: 'userId',
-        as: 'profile',
-      },
-    },
-    { $unwind: { path: '$profile', preserveNullAndEmptyArrays: true } },
-    {
-      $match: {
-        'profile.verificationStatus': VERIFICATION_STATUS.APPROVED,
-      },
-    },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'contractorId',
-        foreignField: '_id',
-        as: 'owner',
-      },
-    },
-    { $unwind: { path: '$owner', preserveNullAndEmptyArrays: true } },
-    { $match: { 'owner.status': { $nin: ['BLOCKED', 'BANNED'] } } },
-    {
-      $lookup: {
-        from: 'reviews',
-        let: { uid: '$contractorId' },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ['$targetUserId', '$$uid'] },
-                  { $eq: ['$targetType', catalog === 'materials' ? 'MATERIAL_STORE' : 'CONTRACTOR'] },
-                ],
-              },
-            },
-          },
-          { $group: { _id: null, count: { $sum: 1 }, avg: { $avg: '$rating' } } },
-        ],
-        as: 'reviewStats',
-      },
-    },
-    {
-      $lookup: {
-        from: 'orders',
-        let: { uid: '$contractorId' },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ['$contractorId', '$$uid'] },
-                  { $in: ['$status', ['COMPLETED', 'CUSTOMER_ACCEPTED']] },
-                ],
-              },
-            },
-          },
-          { $count: 'count' },
-        ],
-        as: 'completedStats',
-      },
-    },
-  ]);
-
-  const cards = [];
-  for (const doc of rows) {
-    if (catalog === 'services' && doc.profile && !doc.publicSeeded && doc.storeType !== 'MATERIALS') {
-      try {
-        const seeded = await seedPublicProfile(doc._id, doc.profile);
-        if (seeded) {
-          doc.name = seeded.name;
-          doc.slogan = seeded.slogan;
-          doc.description = seeded.description;
-          doc.phone = seeded.phone;
-          doc.coverImage = seeded.coverImage;
-          doc.avatar = seeded.avatar;
-          doc.logo = seeded.logo;
-          doc.publicSeeded = true;
-        }
-      } catch {
-        // A missing public copy must not hide the crew from the map.
-      }
-    }
-    cards.push(toCard(doc, catalog));
-  }
-  return cards.filter((card) => cardIsPublic(card, catalog));
+  return geoNearbyPostgres({ lat, lng, radiusKm, storeTypes, catalog });
 }
-
 function applyMarketplaceFilters(rows, { category, minRating, storeType } = {}) {
   return rows.filter((row) => {
     if (storeType && row.storeType !== storeType && !(storeType === 'BOTH' || row.storeType === 'BOTH')) {
@@ -454,13 +327,23 @@ function applyMarketplaceFilters(rows, { category, minRating, storeType } = {}) 
   });
 }
 
+function uniqueByPlaceId(rows) {
+  const seen = new Set();
+  return (rows || []).filter((row) => {
+    const id = String(row.id || row._id || '');
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
 async function nearbyStores(params) {
   const rows = await geoNearby({
     ...params,
     catalog: 'materials',
     storeTypes: params.storeType ? [params.storeType, 'BOTH'] : ['MATERIALS', 'BOTH'],
   });
-  return applyMarketplaceFilters(rows, params);
+  return uniqueByPlaceId(applyMarketplaceFilters(rows, params));
 }
 
 async function nearbyContractors(params) {

@@ -17,9 +17,14 @@ const update = asyncHandler(async (req, res) => {
   return success(res, data, 'Service updated');
 });
 
+const setAvailability = asyncHandler(async (req, res) => {
+  const data = await serviceService.setAvailability(req.store._id, req.params.id, req.body.isActive);
+  return success(res, data, req.body.isActive ? 'Service listed' : 'Service paused');
+});
+
 const remove = asyncHandler(async (req, res) => {
-  const data = await serviceService.deleteService(req.store._id, req.params.id);
+  const data = await serviceService.deleteService(req.store._id, req.user.id, req.params.id);
   return success(res, data, 'Service removed');
 });
 
-module.exports = { list, register, update, remove };
+module.exports = { list, register, update, setAvailability, remove };

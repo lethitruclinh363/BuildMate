@@ -12,6 +12,7 @@ import { RequestRepairButton } from '@/features/repair-request/components/Reques
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
+import { contractorProfilePath } from '@/lib/partner-paths';
 import { withAuthRedirect } from '@/types/sprint4';
 import type { CatalogService } from '@/types/partner';
 import type { PublicContractorProfile, PublicHighlights } from '@/types/marketplace';
@@ -48,7 +49,7 @@ export function ContractorProfileShowcase({
   const user = useAuthStore((state) => state.user);
   const [viewer, setViewer] = useState<{ slides: ViewerSlide[]; index: number } | null>(null);
   const owner = !preview && Boolean(user && user.role === 'CONTRACTOR' && user.id === String(profile.contractorId));
-  const publicPath = `/contractors/${profile.contractorId}`;
+  const publicPath = contractorProfilePath(String(profile.contractorId), user?.role);
   const average = profile.rating || 0;
   const total = profile.reviewCount || 0;
   const facts = [

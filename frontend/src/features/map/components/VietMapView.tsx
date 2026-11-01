@@ -298,10 +298,18 @@ export function VietMapView({
       jobRef.current?.remove();
       jobRef.current = null;
       popupRef.current?.remove();
-      map.remove();
-      mapRef.current = null;
-      readyRef.current = false;
-      window.setTimeout(() => window.removeEventListener('unhandledrejection', ignoreAbort), 1000);
+      try {
+        map.remove();
+      } catch (err: unknown) {
+        const error = err as { name?: string; message?: string };
+        if (error?.name !== 'AbortError' && !/signal is aborted|aborted/i.test(error?.message || '')) {
+          console.warn('[BuildMate] map removal error', err);
+        }
+      } finally {
+        mapRef.current = null;
+        readyRef.current = false;
+        window.setTimeout(() => window.removeEventListener('unhandledrejection', ignoreAbort), 1000);
+      }
     };
     // Map instance stays alive across style changes. setStyle keeps the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps

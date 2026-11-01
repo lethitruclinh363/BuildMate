@@ -140,7 +140,7 @@ describe('Flow 04 frontend search and VietMap', () => {
 
   it('opens the contractor profile and directions from explore cards', () => {
     const card = fs.readFileSync(path.join(FRONTEND_ROOT, 'features/map/components/ContractorCard.tsx'), 'utf8');
-    assert.match(card, /\/contractors\/\$\{place\.contractorId\}/);
+    assert.match(card, /paths\.contractor\(place\.contractorId\)/);
     assert.match(card, /openGoogleMapsDirections/);
     assert.match(card, /explore\.directions/);
     assert.doesNotMatch(card, /RequestRepairButton/);
@@ -148,7 +148,7 @@ describe('Flow 04 frontend search and VietMap', () => {
 
   it('opens the store page and directions from explore cards', () => {
     const card = fs.readFileSync(path.join(FRONTEND_ROOT, 'features/map/components/MaterialStoreCard.tsx'), 'utf8');
-    assert.match(card, /\/stores\/\$\{place\.id\}/);
+    assert.match(card, /paths\.store\(place\.id\)/);
     assert.match(card, /openGoogleMapsDirections/);
     assert.match(card, /explore\.directions/);
     assert.doesNotMatch(card, /explore\.viewProducts/);

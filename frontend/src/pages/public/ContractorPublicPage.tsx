@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { Button } from '@/components/ui/Button';
 import { locationApi } from '@/features/map/services/location.api';
+import { explorePathFromLocation } from '@/lib/partner-paths';
 import { useI18n } from '@/locales';
 import type { CatalogService } from '@/types/partner';
 import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
@@ -15,6 +16,9 @@ import { ContractorProfileShowcase } from './ContractorProfileShowcase';
 export function ContractorPublicPage() {
   const { t } = useI18n();
   const { id } = useParams();
+  const { pathname } = useLocation();
+  const mapHome = explorePathFromLocation(pathname);
+  const embedded = pathname.startsWith('/customer/');
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<{
     publicProfile: PublicContractorProfile | null;
@@ -45,7 +49,7 @@ export function ContractorPublicPage() {
           />
           <div className="mt-4 text-center">
             <Button asChild>
-              <Link to="/explore">{t('common.backToMap')}</Link>
+              <Link to={mapHome}>{t('common.backToMap')}</Link>
             </Button>
           </div>
         </div>
@@ -59,7 +63,7 @@ export function ContractorPublicPage() {
           <ErrorState title={t('errors.notFoundContractor')} body={t('errors.notFoundContractorBody')} />
           <div className="mt-4 text-center">
             <Button asChild>
-              <Link to="/explore">{t('common.backToMap')}</Link>
+              <Link to={mapHome}>{t('common.backToMap')}</Link>
             </Button>
           </div>
         </div>
@@ -69,9 +73,9 @@ export function ContractorPublicPage() {
 
   return (
     <PageTransition>
-      <div className="px-4 py-6 md:px-8 md:py-10">
+      <div className={embedded ? '' : 'px-4 py-6 md:px-8 md:py-10'}>
         <div className="mx-auto max-w-5xl">
-          <BackButton fallback="/explore" />
+          <BackButton fallback={mapHome} />
         </div>
         <ContractorProfileShowcase
           profile={payload.publicProfile}

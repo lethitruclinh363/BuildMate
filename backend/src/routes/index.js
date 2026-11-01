@@ -50,6 +50,7 @@ router.use('/repair-requests', repairRoutes);
 router.use('/chat', chatRoutes);
 router.use('/quotations', quotationRoutes);
 router.use('/material-requirements', require('./materialRequirementRoutes'));
+router.use('/material-requests', require('./materialRequirementRoutes'));
 router.use('/orders', orderRoutes);
 router.use('/orders', progressRoutes);
 router.use('/payments', paymentRoutes);

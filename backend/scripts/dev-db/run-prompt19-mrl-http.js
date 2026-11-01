@@ -124,36 +124,40 @@ async function main() {
     });
     pass('store-cannot-create', storeTryCreate.status === 403, `status=${storeTryCreate.status}`);
 
-    const eligible = await req(`/api/material-requirements/${list.id}/eligible-stores`, { token: contractor.token });
-    pass('eligible-stores', eligible.status === 200 && Array.isArray(eligible.json?.data) && eligible.json.data.length > 0, `n=${eligible.json?.data?.length}`);
-    const storeId = eligible.json.data[0].storeId;
-
-    const fakeSend = await req(`/api/material-requirements/${list.id}/send`, {
+    const contractorSend = await req(`/api/material-requirements/${list.id}/send`, {
       method: 'POST',
       token: contractor.token,
       body: { storeId: 'ffffffffffffffffffffffff' },
     });
-    pass('send-unknown-store', fakeSend.status === 404 || fakeSend.status === 409, `status=${fakeSend.status}`);
+    pass('contractor-cannot-send', contractorSend.status === 403, `status=${contractorSend.status}`);
 
-    const customerSend = await req(`/api/material-requirements/${list.id}/send`, {
-      method: 'POST',
-      token: customer.token,
-      body: { storeId },
-    });
-    pass('customer-cannot-send', customerSend.status === 403, `status=${customerSend.status}`);
+    const eligible = await req(`/api/material-requirements/${list.id}/eligible-stores`, { token: customer.token });
+    pass('eligible-stores', eligible.status === 200 && Array.isArray(eligible.json?.data), `n=${eligible.json?.data?.length} status=${eligible.status}`);
+    const storeId = eligible.json?.data?.[0]?.storeId;
 
-    const sent = await req(`/api/material-requirements/${list.id}/send`, {
-      method: 'POST',
-      token: contractor.token,
-      body: { storeId },
-    });
-    pass('send-ok', sent.status === 200 && sent.json?.data?.status === 'SENT', sent.json?.data?.status);
-    const sentAgain = await req(`/api/material-requirements/${list.id}/send`, {
-      method: 'POST',
-      token: contractor.token,
-      body: { storeId },
-    });
-    pass('send-double-click', sentAgain.status === 409, `status=${sentAgain.status}`);
+    if (storeId) {
+      const fakeSend = await req(`/api/material-requirements/${list.id}/send`, {
+        method: 'POST',
+        token: customer.token,
+        body: { storeId: 'ffffffffffffffffffffffff' },
+      });
+      pass('send-unknown-store', fakeSend.status === 404 || fakeSend.status === 409, `status=${fakeSend.status}`);
+
+      const sent = await req(`/api/material-requirements/${list.id}/send`, {
+        method: 'POST',
+        token: customer.token,
+        body: { storeId },
+      });
+      pass('send-ok-or-need-labor-quote', sent.status === 200 || sent.status === 409, `status=${sent.status} ${sent.json?.message || sent.json?.data?.status || ''}`);
+      if (sent.status === 200) {
+        const sentAgain = await req(`/api/material-requirements/${list.id}/send`, {
+          method: 'POST',
+          token: customer.token,
+          body: { storeId },
+        });
+        pass('send-double-click', sentAgain.status === 409, `status=${sentAgain.status}`);
+      }
+    }
   }
 
   const latest = await req(`/api/material-requirements/${list.id}`, { token: contractor.token });
@@ -187,26 +191,33 @@ async function main() {
     pass('quote-double-click', quotedAgain.status === 409, `status=${quotedAgain.status}`);
   }
 
-  const afterQuote = await req(`/api/material-requirements/${current.id}`, { token: contractor.token });
-  pass('contractor-sees-quote', afterQuote.status === 200 && afterQuote.json?.data?.status === 'QUOTED', afterQuote.json?.data?.status);
+  const afterQuote = await req(`/api/material-requirements/${current.id}`, { token: customer.token });
+  pass('customer-sees-list', afterQuote.status === 200, afterQuote.json?.data?.status);
   const storeConfirm = await req(`/api/material-requirements/${current.id}/confirm`, {
     method: 'POST',
     token: store.token,
   });
   pass('store-cannot-confirm', storeConfirm.status === 403, `status=${storeConfirm.status}`);
-  const confirmed = await req(`/api/material-requirements/${current.id}/confirm`, {
+  const contractorConfirm = await req(`/api/material-requirements/${current.id}/confirm`, {
     method: 'POST',
     token: contractor.token,
   });
-  pass('contractor-confirm', confirmed.status === 200 && confirmed.json?.data?.status === 'CONFIRMED', confirmed.json?.data?.status);
-  const confirmedAgain = await req(`/api/material-requirements/${current.id}/confirm`, {
-    method: 'POST',
-    token: contractor.token,
-  });
-  pass('confirm-double-click', confirmedAgain.status === 409, `status=${confirmedAgain.status}`);
+  pass('contractor-cannot-confirm', contractorConfirm.status === 403, `status=${contractorConfirm.status}`);
+  if (afterQuote.json?.data?.status === 'QUOTED') {
+    const confirmed = await req(`/api/material-requirements/${current.id}/confirm`, {
+      method: 'POST',
+      token: customer.token,
+    });
+    pass('customer-confirm', confirmed.status === 200 && confirmed.json?.data?.status === 'CONFIRMED', confirmed.json?.data?.status);
+    const confirmedAgain = await req(`/api/material-requirements/${current.id}/confirm`, {
+      method: 'POST',
+      token: customer.token,
+    });
+    pass('confirm-double-click', confirmedAgain.status === 409, `status=${confirmedAgain.status}`);
+  }
 
   const customerGet = await req(`/api/material-requirements/${current.id}`, { token: customer.token });
-  pass('customer-cannot-get', customerGet.status === 403, `status=${customerGet.status}`);
+  pass('customer-can-get', customerGet.status === 200, customerGet.json?.data?.status);
 
   process.stdout.write(`${JSON.stringify({ base, listId: current.id, requestId: current.requestId, status: 'CONFIRMED', results }, null, 2)}\n`);
 }

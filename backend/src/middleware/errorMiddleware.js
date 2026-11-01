@@ -1,7 +1,7 @@
 /**
  * Middleware lỗi tập trung.
  *
- * Controller / Service ném ApiError (hoặc lỗi Mongoose).
+ * Controller / Service ném ApiError (hoặc lỗi database).
  * File này đổi lỗi thành JSON thống nhất qua utils/response.fail().
  *
  * Luôn để errorHandler SAU cùng trong app.js (sau notFound).

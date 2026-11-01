@@ -3,6 +3,11 @@ const { Notification } = require('../repositories/systemAccess');
 const { emitToUser } = require('./socketService');
 
 async function notify({ userId, title, message, type, link = '', meta = {} }) {
+  const dedupeKey = meta.dedupeKey ? String(meta.dedupeKey) : '';
+  if (dedupeKey) {
+    const existing = await Notification.findOne({ userId, type, 'meta.dedupeKey': dedupeKey });
+    if (existing) return existing.toPublic();
+  }
   const doc = await Notification.create({
     userId,
     title,

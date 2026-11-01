@@ -6,6 +6,7 @@ import { chatApi } from '@/features/chat/services/sprint4.api';
 import { getApiErrorMessage } from '@/lib/api';
 import { useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
+import { storeProfilePath } from '@/lib/partner-paths';
 import { withAuthRedirect } from '@/types/sprint4';
 
 export function ChatStoreButton({
@@ -27,7 +28,7 @@ export function ChatStoreButton({
   async function openChat() {
     const next = `${location.pathname}${location.search}`;
     if (role !== 'CUSTOMER') {
-      navigate(withAuthRedirect(next || `/stores/${storeId}`, role));
+      navigate(withAuthRedirect(next || storeProfilePath(storeId, role), role));
       return;
     }
     setBusy(true);

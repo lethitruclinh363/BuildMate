@@ -11,6 +11,9 @@ const {
   offeringIdentity,
   matchesCatalogName,
   isCategory,
+  publicPricedServiceMatch,
+  offeringMatchesCatalog,
+  normalizeServiceName,
 } = require('../constants/contractorServices');
 
 async function assertServiceStore(storeId) {
@@ -195,23 +198,87 @@ async function updateService(storeId, id, payload) {
   if (payload.estimatedHours) item.estimatedHours = payload.estimatedHours;
   if (payload.description !== undefined) item.description = payload.description;
   if (payload.image !== undefined) item.image = payload.image;
+  const wasCompleted = item.completionStatus === 'COMPLETED';
   item.completionStatus = 'COMPLETED';
-  item.isActive = true;
+  if (!wasCompleted) item.isActive = true;
   item.priceRange = { min: price, max: price };
   if (!item.catalogType) item.catalogType = 'LEGACY';
   await item.save();
   return item.toPublic();
 }
 
-async function deleteService(storeId, id) {
+async function hasRelatedJobs(item) {
+  const { RepairRequest } = require('../repositories/conversationAccess');
+  const rows = await RepairRequest.find({ contractorId: item.contractorId });
+  const keys = new Set([item.catalogKey, String(item._id || ''), String(item.id || '')].filter(Boolean));
+  const names = new Set([collapseServiceName(item.name)].filter(Boolean));
+  return rows.some((row) => {
+    const catalog = String(row.catalogServiceId || '');
+    const serviceName = collapseServiceName(row.serviceName || '');
+    return (catalog && keys.has(catalog)) || (serviceName && names.has(serviceName));
+  });
+}
+
+async function unlinkProfileService(userId, item) {
+  const profile = await ContractorProfile.findOne({ userId });
+  if (!profile) return;
+  const before = profile.services || [];
+  const next = before.filter((row) => {
+    const identity = offeringIdentity(row);
+    if (item.catalogKey && (String(row.serviceId || '') === item.catalogKey || identity?.catalogKey === item.catalogKey)) {
+      return false;
+    }
+    return normalizeServiceName(row.name) !== normalizeServiceName(item.name);
+  });
+  if (next.length === before.length) return;
+  profile.services = next;
+  profile.markModified('services');
+  await profile.save();
+}
+
+async function setAvailability(storeId, id, isActive) {
   await assertServiceStore(storeId);
   const item = await Service.findOne({ _id: id, storeId });
   if (!item) throw new ApiError(404, 'Service not found');
-  if (item.catalogKey) {
-    throw new ApiError(400, 'Register a service from the BuildMate catalog.');
+  if (item.completionStatus !== 'COMPLETED' || !(Number(item.basePrice) > 0)) {
+    throw new ApiError(409, 'Complete this service before listing it');
+  }
+  if (isActive) {
+    if (item.catalogKey) await resolveCatalogKey(item.catalogKey);
+    item.isActive = true;
+  } else {
+    item.isActive = false;
+  }
+  await item.save();
+  return item.toPublic();
+}
+
+async function deleteService(storeId, contractorId, id) {
+  await assertServiceStore(storeId);
+  const item = await Service.findOne({ _id: id, storeId });
+  if (!item) throw new ApiError(404, 'Service not found');
+  if (await hasRelatedJobs(item)) {
+    throw new ApiError(409, 'Pause this service instead. It already has repair jobs.');
   }
   await item.deleteOne();
-  return { deleted: true, id };
+  await unlinkProfileService(contractorId || item.contractorId, item);
+  return { deleted: true, id: String(item._id || id) };
+}
+
+async function listCustomerOfferings(contractorId) {
+  return Service.find({ contractorId, ...publicPricedServiceMatch() }).sort({ category: 1, name: 1 });
+}
+
+async function assertContractorOffersCatalog(contractorId, catalogServiceId) {
+  const key = String(catalogServiceId || '').trim();
+  if (!key) throw new ApiError(400, 'Select a valid service');
+  const offerings = await listCustomerOfferings(contractorId);
+  const hit = (offerings || []).find((row) => {
+    const pub = typeof row.toPublic === 'function' ? row.toPublic() : row;
+    return offeringMatchesCatalog(pub, key) || offeringMatchesCatalog(row, key);
+  });
+  if (!hit) throw new ApiError(400, 'This partner does not offer that service');
+  return hit;
 }
 
 async function attachCustomProposal(userId, proposal) {
@@ -237,7 +304,10 @@ module.exports = {
   listServices,
   registerService,
   updateService,
+  setAvailability,
   deleteService,
   ensureContractorOfferings,
+  listCustomerOfferings,
+  assertContractorOffersCatalog,
   attachCustomProposal,
 };

@@ -85,7 +85,11 @@
     "acceptNote": "Contractor accepted the repair job",
     "accepted": "Repair job accepted",
     "fileCount": "{n} photos will be appended",
-    "saved": "Job progress updated."
+    "saved": "Job progress updated.",
+    "confirmStartTitle": "Start this repair job?",
+    "confirmStartBody": "Move the status from \"Deposit paid\" to \"Started\"?",
+    "confirmTitle": "Update job progress?",
+    "confirmBody": "Move the status from \"{from}\" to \"{to}\"?"
   },
   "complete": {
     "cta": "Confirm completion",

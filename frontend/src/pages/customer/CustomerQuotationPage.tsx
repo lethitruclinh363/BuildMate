@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ConfirmModal } from '@/components/feedback/ConfirmModal';
@@ -12,17 +12,31 @@ import { Input } from '@/components/ui/Input';
 import { quotationApi } from '@/features/chat/services/sprint4.api';
 import { QuotationCard } from '@/features/quotation/components/QuotationCard';
 import { getApiErrorMessage } from '@/lib/api';
+import { MaterialItemLines } from '@/components/mrl/MaterialItemLines';
 import { contractorQuoteSplit } from '@/lib/contractor-finance';
+import { materialRequirementApi, type MaterialRequirementList } from '@/lib/material-requirement-api';
 import { vnd } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
+import { useSocket } from '@/providers/SocketProvider';
 import { useToastStore } from '@/store/toast.store';
 import type { Quotation } from '@/types/sprint4';
+
+function publicId(value: { id?: unknown; _id?: unknown } | null | undefined) {
+  if (!value) return '';
+  const raw = value.id ?? value._id;
+  return raw == null ? '' : String(raw);
+}
 
 export function CustomerQuotationPage() {
   const { t, te } = useI18n();
   const { id } = useParams();
+  const navigate = useNavigate();
   const toast = useToastStore((s) => s.push);
+  const { socket } = useSocket();
   const [quote, setQuote] = useState<Quotation | null>(null);
+  const [mrl, setMrl] = useState<MaterialRequirementList | null>(null);
+  const [savedMrl, setSavedMrl] = useState<MaterialRequirementList | null>(null);
+  const [savingList, setSavingList] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -36,7 +50,21 @@ export function CustomerQuotationPage() {
     setError(null);
     quotationApi
       .get(id)
-      .then((res) => setQuote(res.data.data))
+      .then(async (res) => {
+        const next = res.data.data;
+        setQuote(next);
+        if (next.requestId) {
+          const lists = await materialRequirementApi.mine({ repairRequestId: next.requestId }).catch(() => ({ data: { data: [] as MaterialRequirementList[] } }));
+          const rows = lists.data.data || [];
+          const saved = rows.find((row) => row.kind === 'SAVED' && row.status === 'DRAFT') || null;
+          const source = rows.find((row) => row.kind === 'SOURCE' || (!row.parentListId && !row.storeId)) || null;
+          setSavedMrl(saved);
+          setMrl(saved || source || rows.find((row) => row.status !== 'CANCELLED') || null);
+        } else {
+          setMrl(null);
+          setSavedMrl(null);
+        }
+      })
       .catch((err) => setError(te(getApiErrorMessage(err))))
       .finally(() => setLoading(false));
   };
@@ -44,6 +72,17 @@ export function CustomerQuotationPage() {
   useEffect(() => {
     load();
   }, [id]);
+
+  useEffect(() => {
+    if (!socket || !id) return;
+    const onQuote = (next: Quotation) => {
+      if (String(next?.id) === String(id)) setQuote(next);
+    };
+    socket.on('quotation:new', onQuote);
+    return () => {
+      socket.off('quotation:new', onQuote);
+    };
+  }, [socket, id]);
 
   if (loading) return <DashboardSkeleton />;
   if (error || !quote) return <ErrorState body={error || undefined} onRetry={load} />;
@@ -65,12 +104,103 @@ export function CustomerQuotationPage() {
     }
   };
 
+  const goToDeposit = async () => {
+    if (quote.status !== 'SENT' && quote.status !== 'ACCEPTED') {
+      toast({ kind: 'error', title: t('quote.statusLine', { status: labeled(t, 'status', quote.status) }) });
+      return;
+    }
+    if (quote.status === 'SENT' && !termsOk) return;
+    setBusy(true);
+    try {
+      const res = await quotationApi.accept(quote.id);
+      const bundle = res.data.data;
+      const orderId = publicId(bundle.order);
+      toast({ kind: 'success', title: t('feedback.quoteAccepted') });
+      if (bundle.payment?.status === 'PAID' && orderId) {
+        navigate(`/customer/orders/${orderId}`, { replace: true });
+      } else {
+        navigate(`/customer/payment/${quote.id}`, { replace: true });
+      }
+    } catch (err) {
+      toast({ kind: 'error', title: te(getApiErrorMessage(err)) });
+    } finally {
+      setBusy(false);
+      setConfirm(null);
+    }
+  };
+
   return (
     <PageTransition>
       <BackButton fallback="/customer/request/history" />
       <PageHeader eyebrow={t('quote.pageEyebrow')} title={t('quote.title')} description={t('quote.pageDesc')} />
       <div className="mx-auto grid max-w-3xl gap-6">
         <QuotationCard quote={quote} />
+        {mrl ? (
+          <div className="rounded-[22px] border border-navy-800/8 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-copper-600">{t('mrl.title')}</p>
+                <p className="mt-1 text-sm text-ink-500">{t('mrl.customerViewHint')}</p>
+              </div>
+              <span className="rounded-full bg-paper-100 px-3 py-1 text-xs font-semibold text-navy-800">
+                {t('mrl.kindCount', { n: (mrl.items || []).length })}
+              </span>
+            </div>
+            <div className="mt-4">
+              <MaterialItemLines items={mrl.items || []} />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                variant="copper"
+                disabled={savingList || busy}
+                onClick={() => {
+                  setSavingList(true);
+                  materialRequirementApi
+                    .save(mrl.id)
+                    .then((res) => {
+                      setSavedMrl(res.data.data);
+                      setMrl(res.data.data);
+                      toast({ kind: 'success', title: t('mrl.savedToast') });
+                    })
+                    .catch((err) => toast({ kind: 'error', title: te(getApiErrorMessage(err)) }))
+                    .finally(() => setSavingList(false));
+                }}
+              >
+                {t('mrl.saveList')}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={savingList || busy}
+                onClick={() => {
+                  const go = (id: string) => navigate(`/customer/explore?mrl=${encodeURIComponent(id)}`);
+                  if (savedMrl?.id) {
+                    go(savedMrl.id);
+                    return;
+                  }
+                  setSavingList(true);
+                  materialRequirementApi
+                    .save(mrl.id)
+                    .then((res) => {
+                      setSavedMrl(res.data.data);
+                      go(res.data.data.id);
+                    })
+                    .catch((err) => toast({ kind: 'error', title: te(getApiErrorMessage(err)) }))
+                    .finally(() => setSavingList(false));
+                }}
+              >
+                {t('mrl.findNearby')}
+              </Button>
+              {savedMrl ? (
+                <Button asChild variant="outline">
+                  <Link to={`/customer/material-lists/${savedMrl.id}`}>{t('mrl.openSaved')}</Link>
+                </Button>
+              ) : null}
+            </div>
+            {quote.status !== 'ACCEPTED' ? (
+              <p className="mt-3 text-sm text-ink-500">{t('mrl.acceptLaborFirst')}</p>
+            ) : null}
+          </div>
+        ) : null}
         {awaiting ? (
           <dl className="space-y-2 rounded-[22px] border border-navy-800/8 bg-white p-5 text-sm">
             <div className="flex justify-between gap-3">
@@ -101,8 +231,8 @@ export function CustomerQuotationPage() {
         {quote.status === 'ACCEPTED' ? (
           <div className="space-y-3">
             <SuccessState title={t('feedback.quoteAccepted')} body={t('quote.acceptedHint')} />
-            <Button asChild variant="copper">
-              <Link to="/customer/orders">{t('orders.viewOrders')}</Link>
+            <Button className="bg-emerald-700 hover:bg-emerald-600" loading={busy} disabled={busy} onClick={() => void goToDeposit()}>
+              {t('quote.continueDeposit')}
             </Button>
           </div>
         ) : awaiting ? (
@@ -151,7 +281,7 @@ export function CustomerQuotationPage() {
         description={t('quote.acceptBody')}
         busy={busy}
         onOpenChange={(open) => !open && setConfirm(null)}
-        onConfirm={() => void act(() => quotationApi.accept(quote.id), t('feedback.quoteAccepted'))}
+        onConfirm={() => void goToDeposit()}
       />
       <ConfirmModal
         open={confirm === 'reject'}

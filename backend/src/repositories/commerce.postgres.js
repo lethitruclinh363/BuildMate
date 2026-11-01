@@ -378,10 +378,36 @@ async function persistOrder(doc, tx) {
 }
 
 const paymentInclude = {
-  service_orders: { select: { legacy_mongo_id: true } },
+  service_orders: { select: { legacy_mongo_id: true, quotation_id: true } },
+  quotations: { select: { legacy_mongo_id: true } },
   users_payments_customer_user_idTousers: { select: { legacy_mongo_id: true } },
   users_payments_contractor_user_idTousers: { select: { legacy_mongo_id: true } },
 };
+
+let quotationPaymentReady = false;
+async function ensureQuotationPaymentSchema(tx) {
+  if (quotationPaymentReady) return;
+  const db = client(tx);
+  try {
+    await db.$executeRawUnsafe('ALTER TABLE payments ADD COLUMN IF NOT EXISTS quotation_id BIGINT');
+    await db.$executeRawUnsafe('ALTER TABLE payments ALTER COLUMN service_order_id DROP NOT NULL');
+    await db.$executeRawUnsafe(`
+      UPDATE payments p
+      SET quotation_id = so.quotation_id
+      FROM service_orders so
+      WHERE p.service_order_id = so.id AND p.quotation_id IS NULL
+    `);
+    await db.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_payments_quotation_type
+      ON payments (quotation_id, payment_type)
+      WHERE quotation_id IS NOT NULL
+    `);
+    quotationPaymentReady = true;
+  } catch (err) {
+    if (err.code === '42P01') return;
+    throw err;
+  }
+}
 
 class PgPayment {
   constructor(data) {
@@ -393,7 +419,8 @@ class PgPayment {
   toPublic() {
     return {
       id: this._id,
-      orderId: legacyOf(this.orderId),
+      orderId: this.orderId ? legacyOf(this.orderId) : '',
+      quotationId: this.quotationId ? legacyOf(this.quotationId) : '',
       customerId: legacyOf(this.customerId),
       contractorId: legacyOf(this.contractorId),
       amount: this.amount,
@@ -424,6 +451,7 @@ function paymentFromRow(row) {
     pgId: row.id,
     _id: row.legacy_mongo_id,
     orderId: row.service_orders?.legacy_mongo_id || '',
+    quotationId: row.quotations?.legacy_mongo_id || '',
     customerId: row.users_payments_customer_user_idTousers?.legacy_mongo_id || '',
     contractorId: row.users_payments_contractor_user_idTousers?.legacy_mongo_id || '',
     amount: row.amount,
@@ -445,13 +473,25 @@ async function allPayments() {
 }
 
 async function persistPayment(doc, tx) {
+  await ensureQuotationPaymentSchema(tx);
   const db = client(tx);
-  const order = await db.service_orders.findFirst({ where: { legacy_mongo_id: legacyOf(doc.orderId) }, select: { id: true } });
+  const order = doc.orderId
+    ? await db.service_orders.findFirst({
+        where: { legacy_mongo_id: legacyOf(doc.orderId) },
+        select: { id: true, quotation_id: true },
+      })
+    : null;
+  const quotation = doc.quotationId
+    ? await db.quotations.findFirst({ where: { legacy_mongo_id: legacyOf(doc.quotationId) }, select: { id: true } })
+    : null;
   const customer = await userId(doc.customerId, tx);
   const contractor = await userId(doc.contractorId, tx);
-  if (!order || !customer || !contractor) throw new Error('Payment order or party is not in PostgreSQL');
+  if ((!order && !quotation) || !customer || !contractor) {
+    throw new Error('Payment quotation or party is not in PostgreSQL');
+  }
   const data = {
-    service_order_id: order.id,
+    service_order_id: order?.id || null,
+    quotation_id: quotation?.id || order?.quotation_id || null,
     customer_user_id: customer,
     contractor_user_id: contractor,
     amount: money(doc.amount),
@@ -1044,6 +1084,15 @@ Payment.listByOrder = async function listByOrder(orderId, tx) {
   if (!tx) return this.find({ orderId });
   const rows = await tx.payments.findMany({
     where: { service_orders: { legacy_mongo_id: legacyOf(orderId) } },
+    include: paymentInclude,
+  });
+  return rows.map(paymentFromRow);
+};
+Payment.listByQuotation = async function listByQuotation(quotationId, tx) {
+  await ensureQuotationPaymentSchema(tx);
+  if (!tx) return this.find({ quotationId });
+  const rows = await tx.payments.findMany({
+    where: { quotations: { legacy_mongo_id: legacyOf(quotationId) } },
     include: paymentInclude,
   });
   return rows.map(paymentFromRow);

@@ -8,6 +8,7 @@ const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const orderService = require('./orderService');
 const { roundVnd } = require('../utils/contractor-finance');
+const { materialListForRequest, withMaterialList } = require('../utils/quotation-materials');
 
 const REPLAY_WINDOW_MS = 45 * 1000;
 const replayLocks = new Map();
@@ -16,6 +17,15 @@ function lineQty(item) {
   if (item == null || item.quantity == null || item.quantity === '') return 1;
   const qty = Number(item.quantity);
   return Number.isFinite(qty) ? qty : 0;
+}
+
+function estimatedDaysOf(value) {
+  if (value == null || value === '') return 1;
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < 1 || days > 180) {
+    throw new ApiError(422, 'Estimated days must be an integer from 1 to 180');
+  }
+  return days;
 }
 
 function lineAmount(item) {
@@ -116,8 +126,11 @@ async function createQuotation(contractorId, payload) {
     ...item,
     catalogId: item.catalogId || null,
   }));
+  if (items.some((item) => item.type && item.type !== QUOTE_ITEM_TYPE.LABOR)) {
+    throw new ApiError(422, 'Construction quotations cannot include material prices');
+  }
   if (!items.length) throw new ApiError(422, 'Add at least one line item');
-  const costs = tally(items, payload.transportCost);
+  const costs = tally(items, 0);
   if (costs.totalCost <= 0) {
     throw new ApiError(422, 'Quotation total must be greater than zero');
   }
@@ -125,7 +138,7 @@ async function createQuotation(contractorId, payload) {
   return withReplayLock(quoteReplayFingerprint(contractorId, payload), async () => {
     const recent = await Quotation.find({ contractorId, requestId: request._id }).sort({ createdAt: -1 }).limit(5);
     const replayed = recent.find((row) => isQuoteReplay(row, payload));
-    if (replayed) return replayed.toPublic();
+    if (replayed) return withMaterialList(replayed.toPublic());
 
     const room = await ChatRoom.findOne({ requestId: request._id });
     const quotation = await Quotation.create({
@@ -135,17 +148,24 @@ async function createQuotation(contractorId, payload) {
       roomId: room?._id || null,
       items,
       ...costs,
-      estimatedDays: payload.estimatedDays || 1,
+      transportCost: 0,
+      estimatedDays: estimatedDaysOf(payload.estimatedDays),
       note: payload.note || '',
       status: QUOTATION_STATUS.SENT,
     });
+
+    const materialList = await materialListForRequest(request._id);
+    let chatContent = `Quotation ${costs.totalCost.toLocaleString('vi-VN')}đ`;
+    if (materialList.length) {
+      chatContent += `\nMaterial list ${materialList.length}`;
+    }
 
     if (room) {
       await sendMessage({
         roomId: room._id,
         senderId: contractorId,
         type: MESSAGE_TYPE.QUOTATION,
-        content: `Quotation ${costs.totalCost.toLocaleString('vi-VN')}đ`,
+        content: chatContent,
         quotationId: quotation._id,
       });
     }
@@ -167,7 +187,7 @@ async function createQuotation(contractorId, payload) {
       meta: { totalCost: costs.totalCost, requestId: String(request._id) },
     });
 
-    return quotation.toPublic();
+    return withMaterialList(quotation.toPublic());
   });
 }
 
@@ -178,7 +198,7 @@ async function getQuotation(id, user) {
   if (String(quotation.customerId) !== uid && String(quotation.contractorId) !== uid) {
     throw new ApiError(403, 'You cannot view this quotation');
   }
-  return quotation.toPublic();
+  return withMaterialList(quotation.toPublic());
 }
 
 async function listForRequest(requestId, user) {
@@ -189,7 +209,7 @@ async function listForRequest(requestId, user) {
     throw new ApiError(403, 'You cannot view these quotations');
   }
   const rows = await Quotation.find({ requestId }).sort({ createdAt: -1 });
-  return rows.map((q) => q.toPublic());
+  return Promise.all(rows.map((q) => withMaterialList(q.toPublic())));
 }
 
 function packAccept(quotation, bundle) {
@@ -211,8 +231,7 @@ async function customerAction(id, customerId, action, modificationNote = '') {
   }
 
   if (action === 'accept' && quotation.status === QUOTATION_STATUS.ACCEPTED) {
-    const request = await RepairRequest.findById(quotation.requestId);
-    const bundle = await orderService.createFromQuotation(quotation, request, customerId);
+    const bundle = await orderService.createDepositIntent(quotation, customerId);
     return packAccept(quotation, bundle);
   }
 
@@ -244,7 +263,7 @@ async function customerAction(id, customerId, action, modificationNote = '') {
         message: request?.title || 'The customer accepted your quote',
         type: NOTIFICATION_TYPE.QUOTATION_ACCEPTED,
         link: room ? `/contractor/chat/${room}` : '/contractor/requests',
-        meta: { quotationId: String(quotation._id) },
+        meta: { quotationId: String(quotation._id), dedupeKey: `quotation-accepted:${quotation._id}` },
       });
       await writeAudit({
         actorId: customerId,
@@ -254,9 +273,8 @@ async function customerAction(id, customerId, action, modificationNote = '') {
         entityId: quotation._id,
         meta: { action, status: quotation.status },
       });
-      return orderService.createFromQuotation(quotation, request, customerId, tx);
+      return orderService.createDepositIntent(quotation, customerId, tx);
     });
-    if (bundle._emit && !bundle.duplicated) bundle._emit();
     return packAccept(quotation, bundle);
   } else if (action === 'reject') {
     quotation.status = QUOTATION_STATUS.REJECTED;

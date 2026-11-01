@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { PROGRESS_STATUS } = require('../utils/order.rules');
+const { finiteNumber } = require('../utils/validator');
 
 const progressSchema = z.object({
   status: z.enum(Object.values(PROGRESS_STATUS)),
@@ -8,8 +9,8 @@ const progressSchema = z.object({
     if (value == null || value === '') return undefined;
     return Array.isArray(value) ? value : [value];
   }, z.array(z.string()).optional()),
-  lat: z.coerce.number().min(-90).max(90).optional(),
-  lng: z.coerce.number().min(-180).max(180).optional(),
+  lat: finiteNumber().min(-90).max(90).optional(),
+  lng: finiteNumber().min(-180).max(180).optional(),
 });
 
 const cancelOrderSchema = z.object({

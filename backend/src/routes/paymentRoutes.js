@@ -9,6 +9,7 @@ const paymentController = require('../controllers/paymentController');
 const router = express.Router();
 
 router.get('/order/:orderId', authenticate, paymentController.listForOrder);
+router.get('/quotation/:quotationId', authenticate, paymentController.listForQuotation);
 router.post(
   '/:id/checkout',
   authenticate,

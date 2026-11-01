@@ -40,7 +40,7 @@ function attachChatHandlers(socket) {
     try {
       const roomId = payload?.roomId || payload;
       const room = await chatService.assertMember(roomId, userId);
-      socket.join(`room:${room._id}`);
+      socket.join(`room:${String(room._id)}`);
       if (typeof ack === 'function') ack({ ok: true, roomId: String(room._id) });
     } catch (err) {
       if (typeof ack === 'function') ack({ ok: false, message: err.message });

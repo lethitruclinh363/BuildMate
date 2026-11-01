@@ -3,7 +3,9 @@ const { ChatRoom, Message, RepairRequest, Quotation } = require('../repositories
 const { loadUser, findUsersByIds, Store } = require('../repositories/partnerAccess');
 const { ApiError } = require('../utils/ApiError');
 const { sanitizeChatLocation } = require('../utils/chat-location');
-const { emitToRoom, isOnline } = require('./socketService');
+const { emitToRoom, emitToUser, isOnline } = require('./socketService');
+const { withMaterialList } = require('../utils/quotation-materials');
+const { parseMrlChat } = require('../utils/mrl-chat');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const {
   ROOM_KIND,
@@ -21,7 +23,11 @@ function preview(type, content, location) {
   if (type === MESSAGE_TYPE.VIDEO) return 'Sent a video';
   if (type === MESSAGE_TYPE.QUOTATION) return 'Sent a quotation';
   if (type === MESSAGE_TYPE.LOCATION) return location?.label || location?.address || 'Shared a location';
-  return String(content || '').slice(0, 140);
+  const raw = String(content || '');
+  if (raw.startsWith('[[BM:MRL]]')) {
+    return raw.split('\n')[0].replace('[[BM:MRL]]', '').trim().slice(0, 140) || 'Material list';
+  }
+  return raw.slice(0, 140);
 }
 
 function chatPathFor(user, roomId) {
@@ -164,11 +170,15 @@ async function listMessages(roomId, userId, { before, limit = 50 } = {}) {
   const quotes = await Quotation.find({
     _id: { $in: rows.filter((m) => m.quotationId).map((m) => m.quotationId) },
   });
-  const quoteMap = Object.fromEntries(quotes.map((q) => [String(q._id), q.toPublic()]));
+  const decorated = await Promise.all(quotes.map((q) => withMaterialList(q.toPublic())));
+  const quoteMap = Object.fromEntries(
+    decorated.filter(Boolean).map((q) => [String(q.id), q])
+  );
   return rows
     .reverse()
     .map((m) => ({
       ...m.toPublic(),
+      roomId: String(m.roomId || roomId),
       quotation: m.quotationId ? quoteMap[String(m.quotationId)] || null : null,
     }));
 }
@@ -218,17 +228,28 @@ async function sendMessage({ roomId, senderId, type = MESSAGE_TYPE.TEXT, content
   let quotation = null;
   if (quotationId) {
     const q = await Quotation.findById(quotationId);
-    quotation = q ? q.toPublic() : null;
+    quotation = q ? await withMaterialList(q.toPublic()) : null;
   }
 
-  const payload = { ...message.toPublic(), quotation };
-  emitToRoom(room._id, 'receive_message', payload);
+  const payload = {
+    ...message.toPublic(),
+    quotation,
+    id: String(message._id || message.id),
+    roomId: String(room._id),
+  };
+  emitToRoom(String(room._id), 'receive_message', payload);
+  emitToUser(String(room.customerId), 'receive_message', payload);
+  emitToUser(String(room.contractorId), 'receive_message', payload);
+  if (quotation) {
+    emitToUser(String(room.customerId), 'quotation:new', quotation);
+    emitToUser(String(room.contractorId), 'quotation:new', quotation);
+  }
 
   const otherId =
     String(room.customerId) === String(senderId) ? room.contractorId : room.customerId;
   const chatLink = chatPathFor(otherUser, room._id);
 
-  if (type !== MESSAGE_TYPE.QUOTATION) {
+  if (type !== MESSAGE_TYPE.QUOTATION && !parseMrlChat(content)) {
     await notify({
       userId: otherId,
       title: senderUser?.name || 'New message',

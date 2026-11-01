@@ -27,6 +27,7 @@ export function ContractorOrderDetailPage() {
   const { order, progress, request, quotation, loading, error, reload, noteProgress } = useOrderDetail(id);
   const push = useToastStore((s) => s.push);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [startOpen, setStartOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   if (loading) return <DashboardSkeleton />;
@@ -80,18 +81,8 @@ export function ContractorOrderDetailPage() {
                 className="w-full"
                 variant="copper"
                 loading={busy}
-                onClick={() => {
-                  setBusy(true);
-                  void orderApi
-                    .addProgress(order.id, { status: 'STARTED', description: t('orders.progress.acceptNote') })
-                    .then((res) => {
-                      noteProgress(res.data.data);
-                      push({ kind: 'success', title: t('orders.progress.accepted') });
-                      reload();
-                    })
-                    .catch((err) => push({ kind: 'error', title: te(getApiErrorMessage(err)) }))
-                    .finally(() => setBusy(false));
-                }}
+                disabled={busy}
+                onClick={() => setStartOpen(true)}
               >
                 {t('orders.progress.accept')}
               </Button>
@@ -105,7 +96,7 @@ export function ContractorOrderDetailPage() {
                   try {
                     const res = await orderApi.addProgress(order.id, payload);
                     noteProgress(res.data.data);
-                    push({ kind: 'success', title: t('orders.progress.saved') });
+                    push({ id: `orders.progress.saved:${order.id}:${payload.status}`, kind: 'success', title: t('orders.progress.saved') });
                     reload();
                   } catch (err) {
                     push({ kind: 'error', title: te(getApiErrorMessage(err)) });
@@ -123,6 +114,29 @@ export function ContractorOrderDetailPage() {
             ) : null}
           </Card>
         }
+      />
+      <ConfirmModal
+        open={startOpen}
+        title={t('orders.progress.confirmStartTitle')}
+        description={t('orders.progress.confirmStartBody')}
+        busy={busy}
+        onOpenChange={(open) => {
+          if (!busy) setStartOpen(open);
+        }}
+        onConfirm={() => {
+          if (busy) return;
+          setBusy(true);
+          void orderApi
+            .addProgress(order.id, { status: 'STARTED', description: t('orders.progress.acceptNote') })
+            .then((res) => {
+              noteProgress(res.data.data);
+              push({ id: `orders.progress.accepted:${order.id}`, kind: 'success', title: t('orders.progress.accepted') });
+              setStartOpen(false);
+              reload();
+            })
+            .catch((err) => push({ kind: 'error', title: te(getApiErrorMessage(err)) }))
+            .finally(() => setBusy(false));
+        }}
       />
       <ConfirmModal
         open={cancelOpen}

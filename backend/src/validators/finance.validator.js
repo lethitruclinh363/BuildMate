@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { finiteNumber } = require('../utils/validator');
 const { COMPLAINT_STATUS } = require('../models/Complaint');
 const { REVIEW_TARGET } = require('../models/Review');
 
@@ -11,7 +12,7 @@ const checkoutSchema = z.object({
 const refundSchema = z.object({
   reason: z.string().trim().max(500).optional().or(z.literal('')),
   cancelCase: z.enum(['UNPAID', 'CUSTOMER_AFTER_DEPOSIT', 'CONTRACTOR_CANCEL', 'MUTUAL', 'DISPUTE']).optional(),
-  amount: z.coerce.number().int().positive().optional(),
+  amount: finiteNumber().int().positive().optional(),
 });
 
 const reviewReplySchema = z.object({
@@ -23,7 +24,7 @@ const reviewReportSchema = z.object({
 }).strict();
 
 const reviewListQuerySchema = z.object({
-  rating: z.coerce.number().int().min(1).max(5).optional(),
+  rating: finiteNumber().int().min(1).max(5).optional(),
   sort: z.enum(['newest', 'oldest']).optional().default('newest'),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(50).optional().default(10),
@@ -31,7 +32,7 @@ const reviewListQuerySchema = z.object({
 
 const materialReviewSchema = z.object({
   materialOrderId: z.string().min(8),
-  rating: z.coerce.number().int().min(1).max(5),
+  rating: finiteNumber().int().min(1).max(5),
   comment: z.string().trim().max(1000).optional().or(z.literal('')),
 }).strict();
 
@@ -39,7 +40,7 @@ const reviewSchema = z.object({
   orderId: z.string().min(8),
   targetUserId: z.string().min(8),
   targetType: z.enum(Object.values(REVIEW_TARGET)).optional(),
-  rating: z.coerce.number().int().min(1).max(5),
+  rating: finiteNumber().int().min(1).max(5),
   comment: z.string().trim().max(1000).optional().or(z.literal('')),
   images: z.array(z.string()).max(4).optional(),
 });
@@ -58,7 +59,7 @@ const complaintPatchSchema = z.object({
 });
 
 const commissionRuleSchema = z.object({
-  percentage: z.coerce.number().min(0).max(30),
+  percentage: finiteNumber().min(0).max(30),
   name: z.string().trim().max(80).optional(),
 });
 

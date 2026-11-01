@@ -18,6 +18,11 @@ const listForOrder = asyncHandler(async (req, res) => {
   return success(res, data, 'Payments retrieved');
 });
 
+const listForQuotation = asyncHandler(async (req, res) => {
+  const data = await paymentService.listForQuotation(req.params.quotationId, req.user);
+  return success(res, data, 'Payments retrieved');
+});
+
 const refund = asyncHandler(async (req, res) => {
   const data = await paymentService.refund(req.params.id, req.user.id, req.body.reason);
   return success(res, data, 'Payment refunded');
@@ -28,4 +33,4 @@ const earnings = asyncHandler(async (req, res) => {
   return success(res, data, 'Earnings retrieved');
 });
 
-module.exports = { checkout, mockSuccess, listForOrder, refund, earnings };
+module.exports = { checkout, mockSuccess, listForOrder, listForQuotation, refund, earnings };

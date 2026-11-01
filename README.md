@@ -2,7 +2,7 @@
 
 BuildMate kết nối **chủ nhà**, **chủ đội thợ / chủ cửa hàng**, **thợ thi công** và **quản trị viên** trên một nền tảng: tìm kiếm theo vị trí, cửa hàng vật liệu, chat realtime, báo giá động và theo dõi sửa chữa.
 
-Giao diện mặc định: **tiếng Việt**, chuyển **English** bằng 🇻🇳 VI | 🇬🇧 EN (không reload). Catalog JSON: `frontend/src/locales/{vi,en}/*.json`. Lưu `localStorage` key `buildmate-language`. Mã nguồn, API, collection MongoDB và vai trò (`CUSTOMER`, `CONTRACTOR`, `MATERIAL_STORE_OWNER`, `ADMIN`) giữ tiếng Anh.
+Giao diện mặc định: **tiếng Việt**, chuyển **English** bằng 🇻🇳 VI | 🇬🇧 EN (không reload). Catalog JSON: `frontend/src/locales/{vi,en}/*.json`. Lưu `localStorage` key `buildmate-language`. Mã nguồn, API, cơ sở dữ liệu PostgreSQL và vai trò (`CUSTOMER`, `CONTRACTOR`, `MATERIAL_STORE_OWNER`, `ADMIN`) giữ tiếng Anh.
 
 Sprint 1–6.3: auth, marketplace, chat, orders, **mock payment + commission + review + complaint + analytics**, E2E validation.  
 Web: [docs/SPRINT6_FRONTEND.md](docs/SPRINT6_FRONTEND.md). Backend: [docs/SPRINT6_BACKEND.md](docs/SPRINT6_BACKEND.md). QA: [docs/SPRINT6_E2E_VALIDATION.md](docs/SPRINT6_E2E_VALIDATION.md). Mobile prep: [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md).
@@ -12,19 +12,19 @@ Web: [docs/SPRINT6_FRONTEND.md](docs/SPRINT6_FRONTEND.md). Backend: [docs/SPRINT
 ```
 BUILDMATE_PLATFORM/
 ├── frontend/          React + Vite + TypeScript (web)
-├── backend/           Node.js + Express + MongoDB
+├── backend/           Node.js + Express + PostgreSQL + Prisma ORM
 ├── shared/            Types, enums, API contracts (web + future RN)
 ├── mobile-react-native/  Placeholder Sprint 7
 ├── database/          Ghi chú schema & seed
 ├── docs/              API, kiến trúc, sprint
-├── deployment/        Docker Compose (MongoDB)
+├── deployment/        Docker Compose (PostgreSQL)
 └── mobile/            Dành cho client sau này
 ```
 
 ## Yêu cầu
 
 - Node.js 20+
-- MongoDB 7+ chạy local **hoặc** Docker
+- PostgreSQL 16+ (quản lý qua pgAdmin 4 hoặc Docker)
 
 ## Chạy nhanh
 
@@ -35,7 +35,6 @@ cd deployment
 docker compose up -d
 ```
 
-Hoặc MongoDB local: `mongodb://127.0.0.1:27017`.
 
 ### 2. Backend
 

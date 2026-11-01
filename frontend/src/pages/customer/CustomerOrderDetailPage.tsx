@@ -28,11 +28,11 @@ export function CustomerOrderDetailPage() {
   if (loading) return <DashboardSkeleton />;
   if (error || !order) return <ErrorState body={error || undefined} onRetry={reload} />;
 
-  const run = async (fn: () => Promise<unknown>, success: string) => {
+  const run = async (fn: () => Promise<unknown>, success: string, toastId?: string) => {
     setBusy(true);
     try {
       await fn();
-      push({ kind: 'success', title: success });
+      push({ id: toastId, kind: 'success', title: success });
       reload();
     } catch (err) {
       push({ kind: 'error', title: te(getApiErrorMessage(err)) });
@@ -56,11 +56,6 @@ export function CustomerOrderDetailPage() {
             {request?.roomId ? (
               <Button asChild variant="outline" className="w-full">
                 <Link to={`/customer/chat/${request.roomId}`} state={back}>{t('quote.backChat')}</Link>
-              </Button>
-            ) : null}
-            {order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED' ? (
-              <Button asChild className="w-full">
-                <Link to={`/customer/payment/${order.id}`} state={back}>{t('pay.cta')}</Link>
               </Button>
             ) : null}
             {order.status === 'DEPOSIT_PAID' || order.status === 'STARTED' || order.status === 'IN_PROGRESS' || order.status === 'COMPLETED' || order.status === 'CUSTOMER_ACCEPTED' ? (
@@ -107,7 +102,7 @@ export function CustomerOrderDetailPage() {
         }
         busy={busy}
         onOpenChange={(open) => !open && setConfirm(null)}
-        onConfirm={() => void run(() => orderApi.complete(order.id), t('orders.complete.done'))}
+        onConfirm={() => void run(() => orderApi.complete(order.id), t('orders.complete.done'), `orders.complete.done:${order.id}`)}
       />
       <ConfirmModal
         open={confirm === 'cancel'}

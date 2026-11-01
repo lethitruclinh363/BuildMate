@@ -33,15 +33,45 @@ export type MaterialRequirementList = {
   id: string;
   requestId: string;
   contractorId: string;
+  customerId?: string;
+  customerName?: string;
+  siteAddress?: string;
+  siteLat?: number | null;
+  siteLng?: number | null;
+  requestTitle?: string;
   storeId?: string;
   storeName?: string;
   status: string;
   note?: string;
+  title?: string;
+  parentListId?: string;
+  kind?: 'SOURCE' | 'SAVED' | 'REQUEST';
+  requestCode?: string;
   items: MaterialRequirementItem[];
   quotes: MaterialQuote[];
   createdAt?: string;
   updatedAt?: string;
 };
+
+export const MRL_NEXT_FULFILLMENT: Record<string, 'PREPARING' | 'DELIVERING' | 'DELIVERED'> = {
+  CONFIRMED: 'PREPARING',
+  PREPARING: 'DELIVERING',
+  DELIVERING: 'DELIVERED',
+};
+
+export function isMrlFulfillment(status?: string) {
+  return Boolean(status && (MRL_NEXT_FULFILLMENT[status] || status === 'DELIVERED'));
+}
+
+export function quoteLineAmount(line: Pick<MaterialQuoteLine, 'quantity' | 'unitPrice' | 'availableQty'>) {
+  const qty = Number(line.availableQty != null ? line.availableQty : line.quantity) || 0;
+  return qty * Number(line.unitPrice || 0);
+}
+
+export function quoteTotalOf(quote: Pick<MaterialQuote, 'items' | 'deliveryFee'>) {
+  const lines = (quote.items || []).reduce((sum, line) => sum + quoteLineAmount(line), 0);
+  return lines + Number(quote.deliveryFee || 0);
+}
 
 export type EligibleStore = {
   storeId: string;
@@ -80,6 +110,9 @@ export const materialRequirementApi = {
     api.patch<Envelope<MaterialRequirementList>>(`/material-requirements/${id}/items/${itemId}`, body),
   removeItem: (id: string, itemId: string) =>
     api.delete<Envelope<MaterialRequirementList>>(`/material-requirements/${id}/items/${itemId}`),
+  save: (id: string) => api.post<Envelope<MaterialRequirementList>>(`/material-requirements/${id}/save`, {}),
+  updateSaved: (id: string, body: { title?: string; note?: string }) =>
+    api.patch<Envelope<MaterialRequirementList>>(`/material-requirements/${id}`, body),
   send: (id: string, storeId: string) =>
     api.post<Envelope<MaterialRequirementList>>(`/material-requirements/${id}/send`, { storeId }),
   cancel: (id: string) => api.post<Envelope<MaterialRequirementList>>(`/material-requirements/${id}/cancel`, {}),
@@ -90,4 +123,7 @@ export const materialRequirementApi = {
   quote: (id: string, body: { items: Array<{ itemId: string; unitPrice: number; availableQty: number; note?: string }>; deliveryFee?: number; note?: string }) =>
     api.post<Envelope<MaterialRequirementList>>(`/material-requirements/${id}/quotes`, body),
   confirm: (id: string) => api.post<Envelope<MaterialRequirementList>>(`/material-requirements/${id}/confirm`, {}),
+  reject: (id: string) => api.post<Envelope<MaterialRequirementList>>(`/material-requirements/${id}/reject`, {}),
+  fulfill: (id: string, status: 'PREPARING' | 'DELIVERING' | 'DELIVERED') =>
+    api.patch<Envelope<MaterialRequirementList>>(`/material-requirements/${id}/fulfillment`, { status }),
 };

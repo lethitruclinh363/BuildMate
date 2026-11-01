@@ -14,15 +14,15 @@ const progressLocks = new Map();
 
 async function withProgressLock(orderId, work) {
   const key = String(orderId);
-  const pending = progressLocks.get(key);
-  if (pending) return pending;
-  const next = Promise.resolve()
-    .then(work)
-    .finally(() => {
-      progressLocks.delete(key);
-    });
-  progressLocks.set(key, next);
-  return next;
+  if (progressLocks.has(key)) {
+    throw new ApiError(409, 'A progress update is already in progress');
+  }
+  progressLocks.set(key, true);
+  try {
+    return await work();
+  } finally {
+    progressLocks.delete(key);
+  }
 }
 
 async function listProgress(orderId, user) {
@@ -110,7 +110,11 @@ async function recordProgress(orderId, user, payload) {
     message: `${order.title}`,
     type: notice.type,
     link: `/customer/orders/${order._id}`,
-    meta: { orderId: String(order._id), progressId: String(progress._id) },
+    meta: {
+      orderId: String(order._id),
+      progressId: String(progress._id),
+      dedupeKey: `progress:${progress._id}`,
+    },
   });
 
   await writeAudit({
@@ -122,9 +126,13 @@ async function recordProgress(orderId, user, payload) {
     meta: { orderId: String(order._id), status: nextStatus },
   });
 
-  const payloadOut = { order: order.toPublic(), progress: progress.toPublic(), type: notice.type };
+  const payloadOut = {
+    order: order.toPublic(),
+    progress: progress.toPublic(),
+    type: notice.type,
+    actorId: String(user.id),
+  };
   emitToUser(order.customerId, notice.event, payloadOut);
-  emitToUser(order.contractorId, notice.event, payloadOut);
 
   return { progress: progress.toPublic(), order: order.toPublic(), notification };
 }

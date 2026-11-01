@@ -95,7 +95,9 @@ describe('Flow 11 messages, media and location', () => {
     assert.equal(isAllowedFile({ originalname: 'secret.pdf', mimetype: 'application/pdf' }), true);
     const upload = readBe('middleware/uploadMiddleware.js');
     const routes = readBe('routes/chatRoutes.js');
-    assert.match(upload, /folderName === UPLOAD_SCOPES\.chat \? isChatMedia/);
+    assert.match(upload, /folderName === UPLOAD_SCOPES\.chat/);
+    assert.match(upload, /isChatMedia\(file\)/);
+    assert.match(upload, /isRepairMedia\(file\)/);
     assert.match(upload, /scope === 'repair' \|\| scope === 'chat' \? '\.mp4'/);
     assert.match(routes, /assertMember\(req\.params\.roomId, req\.user\.id\)/);
     assert.match(routes, /chatUpload\.single\('file'\)/);
@@ -123,7 +125,7 @@ describe('Flow 11 realtime and notifications', () => {
     const provider = readFe('providers/SocketProvider.tsx');
     assert.match(sock, /verifyToken\(token\)/);
     assert.match(sock, /assertMember\(roomId, userId\)/);
-    assert.match(sock, /socket\.join\(`room:\$\{room\._id\}`\)/);
+    assert.match(sock, /socket\.join\(`room:\$\{String\(room\._id\)\}`\)/);
     assert.match(sock, /senderId: userId/);
     assert.match(sock, /socket\.rooms\.has\(`room:\$\{roomId\}`\)/);
     assert.match(provider, /instance\.disconnect\(\)/);

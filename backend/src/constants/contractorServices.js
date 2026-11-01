@@ -180,6 +180,17 @@ function publicPricedServiceMatch() {
   };
 }
 
+function offeringMatchesCatalog(offering, catalogId) {
+  const key = String(catalogId || '').trim();
+  if (!key || !offering) return false;
+  const ids = [offering.catalogKey, offering.id, offering._id, offering.serviceId]
+    .filter(Boolean)
+    .map((value) => String(value));
+  if (ids.includes(key)) return true;
+  const code = offering.category && offering.name ? `${offering.category}::${offering.name}` : '';
+  return Boolean(code && code === key);
+}
+
 function isCategory(value) {
   return CATEGORY_SET.has(value);
 }
@@ -287,6 +298,7 @@ module.exports = {
   matchesCatalogName,
   normalizedAliases,
   publicPricedServiceMatch,
+  offeringMatchesCatalog,
   servicesBlockReason,
   visibleOnboardingServices,
   normalizeContractorServices,

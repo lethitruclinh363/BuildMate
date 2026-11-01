@@ -23,5 +23,8 @@
   "directions": "Chỉ đường",
   "locationFallback": "Vị trí",
   "gpsDenied": "Không thể truy cập vị trí. Bạn có thể nhập địa chỉ hoặc ghim vị trí trên bản đồ.",
-  "gpsUnavailable": "Không lấy được vị trí hiện tại trên thiết bị này."
+  "gpsUnavailable": "Không lấy được vị trí hiện tại trên thiết bị này.",
+  "quotePreview": "Đã gửi báo giá",
+  "photoPreview": "Đã gửi ảnh",
+  "videoPreview": "Đã gửi video"
 }

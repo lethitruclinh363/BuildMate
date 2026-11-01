@@ -30,10 +30,8 @@ describe('Flow 14 Customer dashboard activity blocks', () => {
     assert.match(page, /to: '\/customer\/explore'/);
     assert.match(page, /to: '\/customer\/request\/history'/);
     assert.match(page, /to: '\/customer\/orders'/);
-    assert.match(page, /to="\/customer\/material-orders"/);
-    assert.match(page, /to="\/customer\/notifications"/);
-    assert.match(page, /to="\/customer\/profile"/);
-    assert.match(page, /customerHome\.createRequest/);
+    assert.match(page, /to: '\/customer\/chat'/);
+    assert.match(page, /\/customer\/material-orders/);
   });
 });
 
@@ -97,9 +95,19 @@ describe('Flow 14 public contractor photos vs CCCD', () => {
     assert.equal(routes.includes("verificationUpload.single('file')"), true);
   });
 
-  it('sends logged-in customers from the landing header to the customer dashboard', () => {
+  it('sends logged-in users from / to the role dashboard without a workspace CTA', () => {
     const layout = read('frontend/src/components/layout/MainLayout.tsx');
-    assert.match(layout, /CUSTOMER: \{ to: '\/customer\/dashboard'/);
+    const surface = read('frontend/src/routes/CustomerSurface.tsx');
+    const auth = read('frontend/src/context/AuthContext.tsx');
+    const login = read('frontend/src/pages/auth/Login.tsx');
+    assert.match(auth, /CUSTOMER: '\/customer\/dashboard'/);
+    assert.match(auth, /CONTRACTOR: '\/contractor\/dashboard'/);
+    assert.match(auth, /MATERIAL_STORE_OWNER: '\/store\/dashboard'/);
+    assert.match(surface, /pathname === '\/'/);
+    assert.match(surface, /getDefaultRouteByRole/);
+    assert.match(login, /getDefaultRouteByRole\(session\.user\)/);
+    assert.equal(layout.includes('openDashboard'), false);
+    assert.equal(layout.includes('LANDING_ENTRY'), false);
   });
 
   it('keeps admin session on a temporary network error and clears cache on logout', () => {

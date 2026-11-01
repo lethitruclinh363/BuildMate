@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useReturnState } from '@/lib/navigation';
+import { explorePathFromLocation, usePartnerPaths } from '@/lib/partner-paths';
 import { Clock, MapPin, Star } from 'lucide-react';
 import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
@@ -39,6 +40,10 @@ export function StorePublicPage() {
   const { t } = useI18n();
   const back = useReturnState();
   const { id } = useParams();
+  const { pathname } = useLocation();
+  const paths = usePartnerPaths();
+  const mapHome = explorePathFromLocation(pathname);
+  const embedded = pathname.startsWith('/customer/');
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<{
     store: Storefront;
@@ -69,7 +74,7 @@ export function StorePublicPage() {
           <ErrorState title={t('errors.notFoundStore')} body={t('errors.notFoundStoreBody')} />
           <div className="mt-4 text-center">
             <Button asChild>
-              <Link to="/explore">{t('common.backToMap')}</Link>
+              <Link to={mapHome}>{t('common.backToMap')}</Link>
             </Button>
           </div>
         </div>
@@ -86,7 +91,7 @@ export function StorePublicPage() {
           />
           <div className="mt-4 text-center">
             <Button asChild>
-              <Link to="/explore">{t('common.backToMap')}</Link>
+              <Link to={mapHome}>{t('common.backToMap')}</Link>
             </Button>
           </div>
         </div>
@@ -97,8 +102,8 @@ export function StorePublicPage() {
   if (store.storeType === 'MATERIALS' && payload.publicProfile) {
     return (
       <PageTransition>
-        <div className="mx-auto max-w-6xl px-4 pt-6 md:px-8">
-          <BackButton fallback="/explore" />
+        <div className={embedded ? 'pt-1' : 'mx-auto max-w-6xl px-4 pt-6 md:px-8'}>
+          <BackButton fallback={mapHome} />
         </div>
         <StoreProfileShowcase
           profile={{ ...payload.publicProfile, verified: true, displayName: payload.publicProfile.displayName || store.name }}
@@ -115,8 +120,8 @@ export function StorePublicPage() {
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-6xl px-4 py-10 md:px-8">
-        <BackButton fallback="/explore" />
+      <div className={embedded ? 'mx-auto max-w-6xl' : 'mx-auto max-w-6xl px-4 py-10 md:px-8'}>
+        <BackButton fallback={mapHome} />
         <div className="overflow-hidden rounded-[22px] border border-navy-800/8 bg-white shadow-card">
           <div className="relative h-56 bg-navy-800 md:h-72">
             {store.coverImage ? (
@@ -154,7 +159,7 @@ export function StorePublicPage() {
               ) : (
                 <>
                   <Button asChild variant="outline">
-                    <Link to={`/contractors/${store.contractorId}`} state={back}>{t('public.crewProfile')}</Link>
+                    <Link to={paths.contractor(store.contractorId)} state={back}>{t('public.crewProfile')}</Link>
                   </Button>
                   <RequestRepairButton contractorId={store.contractorId} storeId={store.id} size="md" />
                 </>
@@ -188,7 +193,7 @@ export function StorePublicPage() {
               {materials.map((m) => (
                 <Card key={m.id}>
                   <Badge tone={saleTone(saleState(m))}>{t(saleLabelKey(saleState(m)))}</Badge>
-                  <Link to={`/stores/${store.id}/materials/${m.id}`} className="mt-3 block font-display text-lg text-navy-800">{m.name}</Link>
+                  <Link to={paths.material(store.id, m.id)} className="mt-3 block font-display text-lg text-navy-800">{m.name}</Link>
                   <p className="text-xs text-ink-400">{t('public.skuStock', { sku: m.sku, stock: m.stock })}</p>
                   {publicPriceVisible(m) ? (
                     <p className="mt-3 font-display text-xl text-navy-800">

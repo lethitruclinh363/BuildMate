@@ -61,12 +61,32 @@ describe('Flow 06 quotation statuses and create gate', () => {
 
   it('rejects invalid create payloads before they reach persistence', () => {
     assert.throws(() => createQuotationSchema.parse({ requestId: 'short', items: [] }));
+    assert.throws(() => createQuotationSchema.parse({
+      requestId: '507f1f77bcf86cd799439011',
+      items: [{ type: QUOTE_ITEM_TYPE.MATERIAL, name: 'Xi mang', quantity: 1, price: 100000 }],
+    }));
     const parsed = createQuotationSchema.parse({
       requestId: '507f1f77bcf86cd799439011',
       items: [{ type: QUOTE_ITEM_TYPE.LABOR, name: 'Pipe repair', quantity: 1, price: 200000 }],
       transportCost: 0,
     });
     assert.equal(parsed.items.length, 1);
+  });
+
+  it('accepts a revision payload whose line items still have catalogId null from toPublic()', () => {
+    const parsed = createQuotationSchema.parse({
+      requestId: '941a18d94f141f6558b1539',
+      items: [
+        { type: QUOTE_ITEM_TYPE.LABOR, name: 'Nhan cong', quantity: 1, unit: 'job', price: 200000, catalogId: null },
+      ],
+      transportCost: 0,
+      estimatedDays: 3,
+      note: 'abcdddd',
+    });
+    assert.equal(parsed.items.length, 1);
+    assert.equal(parsed.items[0].catalogId ?? null, null);
+    assert.equal(parsed.transportCost, 0);
+    assert.equal(parsed.estimatedDays, 3);
   });
 });
 
@@ -125,6 +145,37 @@ describe('Flow 06 quote tally and replay', () => {
     assert.match(page, /totals\.total <= 0/);
     const types = readFe('types/sprint4.ts');
     assert.match(types, /status === 'ACCEPTED'/);
+  });
+
+  it('strips null catalogId when resending a revised quotation', () => {
+    const page = readFe('pages/contractor/CreateQuotationPage.tsx');
+    assert.match(page, /function toQuotePayloadItems/);
+    assert.match(page, /items: toQuotePayloadItems\(items\)/);
+    assert.match(page, /toQuotePayloadItems\(last\.items/);
+    assert.doesNotMatch(page, /catalogId: item\.catalogId \|\| null/);
+    assert.doesNotMatch(page, /type: 'MATERIAL'/);
+  });
+
+  it('lets the contractor enter a priceless material list on the quotation page and send both in one submit', () => {
+    const page = readFe('pages/contractor/CreateQuotationPage.tsx');
+    assert.match(page, /materialRequirementApi\.create/);
+    assert.match(page, /quotationApi\.create/);
+    assert.match(page, /sendingRef/);
+    assert.match(page, /addMaterial|mrl\.addItem/);
+    assert.match(page, /removeMaterial/);
+    assert.match(page, /startEditMaterial/);
+    assert.match(page, /editingIndex/);
+    assert.doesNotMatch(page, /mrl-row-name-/);
+    assert.doesNotMatch(page, /material-requirements\/new/);
+    assert.doesNotMatch(page, /mrl\.open/);
+    assert.doesNotMatch(page, /id="mrl-store"/);
+    assert.doesNotMatch(page, /eligibleStores/);
+    assert.match(page, /quote\.mrlCount/);
+    assert.match(page, /mrlInvalid/);
+    assert.match(page, /normalizeMrlUnit|unitLooksLikeQuantity/);
+    assert.doesNotMatch(page, /quote\.mrlInfo/);
+    assert.doesNotMatch(page, /mrl\.unitFallback/);
+    assert.match(page, /mrl\.specMissing/);
   });
 });
 
@@ -244,6 +295,50 @@ describe('Flow 06 frontend money display', () => {
     assert.match(pay, /paymentApi\.checkout/);
     assert.match(pay, /mockSuccess/);
     assert.match(pay, /import\.meta\.env\.DEV \|\| import\.meta\.env\.MODE !== 'production'/);
+  });
+});
+
+describe('Flow 06 accept-and-deposit navigation', () => {
+  it('sends the customer from quotation accept to payment, then to the order, without a pay CTA on order detail', () => {
+    const quotePage = readFe('pages/customer/CustomerQuotationPage.tsx');
+    const payPage = readFe('features/payments/pages/PaymentPage.tsx');
+    const orderPage = readFe('pages/customer/CustomerOrderDetailPage.tsx');
+    const timeline = readFe('features/orders/types/orderStatus.ts');
+    const quoteService = readBe('services/quotationService.js');
+    const paymentService = readBe('services/paymentService.js');
+    assert.match(quoteService, /function packAccept/);
+    assert.match(quoteService, /createDepositIntent/);
+    assert.doesNotMatch(quoteService, /createFromQuotation/);
+    assert.match(quotePage, /\/customer\/payment\/\$\{quote\.id\}/);
+    assert.doesNotMatch(quotePage, /\/customer\/payment\/\$\{orderId\}/);
+    assert.match(quotePage, /quotationApi\.accept/);
+    assert.match(quotePage, /quote\.continueDeposit/);
+    assert.match(payPage, /byQuotation/);
+    assert.match(payPage, /payingRef/);
+    assert.match(payPage, /pay\.dueNow|PaymentSummaryCard/);
+    assert.doesNotMatch(orderPage, /pay\.cta/);
+    assert.doesNotMatch(orderPage, /\/customer\/payment\//);
+    assert.match(orderPage, /complaint\.open/);
+    assert.match(timeline, /key: 'deposit'/);
+    assert.match(paymentService, /customerOnly: true/);
+    assert.match(paymentService, /withCaptureLock/);
+    assert.match(paymentService, /listForQuotation/);
+    assert.match(paymentService, /createFromQuotation/);
+  });
+
+  it('creates the contractor order only after a successful deposit capture', () => {
+    const orderService = readBe('services/orderService.js');
+    const paymentService = readBe('services/paymentService.js');
+    const quoteService = readBe('services/quotationService.js');
+    const contractorList = readBe('services/orderService.js');
+    assert.match(orderService, /async function createDepositIntent/);
+    assert.match(orderService, /ORDER_STATUS\.DEPOSIT_PAID/);
+    assert.match(orderService, /quotationId: quotation\._id/);
+    assert.doesNotMatch(quoteService, /createFromQuotation/);
+    assert.match(paymentService, /createFromQuotation/);
+    assert.match(paymentService, /ensureOrderForPaidDeposit/);
+    assert.match(contractorList, /QUOTATION_ACCEPTED/);
+    assert.match(orderService, /listForContractor[\s\S]{0,400}QUOTATION_ACCEPTED/);
   });
 });
 

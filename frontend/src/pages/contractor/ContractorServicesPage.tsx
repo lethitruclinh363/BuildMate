@@ -8,6 +8,7 @@ import { VerificationGate } from '@/components/contractor/VerificationGate';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
+import { ConfirmModal } from '@/components/feedback/ConfirmModal';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -30,13 +31,14 @@ import { api, getApiErrorMessage } from '@/lib/api';
 import { contractorApi, mediaUrl, vnd } from '@/lib/partner-api';
 import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
+import { useToastStore } from '@/store/toast.store';
 import type { ApiResponse } from '@/types/user';
 import type { CatalogService } from '@/types/partner';
 
 const schema = z.object({
-  basePrice: z.coerce.number().refine((value) => value > 0, 'Enter a base price'),
+  basePrice: z.coerce.number().finite().gt(0),
   unit: z.enum(['JOB', 'HOUR', 'M2', 'DAY']),
-  estimatedHours: z.coerce.number().min(0.5),
+  estimatedHours: z.coerce.number().finite().min(0.5),
   description: z.string().optional(),
 });
 
@@ -49,11 +51,17 @@ const UNIT_KEY = {
   DAY: 'forms.perDay',
 } as const;
 
+type OfferingFilter = 'ALL' | 'ACTIVE' | 'PAUSED';
+type ConfirmAction = { kind: 'pause' | 'resume' | 'delete'; item: CatalogService };
+
 export function ContractorServicesPage() {
   const { t, te } = useI18n();
+  const toast = useToastStore((s) => s.push);
   const { data, loading, approved } = useContractorWorkspace();
   const [items, setItems] = useState<CatalogService[]>([]);
   const [approvedCustoms, setApprovedCustoms] = useState<ContractorServicePick[]>([]);
+  const [filter, setFilter] = useState<OfferingFilter>('ALL');
+  const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [editing, setEditing] = useState<CatalogService | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
@@ -117,6 +125,25 @@ export function ContractorServicesPage() {
         return `${item.name} ${item.category}`.toLowerCase().includes(needle);
       });
   }, [approvedCustoms, query, registeredKeys, t]);
+
+  const offeringCounts = useMemo(() => {
+    const completed = items.filter((item) => item.completionStatus === 'COMPLETED' && Number(item.basePrice) > 0);
+    return {
+      all: items.length,
+      active: completed.filter((item) => item.isActive).length,
+      paused: completed.filter((item) => !item.isActive).length,
+    };
+  }, [items]);
+
+  const visibleItems = useMemo(() => {
+    if (filter === 'ACTIVE') {
+      return items.filter((item) => item.completionStatus === 'COMPLETED' && Number(item.basePrice) > 0 && item.isActive);
+    }
+    if (filter === 'PAUSED') {
+      return items.filter((item) => item.completionStatus === 'COMPLETED' && Number(item.basePrice) > 0 && !item.isActive);
+    }
+    return items;
+  }, [filter, items]);
 
   if (loading) return <DashboardSkeleton />;
   if (!approved) {
@@ -218,6 +245,40 @@ export function ContractorServicesPage() {
     }
   }
 
+  async function runAvailability(item: CatalogService, isActive: boolean) {
+    setBusy(true);
+    setError('');
+    try {
+      await contractorApi.setServiceAvailability(item.id, isActive);
+      toast({ kind: 'success', title: isActive ? t('servicePage.resumedToast') : t('servicePage.pausedToast') });
+      setConfirm(null);
+      await load();
+    } catch (err) {
+      const message = te(getApiErrorMessage(err));
+      setError(message);
+      toast({ kind: 'error', title: message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runDelete(item: CatalogService) {
+    setBusy(true);
+    setError('');
+    try {
+      await contractorApi.deleteService(item.id);
+      toast({ kind: 'success', title: t('servicePage.deletedToast') });
+      setConfirm(null);
+      await load();
+    } catch (err) {
+      const message = te(getApiErrorMessage(err));
+      setError(message);
+      toast({ kind: 'error', title: message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onImage(file: File) {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.type) || file.size > 8 * 1024 * 1024) {
@@ -251,46 +312,93 @@ export function ContractorServicesPage() {
           onAction={() => setRegisterOpen(true)}
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item) => {
-            const pending = item.completionStatus === 'PENDING_APPROVAL';
-            const complete = item.completionStatus === 'COMPLETED' && Number(item.basePrice) > 0;
-            return (
-              <Card key={item.id} hover={false} className="flex flex-col p-5">
-                <div className="flex items-start gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-navy-800 text-paper-50">
-                    <Wrench className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="font-display text-lg text-navy-800">{titleOf(item)}</h3>
-                    <p className="text-sm text-ink-400">{catalogCategoryLabel(item.category, t)}</p>
-                  </div>
-                </div>
-                {pending ? (
-                  <p className="mt-4 text-sm font-semibold text-copper-700">{t('servicePage.pending')}</p>
-                ) : complete ? (
-                  <p className="mt-4 text-sm font-semibold text-emerald-700">✓ {t('servicePage.completed')}</p>
-                ) : (
-                  <p className="mt-4 text-sm font-semibold text-amber-700">⚠ {t('servicePage.incomplete')}</p>
-                )}
-                <p className="mt-2 flex-1 text-sm leading-6 text-ink-600">
-                  {pending ? t('servicePage.pendingHint') : complete ? '' : t('servicePage.incompleteHint')}
-                </p>
-                {complete ? (
-                  <p className="mt-3 text-sm text-navy-800">
-                    <span className="font-display text-xl">{vnd(item.basePrice || 0)}</span>
-                    <span className="ml-2 text-ink-400">{t(UNIT_KEY[item.unit] || 'forms.perJob')}</span>
-                  </p>
-                ) : null}
-                {pending ? null : (
-                  <Button className="mt-4" variant={complete ? 'outline' : 'primary'} onClick={() => openComplete(item)}>
-                    {complete ? t('servicePage.edit') : t('servicePage.complete')}
-                  </Button>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+        <>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {([
+              ['ALL', t('servicePage.filterAll'), offeringCounts.all],
+              ['ACTIVE', t('servicePage.filterActive'), offeringCounts.active],
+              ['PAUSED', t('servicePage.filterPaused'), offeringCounts.paused],
+            ] as const).map(([id, label, count]) => (
+              <button
+                key={id}
+                type="button"
+                className={`rounded-full px-3 py-1 text-sm ${filter === id ? 'bg-navy-800 text-white' : 'bg-white text-ink-600 shadow-card'}`}
+                onClick={() => setFilter(id)}
+              >
+                {label} ({count})
+              </button>
+            ))}
+          </div>
+          {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
+          {!visibleItems.length ? (
+            <p className="rounded-2xl bg-white px-4 py-6 text-sm text-ink-500 shadow-card">{t('servicePage.filterEmpty')}</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {visibleItems.map((item) => {
+                const pending = item.completionStatus === 'PENDING_APPROVAL';
+                const complete = item.completionStatus === 'COMPLETED' && Number(item.basePrice) > 0;
+                const offering = complete && item.isActive;
+                return (
+                  <Card key={item.id} hover={false} className="flex flex-col p-5">
+                    <div className="flex items-start gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-navy-800 text-paper-50">
+                        <Wrench className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="font-display text-lg text-navy-800">{titleOf(item)}</h3>
+                        <p className="text-sm text-ink-400">{catalogCategoryLabel(item.category, t)}</p>
+                      </div>
+                    </div>
+                    {pending ? (
+                      <p className="mt-3 text-sm font-semibold text-copper-700">{t('servicePage.pending')}</p>
+                    ) : complete ? (
+                      <p className={`mt-3 text-sm font-semibold ${offering ? 'text-emerald-700' : 'text-ink-400'}`}>
+                        {offering ? `● ${t('servicePage.offeringOn')}` : `○ ${t('servicePage.offeringOff')}`}
+                      </p>
+                    ) : (
+                      <p className="mt-3 text-sm font-semibold text-amber-700">⚠ {t('servicePage.incomplete')}</p>
+                    )}
+                    {!complete && !pending ? (
+                      <p className="mt-2 text-sm leading-6 text-ink-600">{t('servicePage.incompleteHint')}</p>
+                    ) : pending ? (
+                      <p className="mt-2 text-sm leading-6 text-ink-600">{t('servicePage.pendingHint')}</p>
+                    ) : null}
+                    {complete ? (
+                      <p className="mt-2 text-sm text-navy-800">
+                        <span className="font-display text-xl">{vnd(item.basePrice || 0)}</span>
+                        <span className="ml-2 text-ink-400">{t(UNIT_KEY[item.unit] || 'forms.perJob')}</span>
+                      </p>
+                    ) : null}
+                    {pending ? null : (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button size="sm" variant={complete ? 'outline' : 'primary'} onClick={() => openComplete(item)}>
+                          {complete ? t('servicePage.edit') : t('servicePage.complete')}
+                        </Button>
+                        {complete ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setConfirm({ kind: offering ? 'pause' : 'resume', item })}
+                          >
+                            {offering ? t('servicePage.pause') : t('servicePage.resume')}
+                          </Button>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-200 text-red-700 hover:bg-red-50"
+                          onClick={() => setConfirm({ kind: 'delete', item })}
+                        >
+                          {t('servicePage.delete')}
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       <Modal
@@ -395,6 +503,39 @@ export function ContractorServicesPage() {
           </Button>
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={Boolean(confirm)}
+        title={
+          confirm?.kind === 'delete'
+            ? t('servicePage.deleteTitle')
+            : confirm?.kind === 'resume'
+              ? t('servicePage.resumeTitle')
+              : t('servicePage.pauseTitle')
+        }
+        description={
+          confirm?.kind === 'delete'
+            ? t('servicePage.deleteBody')
+            : confirm?.kind === 'resume'
+              ? t('servicePage.resumeBody')
+              : t('servicePage.pauseBody')
+        }
+        confirmLabel={
+          confirm?.kind === 'delete'
+            ? t('servicePage.deleteConfirm')
+            : confirm?.kind === 'resume'
+              ? t('servicePage.resume')
+              : t('servicePage.pauseConfirm')
+        }
+        tone={confirm?.kind === 'delete' ? 'danger' : 'default'}
+        busy={busy}
+        onOpenChange={(open) => { if (!open) setConfirm(null); }}
+        onConfirm={() => {
+          if (!confirm) return;
+          if (confirm.kind === 'delete') void runDelete(confirm.item);
+          else void runAvailability(confirm.item, confirm.kind === 'resume');
+        }}
+      />
     </PageTransition>
   );
 }

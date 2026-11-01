@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { prisma } = require('../config/prisma');
+const { normalizeMrlUnit } = require('../utils/material-requirement.rules');
 
 function newId() {
   return crypto.randomBytes(12).toString('hex');
@@ -24,17 +25,39 @@ function asId(row) {
   return row?.legacy_mongo_id || String(row?.id || '');
 }
 
+function requestCodeOf(id) {
+  return `MR-${String(id || '').slice(-6).toUpperCase()}`;
+}
+
+function listKind(row) {
+  if (row.parent_list_id) {
+    return row.status === 'DRAFT' ? 'SAVED' : 'REQUEST';
+  }
+  return row.store_id ? 'REQUEST' : 'SOURCE';
+}
+
 function listPublic(row, items = [], quotes = []) {
   if (!row) return null;
+  const id = asId(row);
   return {
-    id: asId(row),
-    _id: asId(row),
+    id,
+    _id: id,
     requestId: row.request_legacy_id || String(row.repair_request_id || ''),
     contractorId: row.contractor_legacy_id || String(row.contractor_user_id || ''),
+    customerId: row.customer_legacy_id || '',
+    customerName: row.customer_name || '',
+    siteAddress: row.site_address || '',
+    siteLat: row.site_lat == null ? null : Number(row.site_lat),
+    siteLng: row.site_lng == null ? null : Number(row.site_lng),
+    requestTitle: row.request_title || '',
     storeId: row.store_legacy_id || (row.store_id ? String(row.store_id) : ''),
     storeName: row.store_name || '',
     status: row.status,
     note: row.note || '',
+    title: row.title || '',
+    parentListId: row.parent_legacy_id || '',
+    kind: listKind(row),
+    requestCode: requestCodeOf(id),
     items: items.map(itemPublic),
     quotes,
     createdAt: row.created_at,
@@ -47,7 +70,7 @@ function itemPublic(row) {
     id: String(row.id),
     name: row.name,
     specification: row.specification || '',
-    unit: row.unit || '',
+    unit: normalizeMrlUnit(row.unit),
     quantity: Number(row.quantity),
     notes: row.notes || '',
     sortOrder: Number(row.sort_order || 0),
@@ -68,7 +91,7 @@ function quotePublic(row, quoteItems = []) {
       itemId: String(item.requirement_item_id),
       name: item.name || '',
       quantity: Number(item.quantity || 0),
-      unit: item.unit || '',
+      unit: normalizeMrlUnit(item.unit),
       unitPrice: Number(item.unit_price || 0),
       availableQty: Number(item.available_qty || 0),
       note: item.note || '',
@@ -91,7 +114,13 @@ function toBigInt(value) {
 const listSelect = `
   mrl.*,
   rr.legacy_mongo_id AS request_legacy_id,
+  rr.title AS request_title,
   cu.legacy_mongo_id AS contractor_legacy_id,
+  cust.legacy_mongo_id AS customer_legacy_id,
+  cust.full_name AS customer_name,
+  loc.formatted_address AS site_address,
+  loc.latitude AS site_lat,
+  loc.longitude AS site_lng,
   st.legacy_mongo_id AS store_legacy_id,
   st.name AS store_name
 `;
@@ -102,6 +131,8 @@ async function loadList(whereSql, params) {
      FROM material_requirement_lists mrl
      JOIN repair_requests rr ON rr.id = mrl.repair_request_id
      JOIN users cu ON cu.id = mrl.contractor_user_id
+     JOIN users cust ON cust.id = rr.customer_user_id
+     LEFT JOIN locations loc ON loc.id = rr.location_id
      LEFT JOIN stores st ON st.id = mrl.store_id
      WHERE ${whereSql}
      LIMIT 1`,
@@ -145,6 +176,13 @@ async function loadQuotes(listPk) {
 
 async function hydrate(row) {
   if (!row) return null;
+  if (row.parent_list_id && !row.parent_legacy_id) {
+    const pk = toBigInt(row.parent_list_id);
+    const parent = await prisma.$queryRaw`
+      SELECT legacy_mongo_id FROM material_requirement_lists WHERE id = ${pk} LIMIT 1
+    `;
+    row.parent_legacy_id = parent[0]?.legacy_mongo_id || '';
+  }
   const items = await loadItems(row.id);
   const quotes = await loadQuotes(row.id);
   return listPublic(row, items, quotes);
@@ -163,21 +201,71 @@ async function findByPublicId(id) {
 
 async function findActiveByRequest(requestPk) {
   const pk = toBigInt(requestPk);
-  const row = await loadList("mrl.repair_request_id = $1::bigint AND mrl.status <> 'CANCELLED'", [pk]);
+  const row = await loadList(
+    "mrl.repair_request_id = $1::bigint AND mrl.parent_list_id IS NULL AND mrl.status <> 'CANCELLED'",
+    [pk]
+  );
   return hydrate(row);
+}
+
+async function findSavedDraft(parentPk) {
+  const pk = toBigInt(parentPk);
+  const row = await loadList("mrl.parent_list_id = $1::bigint AND mrl.status = 'DRAFT'", [pk]);
+  return hydrate(row);
+}
+
+async function findRequestForStore({ parentPk, sourcePk, storePk }) {
+  const store = toBigInt(storePk);
+  if (!store) return null;
+  const ids = [toBigInt(parentPk), toBigInt(sourcePk)].filter(Boolean);
+  for (const pk of ids) {
+    const row = await loadList(
+      `mrl.store_id = $1::bigint AND mrl.status <> 'CANCELLED'
+       AND (mrl.id = $2::bigint OR mrl.parent_list_id = $2::bigint)`,
+      [store, pk]
+    );
+    if (row) return hydrate(row);
+  }
+  return null;
 }
 
 async function listByContractor(contractorPk) {
   const pk = toBigInt(contractorPk);
   const rows = await prisma.$queryRaw`
-    SELECT mrl.*, rr.legacy_mongo_id AS request_legacy_id,
+    SELECT mrl.*, rr.legacy_mongo_id AS request_legacy_id, rr.title AS request_title,
            cu.legacy_mongo_id AS contractor_legacy_id,
+           cust.legacy_mongo_id AS customer_legacy_id, cust.full_name AS customer_name,
+           loc.formatted_address AS site_address, loc.latitude AS site_lat, loc.longitude AS site_lng,
            st.legacy_mongo_id AS store_legacy_id, st.name AS store_name
     FROM material_requirement_lists mrl
     JOIN repair_requests rr ON rr.id = mrl.repair_request_id
     JOIN users cu ON cu.id = mrl.contractor_user_id
+    JOIN users cust ON cust.id = rr.customer_user_id
+    LEFT JOIN locations loc ON loc.id = rr.location_id
     LEFT JOIN stores st ON st.id = mrl.store_id
-    WHERE mrl.contractor_user_id = ${pk}
+    WHERE mrl.contractor_user_id = ${pk} AND mrl.parent_list_id IS NULL
+    ORDER BY mrl.created_at DESC
+  `;
+  const out = [];
+  for (const row of rows) out.push(await hydrate(row));
+  return out;
+}
+
+async function listByCustomer(customerPk) {
+  const pk = toBigInt(customerPk);
+  const rows = await prisma.$queryRaw`
+    SELECT mrl.*, rr.legacy_mongo_id AS request_legacy_id, rr.title AS request_title,
+           cu.legacy_mongo_id AS contractor_legacy_id,
+           cust.legacy_mongo_id AS customer_legacy_id, cust.full_name AS customer_name,
+           loc.formatted_address AS site_address, loc.latitude AS site_lat, loc.longitude AS site_lng,
+           st.legacy_mongo_id AS store_legacy_id, st.name AS store_name
+    FROM material_requirement_lists mrl
+    JOIN repair_requests rr ON rr.id = mrl.repair_request_id
+    JOIN users cu ON cu.id = mrl.contractor_user_id
+    JOIN users cust ON cust.id = rr.customer_user_id
+    LEFT JOIN locations loc ON loc.id = rr.location_id
+    LEFT JOIN stores st ON st.id = mrl.store_id
+    WHERE rr.customer_user_id = ${pk} AND mrl.status <> 'CANCELLED'
     ORDER BY mrl.created_at DESC
   `;
   const out = [];
@@ -188,14 +276,18 @@ async function listByContractor(contractorPk) {
 async function listByStore(storePk) {
   const pk = toBigInt(storePk);
   const rows = await prisma.$queryRaw`
-    SELECT mrl.*, rr.legacy_mongo_id AS request_legacy_id,
+    SELECT mrl.*, rr.legacy_mongo_id AS request_legacy_id, rr.title AS request_title,
            cu.legacy_mongo_id AS contractor_legacy_id,
+           cust.legacy_mongo_id AS customer_legacy_id, cust.full_name AS customer_name,
+           loc.formatted_address AS site_address, loc.latitude AS site_lat, loc.longitude AS site_lng,
            st.legacy_mongo_id AS store_legacy_id, st.name AS store_name
     FROM material_requirement_lists mrl
     JOIN repair_requests rr ON rr.id = mrl.repair_request_id
     JOIN users cu ON cu.id = mrl.contractor_user_id
+    JOIN users cust ON cust.id = rr.customer_user_id
+    LEFT JOIN locations loc ON loc.id = rr.location_id
     LEFT JOIN stores st ON st.id = mrl.store_id
-    WHERE mrl.store_id = ${pk} AND mrl.status IN ('SENT','QUOTED','CONFIRMED')
+    WHERE mrl.store_id = ${pk} AND mrl.status IN ('SENT','QUOTED','CONFIRMED','PREPARING','DELIVERING','DELIVERED','CANCELLED')
     ORDER BY mrl.updated_at DESC
   `;
   const out = [];
@@ -203,19 +295,57 @@ async function listByStore(storePk) {
   return out;
 }
 
-async function insertList({ requestPk, contractorPk, note }) {
+async function insertList({ requestPk, contractorPk, note, title, parentPk, status, storePk }) {
   const legacy = newId();
   const reqPk = toBigInt(requestPk);
   const conPk = toBigInt(contractorPk);
-  const rows = await prisma.$queryRaw`
-    INSERT INTO material_requirement_lists (
-      legacy_mongo_id, repair_request_id, contractor_user_id, note, status
+  const parent = parentPk ? toBigInt(parentPk) : null;
+  const store = storePk ? toBigInt(storePk) : null;
+  const rows = await prisma.$queryRawUnsafe(
+    `INSERT INTO material_requirement_lists (
+      legacy_mongo_id, repair_request_id, contractor_user_id, store_id, note, status, parent_list_id, title
     ) VALUES (
-      ${legacy}, ${reqPk}, ${conPk}, ${text(note, 1000)}, 'DRAFT'
+      $1, $2::bigint, $3::bigint, $4::bigint, $5, $6, $7::bigint, $8
     )
-    RETURNING *
-  `;
+    RETURNING *`,
+    legacy,
+    reqPk,
+    conPk,
+    store,
+    text(note, 1000),
+    status || 'DRAFT',
+    parent,
+    text(title, 140)
+  );
   return rows[0];
+}
+
+async function cloneList({ sourcePk, parentPk, status, storePk, title, note }) {
+  const source = await prisma.$queryRaw`
+    SELECT * FROM material_requirement_lists WHERE id = ${toBigInt(sourcePk)} LIMIT 1
+  `;
+  const row = source[0];
+  if (!row) return null;
+  const created = await insertList({
+    requestPk: row.repair_request_id,
+    contractorPk: row.contractor_user_id,
+    note: note == null ? row.note : note,
+    title: title == null ? row.title : title,
+    parentPk: parentPk || row.id,
+    status: status || 'DRAFT',
+    storePk,
+  });
+  const items = await loadItems(row.id);
+  for (let i = 0; i < items.length; i += 1) {
+    await insertItem(created.id, {
+      name: items[i].name,
+      specification: items[i].specification,
+      unit: items[i].unit,
+      quantity: items[i].quantity,
+      notes: items[i].notes,
+    }, i);
+  }
+  return created;
 }
 
 async function insertItem(listPk, item, sortOrder) {
@@ -256,16 +386,35 @@ async function deleteItem(itemPk, listPk) {
   `;
 }
 
+async function listPkByPublicId(id) {
+  const key = text(id, 40);
+  if (!key) return null;
+  const rows = await prisma.$queryRaw`
+    SELECT id FROM material_requirement_lists WHERE legacy_mongo_id = ${key} LIMIT 1
+  `;
+  return rows[0]?.id || null;
+}
+
+async function replaceItems(listPk, items) {
+  const pk = toBigInt(listPk);
+  await prisma.$executeRaw`DELETE FROM material_requirement_items WHERE list_id = ${pk}`;
+  for (let i = 0; i < (items || []).length; i += 1) {
+    await insertItem(pk, items[i], i);
+  }
+}
+
 async function updateList(listPk, fields) {
   const pk = toBigInt(listPk);
   const status = fields.status;
   const note = fields.note;
+  const title = fields.title;
   const storePk = fields.storePk === undefined ? undefined : fields.storePk;
   const rows = await prisma.$queryRawUnsafe(
     `UPDATE material_requirement_lists
      SET status = COALESCE($2, status),
          note = COALESCE($3, note),
          store_id = CASE WHEN $4::int = 1 THEN $5::bigint ELSE store_id END,
+         title = COALESCE($6, title),
          updated_at = now()
      WHERE id = $1::bigint
      RETURNING *`,
@@ -273,7 +422,8 @@ async function updateList(listPk, fields) {
     status || null,
     note == null ? null : text(note, 1000),
     storePk === undefined ? 0 : 1,
-    storePk ? toBigInt(storePk) : null
+    storePk ? toBigInt(storePk) : null,
+    title == null ? null : text(title, 140)
   );
   return rows[0];
 }
@@ -316,6 +466,48 @@ async function updateQuoteStatus(quotePk, status) {
     RETURNING *
   `;
   return rows[0];
+}
+
+async function updateQuote(quotePk, { deliveryFee, note, lines }) {
+  const qPk = toBigInt(quotePk);
+  const quotes = await prisma.$queryRaw`
+    UPDATE material_quotes
+    SET delivery_fee = ${money(deliveryFee)}::numeric,
+        note = ${text(note, 1000)},
+        updated_at = now()
+    WHERE id = ${qPk}
+    RETURNING *
+  `;
+  await prisma.$executeRaw`
+    DELETE FROM material_quote_items WHERE quote_id = ${qPk}
+  `;
+  for (const line of lines) {
+    const itmPk = toBigInt(line.itemPk);
+    await prisma.$queryRaw`
+      INSERT INTO material_quote_items (
+        quote_id, requirement_item_id, unit_price, available_qty, note
+      ) VALUES (
+        ${qPk}, ${itmPk}, ${money(line.unitPrice)}::numeric,
+        ${qty(line.availableQty)}::numeric, ${text(line.note, 500)}
+      )
+    `;
+  }
+  return quotes[0];
+}
+
+async function findQuotePk(publicId) {
+  const key = text(publicId, 40);
+  if (!key) return null;
+  if (/^\d+$/.test(key)) {
+    const rows = await prisma.$queryRaw`
+      SELECT id FROM material_quotes WHERE id = ${BigInt(key)} OR legacy_mongo_id = ${key} LIMIT 1
+    `;
+    return rows[0] || null;
+  }
+  const rows = await prisma.$queryRaw`
+    SELECT id FROM material_quotes WHERE legacy_mongo_id = ${key} LIMIT 1
+  `;
+  return rows[0] || null;
 }
 
 async function userPk(legacyId) {
@@ -388,23 +580,80 @@ async function tablesReady() {
   return Boolean(rows[0]);
 }
 
+const FULFILLMENT_CHECK = `CHECK (status IN ('DRAFT','SENT','QUOTED','CONFIRMED','PREPARING','DELIVERING','DELIVERED','CANCELLED'))`;
+
+async function ensureFulfillmentConstraint() {
+  const rows = await prisma.$queryRawUnsafe(`
+    SELECT pg_get_constraintdef(c.oid) AS def
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    WHERE t.relname = 'material_requirement_lists' AND c.conname = 'chk_mrl_status'
+    LIMIT 1
+  `);
+  const def = String(rows[0]?.def || '');
+  if (def.includes('PREPARING') && def.includes('DELIVERING') && def.includes('DELIVERED')) {
+    return false;
+  }
+  await prisma.$executeRawUnsafe('ALTER TABLE material_requirement_lists DROP CONSTRAINT IF EXISTS chk_mrl_status');
+  await prisma.$executeRawUnsafe(`ALTER TABLE material_requirement_lists ADD CONSTRAINT chk_mrl_status ${FULFILLMENT_CHECK}`);
+  return true;
+}
+
+async function ensureCustomerSaveSchema() {
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE material_requirement_lists
+      ADD COLUMN IF NOT EXISTS parent_list_id BIGINT REFERENCES material_requirement_lists(id) ON DELETE SET NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE material_requirement_lists
+      ADD COLUMN IF NOT EXISTS title VARCHAR(140) NOT NULL DEFAULT ''
+  `);
+  await prisma.$executeRawUnsafe('DROP INDEX IF EXISTS uq_mrl_active_request');
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_mrl_source_request
+      ON material_requirement_lists (repair_request_id)
+      WHERE parent_list_id IS NULL AND status <> 'CANCELLED'
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_mrl_saved_draft
+      ON material_requirement_lists (parent_list_id)
+      WHERE parent_list_id IS NOT NULL AND status = 'DRAFT'
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_mrl_parent_store
+      ON material_requirement_lists (parent_list_id, store_id)
+      WHERE parent_list_id IS NOT NULL AND store_id IS NOT NULL AND status <> 'CANCELLED'
+  `);
+  return true;
+}
+
 module.exports = {
   newId,
   findByPublicId,
   findActiveByRequest,
+  findSavedDraft,
+  findRequestForStore,
   listByContractor,
+  listByCustomer,
   listByStore,
   insertList,
+  cloneList,
   insertItem,
   updateItem,
   deleteItem,
+  replaceItems,
+  listPkByPublicId,
   updateList,
   insertQuote,
   updateQuoteStatus,
+  updateQuote,
+  findQuotePk,
   userPk,
   requestRow,
   storeRow,
   tablesReady,
+  ensureFulfillmentConstraint,
+  ensureCustomerSaveSchema,
   loadItems,
   hydrate,
 };
