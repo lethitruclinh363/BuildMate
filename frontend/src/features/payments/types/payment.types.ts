@@ -31,13 +31,24 @@ export interface PaymentSummary {
   mock?: boolean;
 }
 
+export interface PaymentJobInfo {
+  title: string;
+  contractorName?: string;
+  referenceCode: string;
+  quotationId: string;
+  requestId?: string;
+  orderId?: string | null;
+}
+
 export interface OrderPaymentsPayload {
   summary: PaymentSummary;
   items: Payment[];
+  job?: PaymentJobInfo;
 }
 
 export interface CheckoutResult {
   payment: Payment;
+  order?: { id?: string; _id?: string; paymentStatus?: string; status?: string } | null;
   checkout?: { providerRef?: string; transactionCode?: string };
   commission?: CommissionPublic | null;
   duplicated?: boolean;

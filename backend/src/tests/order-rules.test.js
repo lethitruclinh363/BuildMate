@@ -50,13 +50,14 @@ describe('order business rules', () => {
     );
   });
 
-  it('allows journal updates and the next stage only', () => {
+  it('allows only the next forward stage and rejects repeats or backwards moves', () => {
     assert.equal(isValidProgressTransition(ORDER_STATUS.DEPOSIT_PAID, PROGRESS_STATUS.STARTED), true);
+    assert.equal(isValidProgressTransition(ORDER_STATUS.DEPOSIT_PAID, PROGRESS_STATUS.IN_PROGRESS), false);
     assert.equal(isValidProgressTransition(ORDER_STATUS.QUOTATION_ACCEPTED, PROGRESS_STATUS.IN_PROGRESS), false);
-    assert.equal(isValidProgressTransition(ORDER_STATUS.STARTED, PROGRESS_STATUS.STARTED), true);
+    assert.equal(isValidProgressTransition(ORDER_STATUS.STARTED, PROGRESS_STATUS.STARTED), false);
     assert.equal(isValidProgressTransition(ORDER_STATUS.STARTED, PROGRESS_STATUS.IN_PROGRESS), true);
     assert.equal(isValidProgressTransition(ORDER_STATUS.STARTED, PROGRESS_STATUS.COMPLETED), false);
-    assert.equal(isValidProgressTransition(ORDER_STATUS.IN_PROGRESS, PROGRESS_STATUS.IN_PROGRESS), true);
+    assert.equal(isValidProgressTransition(ORDER_STATUS.IN_PROGRESS, PROGRESS_STATUS.IN_PROGRESS), false);
     assert.equal(isValidProgressTransition(ORDER_STATUS.IN_PROGRESS, PROGRESS_STATUS.COMPLETED), true);
     assert.equal(isValidProgressTransition(ORDER_STATUS.IN_PROGRESS, PROGRESS_STATUS.STARTED), false);
     assert.equal(isValidProgressTransition(ORDER_STATUS.COMPLETED, PROGRESS_STATUS.COMPLETED), false);

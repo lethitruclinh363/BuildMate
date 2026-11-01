@@ -24,6 +24,7 @@ const {
   storeUpdateSchema,
   registerServiceSchema,
   offeringUpdateSchema,
+  offeringAvailabilitySchema,
   catalogCheckSchema,
   catalogCreateSchema,
   locationChangeRequestSchema,
@@ -160,6 +161,7 @@ router.post('/service-catalog/custom', ...contractorOnly, validate(catalogCreate
 
 router.get('/services', ...catalogWrite, serviceController.list);
 router.post('/services/register', ...catalogWrite, validate(registerServiceSchema), serviceController.register);
+router.patch('/services/:id/availability', ...catalogWrite, validate(offeringAvailabilitySchema), serviceController.setAvailability);
 router.patch('/services/:id', ...catalogWrite, validate(offeringUpdateSchema), serviceController.update);
 router.delete('/services/:id', ...catalogWrite, serviceController.remove);
 

@@ -1,6 +1,7 @@
 import { Package } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { usePartnerPaths } from '@/lib/partner-paths';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
@@ -21,6 +22,7 @@ function formatQty(value: number) {
 export function PublicMaterialPage() {
   const { id, materialId } = useParams();
   const { t } = useI18n();
+  const paths = usePartnerPaths();
   const [loading, setLoading] = useState(true);
   const [store, setStore] = useState<Storefront | null>(null);
   const [item, setItem] = useState<CatalogMaterial | null>(null);
@@ -75,7 +77,7 @@ export function PublicMaterialPage() {
           ) : null}
         </div>
         <div>
-          <Link to={`/stores/${store.id}`} className="text-sm font-semibold text-navy-800">{store.name}</Link>
+          <Link to={paths.store(store.id)} className="text-sm font-semibold text-navy-800">{store.name}</Link>
           <p className="mt-3 text-xs uppercase tracking-wider text-copper-600">{item.category}</p>
           <h1 className="mt-1 font-display text-4xl text-navy-800">{item.name}</h1>
           {banner ? <p className="mt-4 text-xl font-semibold tracking-wide text-red-700">{t(banner)}</p> : null}
@@ -91,7 +93,7 @@ export function PublicMaterialPage() {
           {item.description ? <p className="mt-4 text-sm leading-6 text-ink-600">{item.description}</p> : null}
           <AddToMaterialCart material={item} storeId={String(store.id)} storeName={store.name} />
           <Button asChild variant="outline" className="mt-4">
-            <Link to={`/stores/${store.id}`}>{t('common.back')}</Link>
+            <Link to={paths.store(store.id)}>{t('common.back')}</Link>
           </Button>
         </div>
       </div>

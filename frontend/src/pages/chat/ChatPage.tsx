@@ -1,7 +1,7 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ImagePlus, MapPin, Send } from 'lucide-react';
+import { ClipboardList, ImagePlus, MapPin, Send } from 'lucide-react';
 import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
@@ -11,19 +11,25 @@ import { Button } from '@/components/ui/Button';
 import { LocationMessage } from '@/features/chat/components/LocationMessage';
 import { SendLocationModal, type ChatLocationDraft } from '@/features/chat/components/SendLocationModal';
 import { TypingDots } from '@/features/chat/components/TypingDots';
+import { MaterialChatCard } from '@/features/chat/components/MaterialChatCard';
+import { MaterialListPicker } from '@/features/chat/components/MaterialListPicker';
 import { chatApi } from '@/features/chat/services/sprint4.api';
 import { QuotationCard } from '@/features/quotation/components/QuotationCard';
+import { mrlChatPreview, parseMrlChat } from '@/lib/mrl-chat';
+import { materialRequirementApi, type MaterialRequirementList } from '@/lib/material-requirement-api';
 import { getApiErrorMessage } from '@/lib/api';
+import { useToastStore } from '@/store/toast.store';
 import { mediaUrl } from '@/lib/partner-api';
 import { useRoomMessages, useSocket } from '@/providers/SocketProvider';
 import { useAuthStore } from '@/store/auth.store';
-import { canCreateQuotation, type ChatMessage, type ChatRoom } from '@/types/sprint4';
+import { canCreateQuotation, type ChatMessage, type ChatRoom, type Quotation } from '@/types/sprint4';
 import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
 
 export function ChatPage() {
   const { t, te } = useI18n();
   const { roomId } = useParams();
+  const [search] = useSearchParams();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { socket, onlineIds } = useSocket();
@@ -36,10 +42,17 @@ export function ChatPage() {
   const [typingName, setTypingName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mrl, setMrl] = useState<MaterialRequirementList | null>(null);
+  const [mrlById, setMrlById] = useState<Record<string, MaterialRequirementList>>({});
+  const [mrlBusy, setMrlBusy] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const mrlQuery = search.get('mrl') || '';
+  const toast = useToastStore((s) => s.push);
   const scroller = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<number | undefined>(undefined);
   const sendingText = useRef(false);
   const sendingFile = useRef(false);
+  const sendingMrl = useRef(false);
 
   const isCustomer = user?.role === 'CUSTOMER';
   const chatBase =
@@ -84,9 +97,91 @@ export function ChatPage() {
     };
   }, [roomId]);
 
+  const isStoreRoom = room?.roomKind === 'CUSTOMER_MATERIAL_STORE';
+
+  useEffect(() => {
+    const fromMessages = [...new Set(messages.map((msg) => parseMrlChat(msg.content)?.listId).filter(Boolean))] as string[];
+    const listId = mrlQuery || fromMessages[0] || '';
+    if (room && !isStoreRoom) {
+      setMrl(null);
+      return;
+    }
+    const ids = [...new Set([mrlQuery, ...fromMessages].filter(Boolean))];
+    if (!ids.length) {
+      setMrl(null);
+      return;
+    }
+    let ignore = false;
+    Promise.all(ids.map((id) => materialRequirementApi.get(id).then((res) => res.data.data).catch(() => null)))
+      .then((rows) => {
+        if (ignore) return;
+        const next: Record<string, MaterialRequirementList> = {};
+        for (const row of rows) {
+          if (row?.id) next[row.id] = row;
+        }
+        setMrlById((prev) => ({ ...prev, ...next }));
+        setMrl(next[listId] || rows.find(Boolean) || null);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [isStoreRoom, mrlQuery, messages, room]);
+
   useRoomMessages(roomId, (msg) => {
-    setMessages((prev) => (prev.some((p) => p.id === msg.id) ? prev : [...prev, msg]));
+    setMessages((prev) => {
+      if (prev.some((p) => p.id === msg.id)) return prev;
+      if (
+        msg.quotationId &&
+        prev.some((p) => p.type === 'QUOTATION' && String(p.quotationId) === String(msg.quotationId))
+      ) {
+        return prev;
+      }
+      return [...prev, msg];
+    });
   });
+
+  useEffect(() => {
+    if (!socket) return;
+    const previewOf = (msg: ChatMessage) => {
+      if (msg.type === 'QUOTATION') return t('chat.quotePreview');
+      if (msg.type === 'IMAGE') return t('chat.photoPreview');
+      if (msg.type === 'VIDEO') return t('chat.videoPreview');
+      if (msg.type === 'LOCATION') return msg.location?.label || msg.location?.address || t('chat.sendLocation');
+      return mrlChatPreview(msg.content);
+    };
+    const onReceive = (msg: ChatMessage) => {
+      setRooms((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(msg.roomId)
+            ? { ...item, lastMessage: previewOf(msg), lastMessageAt: msg.createdAt }
+            : item
+        )
+      );
+    };
+    const onQuote = (quote: Quotation) => {
+      if (!quote?.id) return;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          String(msg.quotationId) === String(quote.id) || String(msg.quotation?.id) === String(quote.id)
+            ? { ...msg, quotation: quote }
+            : msg
+        )
+      );
+    };
+    const onMrl = (list: MaterialRequirementList) => {
+      if (!list?.id) return;
+      setMrlById((prev) => ({ ...prev, [list.id]: list }));
+      setMrl((prev) => (prev && prev.id === list.id ? list : prev));
+    };
+    socket.on('receive_message', onReceive);
+    socket.on('quotation:new', onQuote);
+    socket.on('mrl:update', onMrl);
+    return () => {
+      socket.off('receive_message', onReceive);
+      socket.off('quotation:new', onQuote);
+      socket.off('mrl:update', onMrl);
+    };
+  }, [socket, t]);
 
   useEffect(() => {
     if (!socket || !roomId) return;
@@ -179,7 +274,68 @@ export function ChatPage() {
     }
   };
 
-  const isStoreRoom = room?.roomKind === 'CUSTOMER_MATERIAL_STORE';
+  const reloadMessages = async () => {
+    if (!roomId) return;
+    const m = await chatApi.messages(roomId);
+    setMessages(m.data.data);
+  };
+
+  const rememberList = (next: MaterialRequirementList) => {
+    setMrl(next);
+    setMrlById((prev) => ({ ...prev, [next.id]: next }));
+  };
+
+  const sendMrlRequest = async (listId?: string) => {
+    const targetId = listId || mrl?.id;
+    if (!targetId || !room?.storeId || sendingMrl.current) return;
+    sendingMrl.current = true;
+    setMrlBusy(true);
+    try {
+      const res = await materialRequirementApi.send(targetId, room.storeId);
+      rememberList(res.data.data);
+      setPickerOpen(false);
+      await reloadMessages();
+    } catch (err) {
+      toast({ kind: 'error', title: te(getApiErrorMessage(err)) });
+    } finally {
+      sendingMrl.current = false;
+      setMrlBusy(false);
+    }
+  };
+
+  const confirmMrlQuote = async (listId?: string) => {
+    const targetId = listId || mrl?.id;
+    if (!targetId || sendingMrl.current) return;
+    sendingMrl.current = true;
+    setMrlBusy(true);
+    try {
+      const res = await materialRequirementApi.confirm(targetId);
+      rememberList(res.data.data);
+      await reloadMessages();
+    } catch (err) {
+      toast({ kind: 'error', title: te(getApiErrorMessage(err)) });
+    } finally {
+      sendingMrl.current = false;
+      setMrlBusy(false);
+    }
+  };
+
+  const rejectMrlQuote = async (listId?: string) => {
+    const targetId = listId || mrl?.id;
+    if (!targetId || sendingMrl.current) return;
+    sendingMrl.current = true;
+    setMrlBusy(true);
+    try {
+      const res = await materialRequirementApi.reject(targetId);
+      rememberList(res.data.data);
+      await reloadMessages();
+    } catch (err) {
+      toast({ kind: 'error', title: te(getApiErrorMessage(err)) });
+    } finally {
+      sendingMrl.current = false;
+      setMrlBusy(false);
+    }
+  };
 
   if (loading) return <DashboardSkeleton />;
   if (error) {
@@ -272,8 +428,39 @@ export function ChatPage() {
                 <p className="mt-2 text-sm text-ink-600">{room.request.description}</p>
               </div>
             ) : null}
+            {isCustomer && isStoreRoom && mrl?.status === 'DRAFT' && mrlQuery ? (
+              <div className="flex justify-end">
+                <MaterialChatCard
+                  payload={{
+                    kind: 'MRL_REQUEST',
+                    listId: mrl.id,
+                    requestCode: mrl.requestCode,
+                    requestId: mrl.requestId,
+                    title: mrl.title || mrl.requestTitle,
+                    address: mrl.siteAddress,
+                    items: mrl.items,
+                  }}
+                  role={user?.role}
+                  listStatus={mrl.status}
+                  busy={mrlBusy}
+                  onSendRequest={() => void sendMrlRequest()}
+                />
+              </div>
+            ) : null}
             {messages.map((msg) => {
               const mine = String(msg.senderId) === String(user?.id);
+              const parsed = parseMrlChat(msg.content);
+              const live = parsed?.listId ? mrlById[parsed.listId] : null;
+              const mrlPayload = parsed
+                ? {
+                    ...parsed,
+                    requestCode: parsed.requestCode || live?.requestCode,
+                    title: parsed.title || live?.title || live?.requestTitle,
+                    address: parsed.address || live?.siteAddress,
+                    status: parsed.status || live?.status,
+                    items: parsed.items?.length ? parsed.items : live?.items,
+                  }
+                : null;
               return (
                 <motion.div
                   key={msg.id}
@@ -295,6 +482,15 @@ export function ChatPage() {
                         }
                       />
                     </div>
+                  ) : mrlPayload ? (
+                    <MaterialChatCard
+                      payload={mrlPayload}
+                      role={user?.role}
+                      listStatus={live?.status || mrlPayload.status || mrl?.status}
+                      busy={mrlBusy}
+                      onConfirm={() => void confirmMrlQuote(mrlPayload.listId)}
+                      onReject={() => void rejectMrlQuote(mrlPayload.listId)}
+                    />
                   ) : (
                     <div
                       className={cn(
@@ -329,6 +525,15 @@ export function ChatPage() {
             >
               <MapPin className="h-4 w-4" /> {t('chat.sendLocation')}
             </button>
+            {isCustomer && isStoreRoom ? (
+              <button
+                type="button"
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-paper-100 px-3 text-sm font-semibold text-navy-800"
+                onClick={() => setPickerOpen(true)}
+              >
+                <ClipboardList className="h-4 w-4" /> {t('mrl.savedLists')}
+              </button>
+            ) : null}
             <label className="grid h-11 w-11 cursor-pointer place-items-center rounded-full bg-paper-100 text-navy-800">
               <ImagePlus className="h-4 w-4" />
               <input
@@ -360,6 +565,12 @@ export function ChatPage() {
             busy={sendingLocation}
             onOpenChange={setLocationOpen}
             onSend={(location) => void sendLocation(location)}
+          />
+          <MaterialListPicker
+            open={pickerOpen}
+            busy={mrlBusy}
+            onClose={() => setPickerOpen(false)}
+            onSend={(list) => void sendMrlRequest(list.id)}
           />
         </section>
       </div>

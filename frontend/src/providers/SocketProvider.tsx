@@ -118,12 +118,15 @@ export function useRoomMessages(roomId: string | undefined, onMessage: (m: ChatM
 
   useEffect(() => {
     if (!socket || !roomId) return;
-    socket.emit('join_room', { roomId });
+    const join = () => socket.emit('join_room', { roomId });
+    join();
+    socket.on('connect', join);
     const onReceive = (msg: ChatMessage) => {
-      if (String(msg.roomId) === String(roomId)) handlerRef.current(msg);
+      if (!msg?.roomId || String(msg.roomId) === String(roomId)) handlerRef.current(msg);
     };
     socket.on('receive_message', onReceive);
     return () => {
+      socket.off('connect', join);
       socket.off('receive_message', onReceive);
     };
   }, [socket, roomId]);

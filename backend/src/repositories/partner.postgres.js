@@ -492,6 +492,7 @@ function chain(loader, single) {
     lean() { state.lean = true; return query; },
     select() { return query; },
     then(resolve, reject) { return exec().then(resolve, reject); },
+    catch(reject) { return exec().catch(reject); },
   };
   return query;
 }

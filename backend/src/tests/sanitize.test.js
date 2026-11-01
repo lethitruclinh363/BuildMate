@@ -2,7 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { sanitizeValue } = require('../middleware/sanitizeMiddleware');
 
-describe('mongo sanitize', () => {
+describe('payload sanitize', () => {
   it('strips $ and dotted keys', () => {
     const input = {
       email: 'a@b.c',

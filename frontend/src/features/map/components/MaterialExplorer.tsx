@@ -22,7 +22,9 @@ import {
 } from '@/features/map/services/location.api';
 import { categoryDisplayLabel } from '@/data/material-categories';
 import { publicPriceVisible, saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
+import { guardNumberKeyDown, guardNumberPaste } from '@/lib/numeric-input';
 import { productImageUrl, vnd } from '@/lib/partner-api';
+import { usePartnerPaths } from '@/lib/partner-paths';
 import { useI18n } from '@/locales';
 import type { NearbyPlace, PublicMaterial } from '@/types/marketplace';
 import type { CatalogMaterial } from '@/types/partner';
@@ -34,6 +36,7 @@ interface MaterialExplorerProps {
 
 export function MaterialExplorer({ stores = [], initialStoreId }: MaterialExplorerProps) {
   const { t, locale } = useI18n();
+  const paths = usePartnerPaths();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL state initialization
@@ -444,6 +447,8 @@ export function MaterialExplorer({ stores = [], initialStoreId }: MaterialExplor
                   min="0"
                   step="10000"
                   value={minPriceInput}
+                  onKeyDown={(e) => guardNumberKeyDown(e, 0)}
+                  onPaste={(e) => guardNumberPaste(e, 0)}
                   onChange={(e) => setMinPriceInput(e.target.value)}
                   placeholder={t('materialSearch.minPrice')}
                   className="h-10 w-full rounded-xl border border-navy-800/15 bg-white px-3 text-sm text-navy-900 outline-none focus:border-navy-500"
@@ -454,6 +459,8 @@ export function MaterialExplorer({ stores = [], initialStoreId }: MaterialExplor
                   min="0"
                   step="10000"
                   value={maxPriceInput}
+                  onKeyDown={(e) => guardNumberKeyDown(e, 0)}
+                  onPaste={(e) => guardNumberPaste(e, 0)}
                   onChange={(e) => setMaxPriceInput(e.target.value)}
                   placeholder={t('materialSearch.maxPrice')}
                   className="h-10 w-full rounded-xl border border-navy-800/15 bg-white px-3 text-sm text-navy-900 outline-none focus:border-navy-500"
@@ -662,7 +669,7 @@ export function MaterialExplorer({ stores = [], initialStoreId }: MaterialExplor
 
                   <h3 className="mt-1 font-display text-base font-bold text-navy-800 transition hover:text-copper-600">
                     {storeTargetId ? (
-                      <Link to={`/stores/${storeTargetId}/materials/${m.id}`}>{m.name}</Link>
+                      <Link to={paths.material(storeTargetId, m.id)}>{m.name}</Link>
                     ) : (
                       m.name
                     )}
@@ -673,7 +680,7 @@ export function MaterialExplorer({ stores = [], initialStoreId }: MaterialExplor
                       <StoreIcon className="h-3.5 w-3.5 shrink-0 text-amber-600" />
                       {storeTargetId ? (
                         <Link
-                          to={`/stores/${storeTargetId}`}
+                          to={paths.store(storeTargetId)}
                           className="truncate hover:text-navy-800 hover:underline"
                         >
                           {storeName}
@@ -710,7 +717,7 @@ export function MaterialExplorer({ stores = [], initialStoreId }: MaterialExplor
                       />
                     ) : (
                       <Button asChild variant="outline" size="sm" className="w-full">
-                        <Link to={`/stores/${storeTargetId}/materials/${m.id}`}>
+                        <Link to={paths.material(String(storeTargetId || ''), m.id)}>
                           {t('materialSearch.viewDetails')}
                         </Link>
                       </Button>

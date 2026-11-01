@@ -1,9 +1,8 @@
-const { REQUEST_STATUS, REPAIR_CATEGORY } = require('../models/RepairRequest');
+const { REQUEST_STATUS } = require('../models/RepairRequest');
 const { RepairRequest, ChatRoom } = require('../repositories/conversationAccess');
 const { STORE_STATUS, STORE_TYPE } = require('../models/Store');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
 const { Store, ContractorProfile, loadUser, findUsersByIds } = require('../repositories/partnerAccess');
-const { env } = require('../config/env');
 const { ApiError } = require('../utils/ApiError');
 const { createRoomForRequest } = require('./chatService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
@@ -82,19 +81,6 @@ async function populateCard(request) {
 }
 
 async function createRequest(customerId, payload) {
-  let category = payload.category;
-  let serviceName = payload.serviceName || '';
-  let catalogServiceId = payload.catalogServiceId || '';
-  if (catalogServiceId) {
-    const query = /^[a-f0-9]{24}$/i.test(catalogServiceId) ? { _id: catalogServiceId } : { code: catalogServiceId };
-    const catalog = await CatalogService.findOne({ ...query, status: { $in: LIVE_CATALOG_STATUSES } });
-    if (!catalog) throw new ApiError(400, 'This service cannot be registered.');
-    category = catalog.category;
-    serviceName = catalog.name;
-    catalogServiceId = catalog.code || String(catalog._id);
-  } else if (!Object.values(REPAIR_CATEGORY).includes(category)) {
-    throw new ApiError(400, 'Select a valid service');
-  }
   const contractor = await loadUser(payload.contractorId);
   if (!contractor || contractor.role !== 'CONTRACTOR') {
     throw new ApiError(404, 'Contractor not found');
@@ -124,6 +110,22 @@ async function createRequest(customerId, payload) {
     status: STORE_STATUS.LIVE,
     storeType: STORE_TYPE.SERVICES,
   });
+
+  const serviceService = require('./serviceService');
+  const offering = await serviceService.assertContractorOffersCatalog(contractor._id, payload.catalogServiceId);
+  const publicOffering = typeof offering.toPublic === 'function' ? offering.toPublic() : offering;
+  let category = publicOffering.category || payload.category;
+  let serviceName = publicOffering.name || payload.serviceName || '';
+  let catalogServiceId = publicOffering.catalogKey || String(publicOffering.id || offering._id || '');
+  if (catalogServiceId) {
+    const query = /^[a-f0-9]{24}$/i.test(catalogServiceId) ? { _id: catalogServiceId } : { code: catalogServiceId };
+    const catalog = await CatalogService.findOne({ ...query, status: { $in: LIVE_CATALOG_STATUSES } });
+    if (catalog) {
+      category = catalog.category;
+      serviceName = catalog.name;
+      catalogServiceId = catalog.code || String(catalog._id);
+    }
+  }
 
   const site = requirePlace(
     { lat: payload.lat, lng: payload.lng, address: payload.address, label: payload.address },
@@ -164,14 +166,6 @@ async function createRequest(customerId, payload) {
       locationSource: locationCorrection.locationSourceOf(payload.locationSource),
       locationConfirmedAt: confirmedAt,
     });
-    if (env.databaseProvider !== 'postgres') {
-      await locationCorrection.record({
-        address: site.address,
-        lat: site.lat,
-        lng: site.lng,
-        refId: payload.providerRefId,
-      }).catch(() => null);
-    }
 
     const room = await createRoomForRequest(request);
     await notify({

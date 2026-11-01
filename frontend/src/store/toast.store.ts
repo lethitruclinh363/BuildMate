@@ -15,10 +15,15 @@ interface ToastState {
   dismiss: (id: string) => void;
 }
 
+const seenToastIds = new Set<string>();
+
 export const useToastStore = create<ToastState>((set) => ({
   items: [],
   push: (toast) => {
-    const id = toast.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const provided = toast.id;
+    if (provided && seenToastIds.has(provided)) return;
+    const id = provided || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    if (provided) seenToastIds.add(provided);
     set((state) => ({ items: [...state.items, { ...toast, id }].slice(-5) }));
     window.setTimeout(() => {
       set((state) => ({ items: state.items.filter((item) => item.id !== id) }));

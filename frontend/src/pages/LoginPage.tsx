@@ -55,7 +55,7 @@ export function LoginPage() {
       setSession(data.data);
       const next = params.get('next');
       const dest = next?.startsWith('/') && next !== '/' && next !== '/login' && data.data.user.role === 'CUSTOMER' ? next : home;
-      navigate(dest);
+      navigate(dest === '/' ? home : dest, { replace: true });
     } catch (err) {
       const ax = err as AxiosError<ApiResponse<null>>;
       setServerError(te(ax.response?.data?.message) || t('auth.loginFail'));

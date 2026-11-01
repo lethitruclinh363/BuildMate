@@ -26,13 +26,18 @@ export interface RepairRequest {
   customerId: string;
   contractorId: string;
   storeId: string | null;
-  category: RepairCategory;
+  category: RepairCategory | string;
+  serviceName?: string;
+  catalogServiceId?: string;
   title: string;
   description: string;
   images: string[];
   videos: string[];
   address: string;
   location: { type: 'Point'; coordinates: [number, number] };
+  place?: { lat: number; lng: number; address?: string; label?: string } | null;
+  locationConfirmed?: boolean;
+  locationSource?: string;
   status: RequestStatus;
   roomId?: string | null;
   customer?: { id: string; name: string; avatar: string; phone: string } | null;
@@ -57,6 +62,14 @@ export interface QuotationItem {
   catalogId?: string | null;
 }
 
+export interface QuotationMaterialLine {
+  name: string;
+  specification?: string;
+  unit?: string;
+  quantity: number;
+  notes?: string;
+}
+
 export interface Quotation {
   id: string;
   requestId: string;
@@ -64,6 +77,7 @@ export interface Quotation {
   contractorId: string;
   roomId: string | null;
   items: QuotationItem[];
+  materialList?: QuotationMaterialLine[];
   materialCost: number;
   laborCost: number;
   transportCost: number;
@@ -73,6 +87,12 @@ export interface Quotation {
   modificationNote: string;
   status: QuotationStatus;
   createdAt: string;
+}
+
+export interface QuotationAcceptBundle extends Quotation {
+  quotation?: Quotation;
+  order?: { id?: string; _id?: string; paymentStatus?: string; status?: string } | null;
+  payment?: { id?: string; status?: string } | null;
 }
 
 export interface ChatMessage {

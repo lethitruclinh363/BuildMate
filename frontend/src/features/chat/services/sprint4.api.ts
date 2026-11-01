@@ -1,6 +1,6 @@
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@/types/user';
-import type { AppNotification, ChatMessage, ChatRoom, Quotation, RepairRequest } from '@/types/sprint4';
+import type { AppNotification, ChatMessage, ChatRoom, Quotation, QuotationAcceptBundle, RepairRequest } from '@/types/sprint4';
 
 export const repairApi = {
   create: (form: FormData) =>
@@ -42,7 +42,7 @@ export const quotationApi = {
   get: (id: string) => api.get<ApiResponse<Quotation>>(`/quotations/${id}`),
   forRequest: (requestId: string) =>
     api.get<ApiResponse<Quotation[]>>(`/quotations/request/${requestId}`),
-  accept: (id: string) => api.patch<ApiResponse<Quotation>>(`/quotations/${id}/accept`),
+  accept: (id: string) => api.patch<ApiResponse<QuotationAcceptBundle>>(`/quotations/${id}/accept`),
   reject: (id: string) => api.patch<ApiResponse<Quotation>>(`/quotations/${id}/reject`),
   requestModify: (id: string, note: string) =>
     api.patch<ApiResponse<Quotation>>(`/quotations/${id}/request-modification`, { note }),

@@ -15,12 +15,10 @@ const { isBlockedPublicUpload } = require('./utils/public-uploads');
 const { canServeContractorPublicFile } = require('./utils/contractor-public-upload');
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
-const { mongoSanitize } = require('./middleware/sanitizeMiddleware');
+const { sanitizeInput } = require('./middleware/sanitizeMiddleware');
 const { apiLimiter, authLimiter, otpRequestLimiter } = require('./middleware/rateLimitMiddleware');
 const { requestTiming } = require('./middleware/requestTiming');
-// const { notFound, errorHandler } = require('./middleware/errorMiddleware');
-// const { mongoSanitize } = require('./middleware/sanitizeMiddleware');
-// const { apiLimiter, authLimiter, otpRequestLimiter } = require('./middleware/rateLimitMiddleware');
+// const { sanitizeInput } = require('./middleware/sanitizeMiddleware');
 
 function allowedOrigins() {
   return String(env.clientUrl || process.env.CLIENT_URL || '')
@@ -68,7 +66,7 @@ function createApp() {
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
-  app.use(mongoSanitize);
+  app.use(sanitizeInput);
 
   const apiRate = apiLimiter();
   const authRate = authLimiter();

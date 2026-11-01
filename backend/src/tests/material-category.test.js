@@ -8,7 +8,6 @@ const {
   categoriesFromLegacyAreas,
   CATEGORY_MESSAGES,
 } = require('../constants/material-categories');
-const { MaterialCategory } = require('../models/MaterialCategory');
 const { MATERIAL_CATEGORIES: exportedCategories } = require('../models/Material');
 
 describe('material category normalization', () => {
@@ -151,21 +150,5 @@ describe('material category source', () => {
     assert.equal(classifyMaterialCategory('XI MĂNG', [], [{ name: 'Gỗ sồi' }]).code, 'DUPLICATE_SYSTEM_CATEGORY');
     assert.equal(classifyMaterialCategory(' gỗ sồi ', [], [{ name: 'Gỗ sồi' }]).code, 'DUPLICATE_SYSTEM_CATEGORY');
     assert.equal(classifyMaterialCategory('Thiết bị vệ sinh', [], [{ name: 'Gỗ sồi' }]).code, 'AVAILABLE');
-  });
-
-  it('keeps store-created categories custom and allows admin system rows separately', () => {
-    assert.equal(MaterialCategory.modelName, 'MaterialCategory');
-    const type = MaterialCategory.schema.path('type');
-    assert.deepEqual(type.enumValues, ['CUSTOM', 'SYSTEM']);
-    assert.equal(type.defaultValue, 'CUSTOM');
-    const indexes = MaterialCategory.schema.indexes();
-    assert.equal(
-      indexes.some(([fields, options]) => fields.ownerId === 1 && fields.normalizedName === 1 && options.unique),
-      true
-    );
-    assert.equal(
-      indexes.some(([fields, options]) => fields.ownerId === 1 && fields.foldedName === 1 && options.unique),
-      true
-    );
   });
 });

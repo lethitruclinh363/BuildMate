@@ -193,6 +193,22 @@ const KNOWN_API_ERRORS: Record<string, { vi: string; en: string }> = {
     vi: 'Mật khẩu quá dài',
     en: 'Password is too long',
   },
+  'Pause this service instead. It already has repair jobs.': {
+    vi: 'Không thể xóa dịch vụ đã có yêu cầu sửa chữa. Hãy tạm tắt dịch vụ này.',
+    en: 'Pause this service instead. It already has repair jobs.',
+  },
+  'Complete this service before listing it': {
+    vi: 'Hãy hoàn thiện dịch vụ trước khi bật lại.',
+    en: 'Complete this service before listing it.',
+  },
+  'This partner does not offer that service': {
+    vi: 'Đội thợ không còn cung cấp dịch vụ này.',
+    en: 'This partner does not offer that service.',
+  },
+  'Service not found': {
+    vi: 'Không tìm thấy dịch vụ.',
+    en: 'Service not found.',
+  },
 };
 
 export function translateApiError(message: string | undefined, locale: Locale = currentLocale()): string {

@@ -236,6 +236,11 @@ const Notification = {
     await persistNote(doc);
     return doc;
   },
+  async findOne(filter = {}) {
+    const scoped = await notesFor(filter, { limit: 1 });
+    if (scoped) return scoped[0] || null;
+    return (await allNotes()).find((row) => matches(row, filter)) || null;
+  },
   async findOneAndUpdate(filter, update) {
     const scoped = await notesFor(filter, { limit: 1 });
     const doc = scoped ? scoped[0] : (await allNotes()).find((row) => matches(row, filter));

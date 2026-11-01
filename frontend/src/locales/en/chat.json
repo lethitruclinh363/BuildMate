@@ -23,5 +23,8 @@
   "directions": "Directions",
   "locationFallback": "Location",
   "gpsDenied": "Location is unavailable. You can enter an address or drop a pin on the map.",
-  "gpsUnavailable": "Current location is unavailable on this device."
+  "gpsUnavailable": "Current location is unavailable on this device.",
+  "quotePreview": "Sent a quotation",
+  "photoPreview": "Sent a photo",
+  "videoPreview": "Sent a video"
 }

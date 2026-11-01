@@ -9,6 +9,7 @@ import { chatApi, repairApi } from '@/features/chat/services/sprint4.api';
 import { locationApi } from '@/features/map/services/location.api';
 import { readExplore } from '@/features/map/lib/explore-memory';
 import { orderApi } from '@/features/orders/services/order.api';
+import { useOrderLiveStore } from '@/features/orders/store/order-live.store';
 import { orderStatusTone } from '@/features/orders/types/orderStatus';
 import { materialOrderApi } from '@/lib/material-order-api';
 import { useReturnState } from '@/lib/navigation';
@@ -24,6 +25,7 @@ export function CustomerDashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { t } = useI18n();
   const back = useReturnState();
+  const liveVersion = useOrderLiveStore((s) => s.version);
   const [requestCount, setRequestCount] = useState<number | null>(null);
   const [orderCount, setOrderCount] = useState<number | null>(null);
   const [nearbyCount, setNearbyCount] = useState<number | null>(null);
@@ -71,7 +73,7 @@ export function CustomerDashboardPage() {
       .nearbyContractors(Number.isFinite(lat) ? lat : CAN_THO.lat, Number.isFinite(lng) ? lng : CAN_THO.lng, 5)
       .then((res) => setNearbyCount((res.data.data || []).length))
       .catch(() => setNearbyCount(0));
-  }, []);
+  }, [liveVersion]);
 
   const stats = [
     { label: t('customerHome.nearby'), value: nearbyCount, icon: UserRound, to: '/customer/explore' },

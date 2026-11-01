@@ -127,7 +127,7 @@ describe('Flow 13 public uploads and admin ACL source', () => {
     assert.match(adminAuthRoutes, /allowRole\('ADMIN'\)/);
     assert.match(adminRoutes, /allowRole\('ADMIN'\)/);
     assert.match(adminRoutes, /router\.get\('\/orders'/);
-    assert.equal(/material-orders|materialOrders/.test(adminRoutes), false);
+    assert.match(adminRoutes, /router\.get\('\/material-orders'/);
   });
 
   it('does not bind dashboard GMV to finance.revenue or fabricate chart series', () => {

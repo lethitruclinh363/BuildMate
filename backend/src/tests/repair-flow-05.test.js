@@ -138,6 +138,23 @@ describe('Flow 05 create validation and replay', () => {
     assert.equal(isReplayOf(stale, payload), false);
   });
 
+  it('loads the assigned contractor offerings instead of the admin catalog', () => {
+    const src = readFe('pages/customer/CreateRepairRequestPage.tsx');
+    assert.match(src, /locationApi/);
+    assert.match(src, /\.contractor\(contractorId\)/);
+    assert.match(src, /services/);
+    assert.doesNotMatch(src, /get<ApiResponse<CatalogChoice\[\]>>\('\/service-catalog'/);
+    assert.match(src, /request\.noContractorServices/);
+    assert.match(src, /request\.onlyContractorServices/);
+    assert.match(src, /request\.contractorServices/);
+    assert.match(src, /type="button"/);
+    const service = readBe('services/repairService.js');
+    const offerings = readBe('services/serviceService.js');
+    assert.match(service, /assertContractorOffersCatalog/);
+    assert.match(offerings, /does not offer that service/);
+    assert.match(offerings, /Select a valid service/);
+  });
+
   it('keeps frontend submit locking and VietMap site confirmation', () => {
     const src = readFe('pages/customer/CreateRepairRequestPage.tsx');
     assert.match(src, /isSubmitting/);
@@ -146,6 +163,10 @@ describe('Flow 05 create validation and replay', () => {
     assert.match(src, /LocationPicker/);
     assert.match(src, /form\.append\('images'/);
     assert.match(src, /form\.append\('videos'/);
+    assert.match(src, /request\.mediaRequired/);
+    assert.match(src, /images\.length === 0/);
+    assert.match(src, /removeImage/);
+    assert.match(src, /disabled=\{isSubmitting \|\| images\.length === 0 \|\| catalog\.length === 0\}/);
     const history = readFe('pages/customer/RequestHistoryPage.tsx');
     assert.match(history, /repairApi\.cancel/);
     assert.match(history, /request\.cancelCta|t\('request\.cancelCta'\)/);
@@ -154,6 +175,18 @@ describe('Flow 05 create validation and replay', () => {
     const contractor = readFe('pages/contractor/ContractorRequestsPage.tsx');
     assert.match(contractor, /item\.status === 'PENDING'/);
     assert.doesNotMatch(contractor, /repairApi\.cancel/);
+  });
+
+  it('blocks repair create on the backend unless a sniffed site photo exists', () => {
+    const controller = readBe('controllers/repairController.js');
+    const upload = readBe('utils/upload.js');
+    const middleware = readBe('middleware/uploadMiddleware.js');
+    assert.match(controller, /requireRepairSiteImages/);
+    assert.match(controller, /sweepUploadedFiles|unlinkSync/);
+    assert.match(upload, /function sniffImage/);
+    assert.match(upload, /function requireRepairSiteImages/);
+    assert.match(upload, /at least one site photo/);
+    assert.match(middleware, /isRepairMedia/);
   });
 
   it('rejects unauthenticated repair and quotation calls when the API is up', async (t) => {

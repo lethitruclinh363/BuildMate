@@ -21,7 +21,6 @@ const suggestionService = require('../../src/services/serviceSuggestionService')
 const marketplaceService = require('../../src/services/marketplaceService');
 const activationService = require('../../src/services/activation.service');
 const { Service } = require('../../src/repositories/offeringAccess');
-const { ApiError } = require('../../src/utils/ApiError');
 
 const stamp = String(Date.now()).slice(-8);
 const password = 'AuthPg1a';
@@ -172,26 +171,27 @@ async function main() {
     unit: 'JOB',
     isActive: true,
   });
-  let deleteRefused = false;
-  try {
-    await serviceService.deleteService(store.id, priced.id);
-  } catch (error) {
-    deleteRefused = error instanceof ApiError && error.statusCode === 400;
-  }
-  const removed = await serviceService.deleteService(store.id, legacy._id);
-  const deactivated = await serviceService.updateService(store.id, priced.id, { basePrice: 250000, image: '' });
-  await prisma.services.update({ where: { legacy_mongo_id: priced.id }, data: { is_active: false } });
+  const catalogBefore = await prisma.catalog_services.count();
+  const paused = await serviceService.setAvailability(store.id, priced.id, false);
   const hidden = await serviceService.listServices(store.id, contractor._id);
   const hiddenRow = hidden.find((item) => item.id === priced.id);
-  await serviceService.updateService(store.id, priced.id, {
+  const keptAfterEdit = await serviceService.updateService(store.id, priced.id, {
     basePrice: 250000,
     image: '/uploads/wiring-cover.jpg',
     images: ['/uploads/wiring-cover.jpg'],
   });
+  const resumed = await serviceService.setAvailability(store.id, priced.id, true);
+  const removed = await serviceService.deleteService(store.id, contractor._id, legacy._id);
+  const catalogAfter = await prisma.catalog_services.count();
   record(
-    'service delete and deactivate',
-    deleteRefused && removed.deleted === true && deactivated.isActive === true && hiddenRow?.isActive === false,
-    `refused catalog delete ${deleteRefused}`
+    'service pause resume and unused delete',
+    paused.isActive === false
+      && hiddenRow?.isActive === false
+      && keptAfterEdit.isActive === false
+      && resumed.isActive === true
+      && removed.deleted === true
+      && catalogAfter === catalogBefore,
+    `paused ${paused.isActive}, catalog ${catalogBefore}->${catalogAfter}`
   );
 
   await storeService.updateStore(contractor._id, {

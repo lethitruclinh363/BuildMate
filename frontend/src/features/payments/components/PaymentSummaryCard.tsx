@@ -20,7 +20,9 @@ export function PaymentSummaryCard({
     <Card hover={false}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          <p className="text-xs text-ink-400">{t('pay.order')}</p>
           <p className="font-mono text-xs text-copper-600">{orderCode}</p>
+          <p className="mt-3 text-xs text-ink-400">{t('pay.job')}</p>
           <h2 className="mt-1 font-display text-2xl text-navy-800">{title}</h2>
           {contractor ? <p className="mt-1 text-sm text-ink-500">{t('pay.contractor')}: {contractor}</p> : null}
         </div>
@@ -50,6 +52,12 @@ export function PaymentSummaryCard({
         <div>
           <dt className="text-xs text-ink-400">{t('pay.escrowHeld')}</dt>
           <dd className="font-semibold text-navy-800">{summary.escrowStatus || '—'}</dd>
+        </div>
+        <div className="rounded-2xl bg-copper-50 px-4 py-3 sm:col-span-3">
+          <dt className="text-xs text-ink-500">{t('pay.dueNow')}</dt>
+          <dd className="font-display text-2xl text-navy-800">
+            {vnd(summary.status === 'PAID' || summary.status === 'REFUNDED' ? 0 : Number(summary.depositAmount ?? summary.due ?? 0))}
+          </dd>
         </div>
       </dl>
       <p className="mt-4 text-xs text-ink-400">{t('pay.mockNote')}</p>

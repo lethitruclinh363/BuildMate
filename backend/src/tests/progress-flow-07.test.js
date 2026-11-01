@@ -44,10 +44,11 @@ describe('Flow 07 repair job statuses', () => {
     ]);
   });
 
-  it('creates a job only from an accepted quotation and starts it at QUOTATION_ACCEPTED', () => {
+  it('creates a job from an accepted quotation only after deposit capture', () => {
     const src = readBe('services/orderService.js');
     assert.match(src, /createFromQuotation/);
-    assert.match(src, /status: ORDER_STATUS\.QUOTATION_ACCEPTED/);
+    assert.match(src, /createDepositIntent/);
+    assert.match(src, /afterDeposit \? ORDER_STATUS\.DEPOSIT_PAID/);
     assert.match(src, /quotationId: quotation\._id/);
     assert.match(src, /duplicated: true/);
     assert.equal(
@@ -85,6 +86,8 @@ describe('Flow 07 progress guards', () => {
     assert.match(progress, /Invalid progress transition/);
     assert.match(progress, /Deposit must be paid before work can start/);
     assert.match(progress, /withProgressLock/);
+    assert.match(progress, /A progress update is already in progress/);
+    assert.doesNotMatch(progress, /if \(pending\) return pending/);
     assert.match(progress, /You cannot update progress on this order/);
     assert.match(progress, /Order is closed/);
     assert.match(orders, /Only the customer can complete this order/);
@@ -117,10 +120,15 @@ describe('Flow 07 frontend job surfaces', () => {
     assert.match(form, /accept="image\/jpeg,image\/png,image\/webp,image\/gif"/);
     assert.doesNotMatch(form, /video/);
     const status = readFe('features/orders/types/orderStatus.ts');
-    assert.match(status, /case 'DEPOSIT_PAID':\s*return \['STARTED'\]/);
-    assert.match(status, /case 'STARTED':\s*return \['STARTED', 'IN_PROGRESS'\]/);
-    assert.match(status, /case 'IN_PROGRESS':\s*return \['IN_PROGRESS', 'COMPLETED'\]/);
+    assert.match(status, /case 'DEPOSIT_PAID':\s*return \[]/);
+    assert.match(status, /case 'STARTED':\s*return \['IN_PROGRESS'\]/);
+    assert.match(status, /case 'IN_PROGRESS':\s*return \['COMPLETED'\]/);
     assert.match(status, /canCancelOrder[\s\S]*QUOTATION_ACCEPTED[\s\S]*DEPOSIT_PAID/);
+    assert.match(status, /const finished = status === 'CUSTOMER_ACCEPTED'/);
+    assert.match(status, /current > step.threshold \|\| \(finished && current >= step.threshold\)/);
+    assert.match(form, /ConfirmModal/);
+    assert.match(contractor, /orders\.progress\.confirmStart/);
+    assert.match(contractor, /setStartOpen\(true\)/);
   });
 });
 

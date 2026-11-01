@@ -8,6 +8,7 @@ import { catalogCategoryLabel } from '@/data/contractor-services';
 import { formatDistance } from '@/features/map/lib/distance';
 import { fromGeoPoint, openGoogleMapsDirections, type LatLng } from '@/features/map/lib/location';
 import { exploreTrustText } from '@/features/map/lib/trustLine';
+import { usePartnerPaths } from '@/lib/partner-paths';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { NearbyPlace } from '@/types/marketplace';
@@ -32,12 +33,13 @@ export function ContractorResultCard({
 }) {
   const { t } = useI18n();
   const back = useReturnState();
+  const paths = usePartnerPaths();
   const pushToast = useToastStore((state) => state.push);
   const point = fromGeoPoint(place.location);
   const photo = place.avatar || place.logo || '';
   const intro = meaningfulIntro(place.description);
   const trades = [...new Set(place.services.map((service) => catalogCategoryLabel(service.category, t)))].slice(0, 2);
-  const profilePath = `/contractors/${place.contractorId}`;
+  const profilePath = paths.contractor(place.contractorId);
   const name = place.businessName || place.storeName;
 
   return (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/cn';
 import { BadgeCheck, Clock, Mail, MapPin, Phone, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +14,7 @@ import { publicPriceVisible, saleLabelKey, saleState, saleTone } from '@/lib/mat
 import { productImageUrl, vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { ChatStoreButton } from '@/features/chat/components/ChatStoreButton';
+import { storeMaterialPath } from '@/lib/partner-paths';
 import { useAuthStore } from '@/store/auth.store';
 import type { CatalogMaterial } from '@/types/partner';
 import type { MaterialCategoryPick } from '@/data/material-categories';
@@ -37,7 +39,9 @@ export function StoreProfileShowcase({
   preview?: boolean;
 }) {
   const { t } = useI18n();
+  const { pathname } = useLocation();
   const user = useAuthStore((state) => state.user);
+  const embedded = pathname.startsWith('/customer/');
   const owner = !preview && user && String(user.id) === String(profile.contractorId);
   const [viewer, setViewer] = useState<{ slides: ViewerSlide[]; index: number } | null>(null);
   const [activeCategory, setActiveCategory] = useState('');
@@ -63,7 +67,7 @@ export function StoreProfileShowcase({
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 md:px-8 md:py-10">
+    <div className={cn('mx-auto max-w-6xl space-y-8', embedded ? '' : 'px-4 py-6 md:px-8 md:py-10')}>
       <section className="overflow-hidden rounded-[28px] border border-navy-800/8 bg-white shadow-card">
         <MediaFrame
           src={profile.coverImage}
@@ -241,7 +245,7 @@ export function StoreProfileShowcase({
                   {preview ? (
                     <p className="mt-1 font-display text-lg text-navy-800">{item.name}</p>
                   ) : (
-                    <Link to={`/stores/${profile.id}/materials/${item.id}`} className="mt-1 block font-display text-lg text-navy-800">{item.name}</Link>
+                    <Link to={storeMaterialPath(String(profile.id), item.id, user?.role)} className="mt-1 block font-display text-lg text-navy-800">{item.name}</Link>
                   )}
                   {preview || publicPriceVisible(item) ? (
                     <p className="mt-2 font-display text-xl text-navy-800">{vnd(item.price)} <span className="text-sm font-sans font-normal text-ink-400">/ {item.unit}</span></p>

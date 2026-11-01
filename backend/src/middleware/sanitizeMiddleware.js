@@ -26,11 +26,11 @@ function replaceContents(target, next) {
   Object.assign(target, next);
 }
 
-function mongoSanitize(req, _res, next) {
+function sanitizeInput(req, _res, next) {
   if (req.body) req.body = sanitizeValue(req.body);
   if (req.params) replaceContents(req.params, sanitizeValue(req.params));
   if (req.query) replaceContents(req.query, sanitizeValue(req.query));
   next();
 }
 
-module.exports = { mongoSanitize, sanitizeValue };
+module.exports = { sanitizeInput, mongoSanitize: sanitizeInput, sanitizeValue };

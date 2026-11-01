@@ -18,7 +18,7 @@ const createMaterialOrderSchema = z
         z
           .object({
             materialId: objectId,
-            quantity: z.number().int().min(1).max(10000),
+            quantity: z.number().finite().int().min(1).max(10000),
           })
           .strict()
       )

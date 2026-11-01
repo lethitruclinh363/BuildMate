@@ -8,6 +8,7 @@ import { catalogCategoryLabel } from '@/data/contractor-services';
 import { categoryDisplayLabel } from '@/data/material-categories';
 import { trustLineKind } from '@/features/reviews/components/reputationDisplay';
 import { chatApi } from '@/features/chat/services/sprint4.api';
+import { usePartnerPaths } from '@/lib/partner-paths';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
@@ -38,21 +39,24 @@ export function ExplorePopup({
   place,
   kind,
   onClose,
+  mrlId,
 }: {
   place: NearbyPlace;
   kind: 'contractor' | 'store';
   onClose: () => void;
+  mrlId?: string;
 }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const back = useReturnState();
   const role = useAuthStore((state) => state.user?.role);
+  const paths = usePartnerPaths();
   const point = placePoint(place);
   const name = place.businessName || place.storeName;
   const distance = formatDistance(place.distanceMeters ?? place.distance * 1000);
   const categories = [...new Set(place.services.map((service) => catalogCategoryLabel(service.category, t)))].slice(0, 4);
   const materials = kind === 'store' ? materialLine(place, t) : '';
-  const profilePath = kind === 'contractor' ? `/contractors/${place.contractorId}` : `/stores/${place.id}`;
+  const profilePath = kind === 'contractor' ? paths.contractor(place.contractorId) : paths.store(place.id);
   const trustKind = trustLineKind(place.reviewCount, place.reputationScore);
   const ratingLabel =
     place.reviewCount > 0 ? `${place.rating.toFixed(1)} (${place.reviewCount})` : t('explore.noRating');
@@ -62,7 +66,7 @@ export function ExplorePopup({
       : t('explore.trustPending');
 
   async function openChat() {
-    const fallback = kind === 'contractor' ? repairCreatePath(place.contractorId) : `/stores/${place.id}`;
+    const fallback = kind === 'contractor' ? repairCreatePath(place.contractorId) : paths.store(place.id);
     if (role !== 'CUSTOMER') {
       navigate(withAuthRedirect(fallback, role));
       return;
@@ -70,7 +74,8 @@ export function ExplorePopup({
     if (kind === 'store') {
       try {
         const opened = await chatApi.openStoreRoom(place.id);
-        navigate(`/customer/chat/${opened.data.data.id}`);
+        const chatPath = `/customer/chat/${opened.data.data.id}${mrlId ? `?mrl=${encodeURIComponent(mrlId)}` : ''}`;
+        navigate(chatPath);
       } catch {
         navigate(withAuthRedirect(fallback, role));
       }
@@ -104,6 +109,7 @@ export function ExplorePopup({
           </button>
         </div>
         <h3 className="mt-1 font-display text-[17px] leading-snug text-navy-800 sm:text-lg">{name}</h3>
+        {place.address ? <p className="mt-1 text-sm leading-6 text-ink-500">{place.address}</p> : null}
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <p className="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold text-navy-800">
@@ -140,8 +146,8 @@ export function ExplorePopup({
         <Button asChild size="sm" className="h-10 min-h-10 px-2">
           <Link to={profilePath} state={back}>{kind === 'contractor' ? t('explore.viewProfile') : t('explore.viewStore')}</Link>
         </Button>
-        <Button type="button" size="sm" variant="outline" className="h-10 min-h-10 px-2" onClick={() => void openChat()}>
-          {t('explore.chat')}
+        <Button type="button" size="sm" variant={mrlId && kind === 'store' ? 'copper' : 'outline'} className="h-10 min-h-10 px-2" onClick={() => void openChat()}>
+          {mrlId && kind === 'store' ? t('explore.contactStore') : t('explore.chat')}
         </Button>
         {point ? (
           <Button type="button" size="sm" variant="copper" className="h-10 min-h-10 px-2" onClick={() => openGoogleMapsDirections(point.lat, point.lng)}>

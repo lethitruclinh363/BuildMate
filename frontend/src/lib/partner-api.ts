@@ -108,6 +108,9 @@ export const contractorApi = {
     api.post<ApiResponse<CatalogService>>('/contractor/services/register', { catalogKey }),
   saveService: (body: { basePrice: number; unit: CatalogService['unit']; estimatedHours?: number; description?: string; image?: string }, id: string) =>
     api.patch<ApiResponse<CatalogService>>(`/contractor/services/${id}`, body),
+  setServiceAvailability: (id: string, isActive: boolean) =>
+    api.patch<ApiResponse<CatalogService>>(`/contractor/services/${id}/availability`, { isActive }),
+  deleteService: (id: string) => api.delete<ApiResponse<{ deleted: boolean; id: string }>>(`/contractor/services/${id}`),
   listServiceCatalog: () =>
     api.get<ApiResponse<ContractorServicePick[]>>('/contractor/service-catalog', { silent: true }),
   checkServiceCatalog: (name: string) =>

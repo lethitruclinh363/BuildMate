@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useSocket } from '@/providers/SocketProvider';
 import { useI18n } from '@/locales';
+import { useAuthStore } from '@/store/auth.store';
 import { useToastStore } from '@/store/toast.store';
 import { useOrderLiveStore } from '../store/order-live.store';
 import type { Order } from '../types/order.types';
@@ -17,6 +18,7 @@ const EVENTS = [
 export function OrderRealtimeListener() {
   const { socket } = useSocket();
   const { t } = useI18n();
+  const user = useAuthStore((s) => s.user);
   const push = useToastStore((s) => s.push);
   const bump = useOrderLiveStore((s) => s.bump);
 
@@ -24,10 +26,13 @@ export function OrderRealtimeListener() {
     if (!socket) return;
 
     const handlers = EVENTS.map((event) => {
-      const handler = (_payload: { order?: Order }) => {
+      const handler = (payload: { order?: Order; actorId?: string; progress?: { id?: string } }) => {
         bump(event);
+        if (payload?.actorId && user?.id && String(payload.actorId) === String(user.id)) return;
+        const entityId = payload?.order?.id || payload?.progress?.id || '';
         const title = t(`orders.toast.${event}`);
         push({
+          id: `${event}:${entityId}`,
           kind: event === 'order_completed' || event === 'contractor_completed_job' ? 'success' : 'info',
           title,
         });
@@ -39,7 +44,7 @@ export function OrderRealtimeListener() {
     return () => {
       handlers.forEach(({ event, handler }) => socket.off(event, handler));
     };
-  }, [socket, bump, push, t]);
+  }, [socket, bump, push, t, user?.id]);
 
   return null;
 }

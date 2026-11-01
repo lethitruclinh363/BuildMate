@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { HardHat, List, Map, MapPin, Navigation, Search, Store } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -26,10 +27,23 @@ import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
+import { materialRequirementApi } from '@/lib/material-requirement-api';
 import { SEARCH_CHIPS, type NearbyPlace, type PublicService } from '@/types/marketplace';
+
+function uniqueById(places: NearbyPlace[]) {
+  const seen = new Set<string>();
+  return places.filter((place) => {
+    const id = String(place.id || '');
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
 
 export function ExplorePage() {
   const { t, te } = useI18n();
+  const [search] = useSearchParams();
+  const mrlId = search.get('mrl') || '';
   const saved = useMemo(() => readExplore(), []);
   const { origin, setOrigin, locate, status, reverseFailed } = useCurrentLocation(saved?.origin);
   const [filters, setFilters] = useState<MarketplaceFilters>(
@@ -52,6 +66,8 @@ export function ExplorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pinFailed, setPinFailed] = useState(false);
+  const [eligibleIds, setEligibleIds] = useState<Set<string>>(new Set());
+  const [mrlTitle, setMrlTitle] = useState('');
   const pinTimer = useRef<number>(0);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -94,8 +110,8 @@ export function ExplorePage() {
     ])
       .then(([crews, yards]) => {
         if (cancelled) return;
-        setContractors(crews.data.data || []);
-        setStores(yards.data.data || []);
+        setContractors(uniqueById(crews.data.data || []));
+        setStores(uniqueById(yards.data.data || []));
         setError(null);
       })
       .catch((err) => {
@@ -121,8 +137,8 @@ export function ExplorePage() {
       locationApi.nearbyStores(origin.lat, origin.lng, filters.radius, extra),
     ])
       .then(([crews, yards]) => {
-        setContractors(crews.data.data || []);
-        setStores(yards.data.data || []);
+        setContractors(uniqueById(crews.data.data || []));
+        setStores(uniqueById(yards.data.data || []));
         setError(null);
       })
       .catch((err) => setError(te(getApiErrorMessage(err))))
@@ -159,6 +175,49 @@ export function ExplorePage() {
     rememberExplore({ origin, filters, mapCenter });
   }, [origin, filters, mapCenter]);
 
+  const mrlOriginApplied = useRef(false);
+  useEffect(() => {
+    if (!mrlId) {
+      mrlOriginApplied.current = false;
+      return;
+    }
+    setListTab('store');
+    setFilters((current) => (current.storeType === 'MATERIALS' ? current : { ...current, storeType: 'MATERIALS' }));
+    if (mrlOriginApplied.current) return;
+    let ignore = false;
+    materialRequirementApi
+      .get(mrlId)
+      .then((res) => {
+        if (ignore) return;
+        const list = res.data.data;
+        setMrlTitle(list.title || list.requestTitle || list.requestCode || '');
+        const lat = Number(list.siteLat);
+        const lng = Number(list.siteLng);
+        if (!hasCoordinates(lat, lng)) return;
+        mrlOriginApplied.current = true;
+        setOrigin({
+          lat,
+          lng,
+          label: list.siteAddress || undefined,
+          address: list.siteAddress || undefined,
+          source: 'MAP_PIN',
+        });
+      })
+      .catch(() => null);
+    materialRequirementApi
+      .eligibleStores(mrlId)
+      .then((res) => {
+        if (ignore) return;
+        setEligibleIds(new Set((res.data.data || []).map((row) => String(row.storeId))));
+      })
+      .catch(() => {
+        if (!ignore) setEligibleIds(new Set());
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [mrlId, setOrigin]);
+
   useEffect(() => () => window.clearTimeout(pinTimer.current), []);
 
   function pinFromMap(lat: number, lng: number) {
@@ -176,14 +235,18 @@ export function ExplorePage() {
     }, 400);
   }
 
+  const rankedStores = useMemo(() => {
+    if (!eligibleIds.size) return stores;
+    return [...stores].sort((a, b) => Number(eligibleIds.has(String(b.id))) - Number(eligibleIds.has(String(a.id))));
+  }, [stores, eligibleIds]);
   const selected = pick
-    ? (pick.kind === 'store' ? stores : contractors).find((place) => place.id === pick.id) || null
+    ? (pick.kind === 'store' ? rankedStores : contractors).find((place) => place.id === pick.id) || null
     : null;
   const focus = selected
     ? { lat: Number(selected.location.coordinates[1]), lng: Number(selected.location.coordinates[0]) }
     : null;
-  const mapContractors = listTab === 'store' ? [] : contractors;
-  const mapStores = listTab === 'contractor' ? [] : stores;
+  const mapContractors = listTab === 'store' || mrlId ? [] : contractors;
+  const mapStores = listTab === 'contractor' ? [] : rankedStores;
 
   const legend = useMemo(
     () => [
@@ -208,8 +271,8 @@ export function ExplorePage() {
       <ErrorState body={error} onRetry={reloadNearby} />
     ) : (
       <ExploreResultsPane
-        contractors={contractors}
-        stores={stores}
+        contractors={mrlId ? [] : contractors}
+        stores={rankedStores}
         pick={pick}
         onChoose={choose}
         radiusKm={filters.radius}
@@ -231,8 +294,11 @@ export function ExplorePage() {
           compact
           className="mb-1.5 shrink-0"
           title={t('explore.title')}
-          description={t('explore.description')}
+          description={mrlId ? t('mrl.exploreBanner') : t('explore.description')}
         />
+        {mrlId && mrlTitle ? (
+          <p className="mb-1.5 shrink-0 rounded-2xl bg-white px-4 py-2 text-sm text-navy-800 shadow-card">{mrlTitle}</p>
+        ) : null}
 
         <div className="mb-1.5 flex min-w-0 shrink-0 flex-col gap-2 lg:flex-row lg:items-center">
           <div className="min-w-0 flex-1">
@@ -320,7 +386,7 @@ export function ExplorePage() {
               className="h-full w-full"
               overlay={
                 selected && pick ? (
-                  <ExplorePopup place={selected} kind={pick.kind} onClose={() => setPick(null)} />
+                  <ExplorePopup place={selected} kind={pick.kind} onClose={() => setPick(null)} mrlId={mrlId || undefined} />
                 ) : null
               }
             />
@@ -334,7 +400,8 @@ export function ExplorePage() {
         </div>
       </div>
 
-      {/* Popular Services Section */}
+      {mrlId ? null : (
+      <>
       <section className="mt-8 px-4 md:px-6">
         <h2 className="font-display text-[1.75rem] text-navy-800">{t('explore.popular')}</h2>
         {services.length === 0 ? (
@@ -360,10 +427,11 @@ export function ExplorePage() {
         )}
       </section>
 
-      {/* Customer Building Materials Explorer Section */}
       <div className="px-4 pb-8 md:px-6">
         <MaterialExplorer stores={stores} />
       </div>
+      </>
+      )}
     </PageTransition>
   );
 }

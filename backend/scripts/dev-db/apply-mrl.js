@@ -14,7 +14,11 @@ function requireDevUrl() {
 
 async function main() {
   const url = requireDevUrl();
-  const sql = fs.readFileSync(path.join(__dirname, '18-material-requirement.sql'), 'utf8');
+  const sql = [
+    fs.readFileSync(path.join(__dirname, '18-material-requirement.sql'), 'utf8'),
+    fs.readFileSync(path.join(__dirname, '21-mrl-fulfillment.sql'), 'utf8'),
+    fs.readFileSync(path.join(__dirname, '23-mrl-customer-save.sql'), 'utf8'),
+  ].join('\n');
   const client = new Client({ connectionString: url });
   await client.connect();
   try {

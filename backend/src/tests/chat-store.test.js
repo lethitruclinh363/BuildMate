@@ -75,6 +75,8 @@ describe('Customer–Material Store chat source wiring', () => {
     assert.match(storeNav, /\/store\/chat/);
     assert.match(showcase, /ChatStoreButton/);
     assert.match(explore, /openStoreRoom|kind === 'store'/);
+    assert.match(explore, /\?mrl=/);
+    assert.match(readFe('pages/chat/ChatPage.tsx'), /MaterialChatCard/);
     assert.match(readFe('lib/material-requirement-api.ts'), /material-requirements/);
   });
 

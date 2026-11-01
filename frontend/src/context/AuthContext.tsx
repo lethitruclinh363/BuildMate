@@ -84,9 +84,9 @@ export function homeForUser(user: { role?: string | null; profileStatus?: string
   return partnerGatePath(user) || dashboardPathFor(user.role);
 }
 
-/** Trang mở đầu theo vai trò. Khách hàng và khách vãng lai ở trang chủ; đối tác vào dashboard hoặc bước hồ sơ. */
+/** Workspace home after login or session restore. Never the public landing page. */
 export function getDefaultRouteByRole(user: { role?: string | null; profileStatus?: string | null } | null | undefined) {
-  if (!user?.role) return '/';
+  if (!user?.role) return '/login';
   return homeForUser(user);
 }
 

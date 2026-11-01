@@ -45,12 +45,12 @@ const CANCELLABLE_ORDER_STATUSES = [
   ORDER_STATUS.DEPOSIT_PAID,
 ];
 
-/** Allowed progress writes for the current order status. Same status = site journal. */
+/** One-way progress writes: only the next stage, never a repeat or a step back. */
 const PROGRESS_TRANSITIONS = Object.freeze({
   [ORDER_STATUS.QUOTATION_ACCEPTED]: Object.freeze([]),
   [ORDER_STATUS.DEPOSIT_PAID]: Object.freeze([PROGRESS_STATUS.STARTED]),
-  [ORDER_STATUS.STARTED]: Object.freeze([PROGRESS_STATUS.STARTED, PROGRESS_STATUS.IN_PROGRESS]),
-  [ORDER_STATUS.IN_PROGRESS]: Object.freeze([PROGRESS_STATUS.IN_PROGRESS, PROGRESS_STATUS.COMPLETED]),
+  [ORDER_STATUS.STARTED]: Object.freeze([PROGRESS_STATUS.IN_PROGRESS]),
+  [ORDER_STATUS.IN_PROGRESS]: Object.freeze([PROGRESS_STATUS.COMPLETED]),
 });
 
 function generateOrderCode() {
@@ -91,7 +91,11 @@ function orderStatusAfterProgress(currentStatus, progressStatus) {
 
 function isValidProgressTransition(currentStatus, nextStatus) {
   const allowed = PROGRESS_TRANSITIONS[currentStatus];
-  return Boolean(allowed && allowed.includes(nextStatus));
+  if (!allowed || !allowed.includes(nextStatus)) return false;
+  const currentRank = STATUS_RANK[currentStatus] || 0;
+  const nextRank = STATUS_RANK[nextStatus] || 0;
+  if (nextRank && currentRank && nextRank <= currentRank) return false;
+  return true;
 }
 
 function orderStatusAfterDeposit(currentStatus) {

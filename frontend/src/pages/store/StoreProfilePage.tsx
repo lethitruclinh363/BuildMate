@@ -134,7 +134,7 @@ export function StoreProfilePage() {
             <Input id="address" label={t('verify.address')} error={form.formState.errors.address?.message} {...form.register('address')} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Input id="city" label={t('verify.city')} {...form.register('city')} />
-              <Input id="serviceRadiusKm" label={t('storePage.radius')} type="number" {...form.register('serviceRadiusKm')} />
+              <Input id="serviceRadiusKm" label={t('storePage.radius')} type="number" min={1} max={50} step="0.1" {...form.register('serviceRadiusKm')} />
             </div>
             <Select id="status" label={t('storePage.listingStatus')} {...form.register('status')}>
               <option value="LIVE">{t('status.LIVE')}</option>

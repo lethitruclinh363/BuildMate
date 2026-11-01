@@ -14,7 +14,6 @@ const url = requireIsolatedTestDatabase();
 process.env.TEST_DATABASE_URL = url;
 process.env.DATABASE_URL = url;
 process.env.BUILDMATE_TEST_DATABASE = 'isolated';
-process.env.DATABASE_PROVIDER = 'postgres';
 process.env.NODE_ENV = 'test';
 process.env.EMAIL_HOST = '';
 process.env.EMAIL_USER = '';

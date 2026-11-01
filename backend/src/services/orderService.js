@@ -12,20 +12,29 @@ const { PAYMENT_TYPE } = require('../models/Payment');
 const escrowService = require('./escrowService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
-const { emitToUser, emitToRoom } = require('./socketService');
+const { emitToUser } = require('./socketService');
 
-function emitOrder(event, order, extra = {}) {
-  const payload = { order: order.toPublic(), ...extra };
-  emitToUser(order.customerId, event, payload);
-  emitToUser(order.contractorId, event, payload);
+function isActor(userId, actorId) {
+  return actorId != null && userId != null && String(userId) === String(actorId);
 }
 
-function emitCreated(order, room) {
-  emitOrder('order_created', order);
-  if (room) emitToRoom(room._id, 'order_created', { order: order.toPublic() });
+function emitOrder(event, order, extra = {}) {
+  const { actorId, ...rest } = extra;
+  const payload = {
+    order: order.toPublic(),
+    actorId: actorId != null ? String(actorId) : undefined,
+    ...rest,
+  };
+  if (!isActor(order.customerId, actorId)) emitToUser(order.customerId, event, payload);
+  if (!isActor(order.contractorId, actorId)) emitToUser(order.contractorId, event, payload);
+}
+
+function emitCreated(order, _room, actorId) {
+  emitOrder('order_created', order, { actorId });
 }
 
 const completeLocks = new Map();
+const depositLocks = new Map();
 
 async function withCompleteLock(orderId, work) {
   const key = String(orderId);
@@ -40,10 +49,111 @@ async function withCompleteLock(orderId, work) {
   return next;
 }
 
-async function createFromQuotation(quotation, request, actorId, outerTx) {
+async function withDepositLock(quotationId, work) {
+  const key = `deposit:${quotationId}`;
+  const pending = depositLocks.get(key);
+  if (pending) return pending;
+  const next = Promise.resolve()
+    .then(work)
+    .finally(() => {
+      depositLocks.delete(key);
+    });
+  depositLocks.set(key, next);
+  return next;
+}
+
+async function findDepositPayment(quotationId, orderId) {
+  if (quotationId) {
+    const byQuote = await Payment.findOne({ quotationId, type: PAYMENT_TYPE.DEPOSIT });
+    if (byQuote) return byQuote;
+  }
+  if (orderId) {
+    return Payment.findOne({ orderId, type: PAYMENT_TYPE.DEPOSIT });
+  }
+  return null;
+}
+
+async function createDepositIntent(quotation, actorId, outerTx) {
+  return withDepositLock(quotation._id, async () => {
+    const existingOrder = await Order.findOne({ quotationId: quotation._id });
+    const existingPay = await findDepositPayment(quotation._id, existingOrder?._id);
+    if (existingPay) {
+      return {
+        order: existingOrder ? existingOrder.toPublic() : null,
+        payment: existingPay.toPublic(),
+        notification: null,
+        duplicated: true,
+      };
+    }
+    if (existingOrder) {
+      return {
+        order: existingOrder.toPublic(),
+        payment: null,
+        notification: null,
+        duplicated: true,
+      };
+    }
+
+    const finance = snapshotContractorQuote(quotation.totalCost);
+    const work = async (tx) => {
+      const payment = await Payment.create({
+        orderId: null,
+        quotationId: quotation._id,
+        customerId: quotation.customerId,
+        contractorId: quotation.contractorId,
+        amount: finance.depositAmount,
+        type: PAYMENT_TYPE.DEPOSIT,
+        status: PAYMENT_STATUS.UNPAID,
+        provider: 'mock',
+        metadata: {
+          finance,
+          escrow: defaultEscrowRecord(finance),
+          mock: true,
+          quotationId: String(quotation._id),
+          requestId: String(quotation.requestId),
+        },
+      }, tx);
+      return { payment };
+    };
+
+    let created;
+    try {
+      created = outerTx ? await work(outerTx) : await runInTransaction(work);
+    } catch (err) {
+      if (err.code === 11000 || err.code === 'P2002') {
+        const dup = await findDepositPayment(quotation._id);
+        if (dup) {
+          const order = await Order.findOne({ quotationId: quotation._id });
+          return {
+            order: order ? order.toPublic() : null,
+            payment: dup.toPublic(),
+            notification: null,
+            duplicated: true,
+          };
+        }
+      }
+      throw err;
+    }
+
+    return {
+      order: null,
+      payment: created.payment.toPublic(),
+      notification: null,
+      duplicated: false,
+    };
+  });
+}
+
+async function createFromQuotation(quotation, request, actorId, outerTx, options = {}) {
   const existing = await Order.findOne({ quotationId: quotation._id });
   if (existing) {
-    const payment = await Payment.findOne({ orderId: existing._id });
+    const payment = options.attachPayment
+      || await findDepositPayment(quotation._id, existing._id);
+    if (payment && !payment.orderId) {
+      payment.orderId = existing._id;
+      payment.quotationId = quotation._id;
+      await payment.save(outerTx);
+    }
     return {
       order: existing.toPublic(),
       payment: payment ? payment.toPublic() : null,
@@ -53,6 +163,7 @@ async function createFromQuotation(quotation, request, actorId, outerTx) {
   }
 
   const room = await ChatRoom.findOne({ requestId: quotation.requestId });
+  const afterDeposit = Boolean(options.afterDeposit);
   const work = async (tx) => {
     const order = await Order.create({
       orderCode: generateOrderCode(),
@@ -65,31 +176,45 @@ async function createFromQuotation(quotation, request, actorId, outerTx) {
       description: request?.description || '',
       location: request?.location || { type: 'Point', coordinates: [105.746, 10.045] },
       amount: quotation.totalCost,
-      status: ORDER_STATUS.QUOTATION_ACCEPTED,
-      paymentStatus: PAYMENT_STATUS.UNPAID,
+      status: afterDeposit ? ORDER_STATUS.DEPOSIT_PAID : ORDER_STATUS.QUOTATION_ACCEPTED,
+      paymentStatus: afterDeposit ? PAYMENT_STATUS.PAID : PAYMENT_STATUS.UNPAID,
     }, tx);
     const finance = snapshotContractorQuote(quotation.totalCost);
-    const payment = await Payment.create({
-      orderId: order._id,
-      customerId: quotation.customerId,
-      contractorId: quotation.contractorId,
-      amount: finance.depositAmount,
-      type: PAYMENT_TYPE.DEPOSIT,
-      status: PAYMENT_STATUS.UNPAID,
-      provider: 'mock',
-      metadata: {
-        finance,
-        escrow: defaultEscrowRecord(finance),
-        mock: true,
-      },
-    }, tx);
+    let payment = options.attachPayment;
+    if (payment) {
+      payment.orderId = order._id;
+      payment.quotationId = quotation._id;
+      await payment.save(tx);
+    } else {
+      payment = await Payment.create({
+        orderId: order._id,
+        quotationId: quotation._id,
+        customerId: quotation.customerId,
+        contractorId: quotation.contractorId,
+        amount: finance.depositAmount,
+        type: PAYMENT_TYPE.DEPOSIT,
+        status: PAYMENT_STATUS.UNPAID,
+        provider: 'mock',
+        metadata: {
+          finance,
+          escrow: defaultEscrowRecord(finance),
+          mock: true,
+          quotationId: String(quotation._id),
+          requestId: String(quotation.requestId),
+        },
+      }, tx);
+    }
     const notification = await notify({
       userId: quotation.contractorId,
       title: 'New repair job',
       message: `${order.title} · ${order.orderCode}`,
       type: NOTIFICATION_TYPE.ORDER_CREATED,
       link: `/contractor/orders`,
-      meta: { orderId: String(order._id), quotationId: String(quotation._id) },
+      meta: {
+        orderId: String(order._id),
+        quotationId: String(quotation._id),
+        dedupeKey: `order-created:${quotation._id}`,
+      },
     });
     await writeAudit({
       actorId,
@@ -107,10 +232,10 @@ async function createFromQuotation(quotation, request, actorId, outerTx) {
   try {
     created = outerTx ? await work(outerTx) : await runInTransaction(work);
   } catch (err) {
-    if (err.code === 11000) {
+    if (err.code === 11000 || err.code === 'P2002') {
       const dup = await Order.findOne({ quotationId: quotation._id });
       if (dup) {
-        const payment = await Payment.findOne({ orderId: dup._id });
+        const payment = options.attachPayment || await findDepositPayment(quotation._id, dup._id);
         return {
           order: dup.toPublic(),
           payment: payment ? payment.toPublic() : null,
@@ -122,13 +247,13 @@ async function createFromQuotation(quotation, request, actorId, outerTx) {
     throw err;
   }
 
-  if (!outerTx) emitCreated(created.order, room);
+  if (!outerTx) emitCreated(created.order, room, actorId);
   return {
     order: created.order.toPublic(),
     payment: created.payment.toPublic(),
     notification: created.notification,
     duplicated: false,
-    _emit: () => emitCreated(created.order, room),
+    _emit: () => emitCreated(created.order, room, actorId),
   };
 }
 
@@ -207,12 +332,16 @@ async function getOrder(id, user) {
 
 async function listForCustomer(customerId) {
   const rows = await Order.find({ customerId }).sort({ createdAt: -1 });
-  return rows.map((row) => row.toPublic());
+  return rows
+    .filter((row) => row.status !== ORDER_STATUS.QUOTATION_ACCEPTED)
+    .map((row) => row.toPublic());
 }
 
 async function listForContractor(contractorId) {
   const rows = await Order.find({ contractorId }).sort({ createdAt: -1 });
-  return rows.map((row) => row.toPublic());
+  return rows
+    .filter((row) => row.status !== ORDER_STATUS.QUOTATION_ACCEPTED)
+    .map((row) => row.toPublic());
 }
 
 async function completeOrder(id, customerId) {
@@ -246,7 +375,7 @@ async function acceptCompletedJob(id, customerId) {
     message: order.title,
     type: NOTIFICATION_TYPE.ORDER_COMPLETED,
     link: `/contractor/orders`,
-    meta: { orderId: String(order._id) },
+    meta: { orderId: String(order._id), dedupeKey: `order-completed:${order._id}` },
   });
 
   await writeAudit({
@@ -257,7 +386,7 @@ async function acceptCompletedJob(id, customerId) {
     entityId: order._id,
   });
 
-  emitOrder('order_completed', order);
+  emitOrder('order_completed', order, { actorId: customerId });
   return { order: order.toPublic(), notification };
 }
 
@@ -310,7 +439,8 @@ async function cancelOrder(id, user, reason = '') {
 async function getBundleByQuotation(quotationId) {
   const quotation = await Quotation.findById(quotationId);
   const order = await Order.findOne({ quotationId });
-  const payment = order ? await Payment.findOne({ orderId: order._id }) : null;
+  const payment = await findDepositPayment(quotationId, order?._id)
+    || (order ? await Payment.findOne({ orderId: order._id }) : null);
   return {
     quotation: quotation ? quotation.toPublic() : null,
     order: order ? order.toPublic() : null,
@@ -320,6 +450,8 @@ async function getBundleByQuotation(quotationId) {
 
 module.exports = {
   createFromQuotation,
+  createDepositIntent,
+  findDepositPayment,
   getOrder,
   listForCustomer,
   listForContractor,

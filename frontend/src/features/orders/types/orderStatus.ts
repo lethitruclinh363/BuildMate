@@ -55,15 +55,15 @@ export function canCancelOrder(status: OrderStatus) {
   return status === 'QUOTATION_ACCEPTED' || status === 'DEPOSIT_PAID';
 }
 
-/** Statuses the contractor may submit from the current order status. Same value = another site note. */
+/** Next forward progress status only. Start from DEPOSIT_PAID uses the dedicated accept button. */
 export function allowedProgressStatuses(status: OrderStatus): ProgressStatus[] {
   switch (status) {
     case 'DEPOSIT_PAID':
-      return ['STARTED'];
+      return [];
     case 'STARTED':
-      return ['STARTED', 'IN_PROGRESS'];
+      return ['IN_PROGRESS'];
     case 'IN_PROGRESS':
-      return ['IN_PROGRESS', 'COMPLETED'];
+      return ['COMPLETED'];
     default:
       return [];
   }
@@ -99,6 +99,7 @@ const TIMELINE_RANK: Record<OrderStatus, number> = {
 
 export function buildTimeline(status: OrderStatus): TimelineStep[] {
   const current = TIMELINE_RANK[status];
+  const finished = status === 'CUSTOMER_ACCEPTED';
   const steps: { key: TimelineKey; threshold: number }[] = [
     { key: 'request', threshold: 1 },
     { key: 'quoteSent', threshold: 2 },
@@ -111,8 +112,8 @@ export function buildTimeline(status: OrderStatus): TimelineStep[] {
   ];
 
   return steps.map((step) => {
-    const done = status !== 'CANCELLED' && current > step.threshold;
-    const currentStep = status !== 'CANCELLED' && current === step.threshold;
+    const done = status !== 'CANCELLED' && (current > step.threshold || (finished && current >= step.threshold));
+    const currentStep = status !== 'CANCELLED' && !done && current === step.threshold;
     return { key: step.key, done, current: currentStep };
   });
 }

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { MaterialItemLines } from '@/components/mrl/MaterialItemLines';
 import { vnd } from '@/lib/partner-api';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -23,8 +24,11 @@ export function QuotationCard({
   compact?: boolean;
 }) {
   const { t } = useI18n();
-  const materials = quote.items.filter((i) => i.type === 'MATERIAL');
   const labor = quote.items.filter((i) => i.type === 'LABOR');
+  const pricedMaterials = quote.items.filter((i) => i.type === 'MATERIAL');
+  const suggested = (quote.materialList || []).filter((item) => item.name);
+  const showSuggested = suggested.length > 0;
+  const showPricedMaterials = !showSuggested && pricedMaterials.length > 0;
 
   return (
     <div className="overflow-hidden rounded-[22px] border border-copper-300/70 bg-white/70 shadow-lift backdrop-blur-md">
@@ -57,11 +61,19 @@ export function QuotationCard({
             ) : null}
           </div>
         ) : null}
-        {materials.length ? (
+        {showSuggested ? (
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-copper-600">{t('quote.suggestedMaterials')}</p>
+            <div className="mt-2">
+              <MaterialItemLines items={suggested} compact />
+            </div>
+          </div>
+        ) : null}
+        {showPricedMaterials ? (
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-copper-600">{t('quote.materials')}</p>
             <ul className="mt-2 space-y-1.5 text-sm">
-              {materials.map((item) => (
+              {pricedMaterials.map((item) => (
                 <li key={`mat-${item.name}-${item.price}-${item.quantity}`} className="flex justify-between gap-3 text-ink-700">
                   <span>
                     {item.name}

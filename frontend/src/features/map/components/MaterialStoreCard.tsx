@@ -8,6 +8,7 @@ import { categoryDisplayLabel } from '@/data/material-categories';
 import { formatDistance } from '@/features/map/lib/distance';
 import { fromGeoPoint, openGoogleMapsDirections, type LatLng } from '@/features/map/lib/location';
 import { exploreTrustText } from '@/features/map/lib/trustLine';
+import { usePartnerPaths } from '@/lib/partner-paths';
 import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { NearbyPlace } from '@/types/marketplace';
@@ -39,11 +40,12 @@ export function StoreResultCard({
 }) {
   const { t } = useI18n();
   const back = useReturnState();
+  const paths = usePartnerPaths();
   const pushToast = useToastStore((state) => state.push);
   const name = place.businessName || place.storeName;
   const photo = place.logo || place.avatar || '';
   const materials = categoryLine(place, t);
-  const storeHref = `/stores/${place.id}`;
+  const storeHref = paths.store(place.id);
   const point = fromGeoPoint(place.location);
 
   return (

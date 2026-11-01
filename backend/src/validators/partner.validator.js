@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { finiteNumber } = require('../utils/validator');
 const { SERVICE_CATEGORIES } = require('../models/Service');
 const { MATERIAL_CATEGORIES } = require('../models/Material');
 const {
@@ -40,7 +41,7 @@ const profileSchema = z.object({
   representativeName: z.string().trim().max(100).optional().or(z.literal('')),
   contactPhone: contactPhoneSchema.optional().or(z.literal('')),
   contactEmail: z.union([z.literal(''), z.string().trim().email('Enter a valid email').max(120)]).optional(),
-  workerCount: z.coerce.number().int().min(1).max(500).optional(),
+  workerCount: finiteNumber().int().min(1).max(500).optional(),
   taxCode: z.string().trim().max(30).optional().or(z.literal('')),
   address: z.union([z.literal(''), z.string().trim().min(4, 'Address is required').max(200)]).optional(),
   city: z.string().trim().max(80).optional(),
@@ -52,7 +53,7 @@ const profileSchema = z.object({
   locationSource: z.enum(['VIETMAP_PLACE', 'GPS', 'MANUAL_PIN']).optional().or(z.literal('')).or(z.null()),
   providerRefId: z.string().trim().max(2000).optional().or(z.literal('')).or(z.null()),
   description: z.string().trim().max(1200).optional().or(z.literal('')),
-  yearsExperience: z.coerce.number().min(0).max(80).optional(),
+  yearsExperience: finiteNumber().min(0).max(80).optional(),
   serviceAreas: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
   materialCategories: z
     .array(
@@ -169,8 +170,8 @@ const publicProfileSchema = z.object({
   serviceAreas: z.array(z.string().trim().min(1).max(80)).max(8).optional(),
   openingHours: z.string().trim().max(80).optional().or(z.literal('')),
   achievements: z.string().trim().max(500).optional().or(z.literal('')),
-  yearsExperience: z.coerce.number().min(0).max(80).optional(),
-  workerCount: z.coerce.number().int().min(0).max(500).optional(),
+  yearsExperience: finiteNumber().min(0).max(80).optional(),
+  workerCount: finiteNumber().int().min(0).max(500).optional(),
 }).strict();
 
 const storePublicProfileSchema = z.object({
@@ -190,7 +191,7 @@ const storePublicProfileSchema = z.object({
   openingHours: z.string().trim().max(80).optional().or(z.literal('')),
   showroomNote: z.string().trim().max(500).optional().or(z.literal('')),
   deliveryNote: z.string().trim().max(500).optional().or(z.literal('')),
-  serviceRadiusKm: z.coerce.number().min(1).max(50).optional(),
+  serviceRadiusKm: finiteNumber().min(1).max(50).optional(),
 }).strict();
 
 const verificationChangeSchema = z.object({
@@ -208,12 +209,12 @@ const storeBaseSchema = z.object({
   coverImage: z.string().trim().optional().or(z.literal('')),
   gallery: z.array(z.string()).max(8).optional(),
   openingHours: z.string().trim().max(80).optional(),
-  serviceRadiusKm: z.coerce.number().min(1).max(50).optional(),
+  serviceRadiusKm: finiteNumber().min(1).max(50).optional(),
   deliveryEnabled: z.boolean().optional(),
-  baseDeliveryFee: z.coerce.number().min(0).optional(),
-  freeDeliveryRadiusKm: z.coerce.number().min(0).max(50).optional(),
-  deliveryFeePerKm: z.coerce.number().min(0).optional(),
-  minimumOrderAmount: z.coerce.number().min(0).optional(),
+  baseDeliveryFee: finiteNumber().min(0).optional(),
+  freeDeliveryRadiusKm: finiteNumber().min(0).max(50).optional(),
+  deliveryFeePerKm: finiteNumber().min(0).optional(),
+  minimumOrderAmount: finiteNumber().min(0).optional(),
   deliveryNote: z.string().trim().max(500).optional().or(z.literal('')),
   category: z.string().trim().max(80).optional(),
   lng: longitudeSchema.nullable().optional(),
@@ -268,11 +269,15 @@ const registerServiceSchema = z.object({
 });
 
 const offeringUpdateSchema = z.object({
-  basePrice: z.coerce.number().refine((value) => value > 0, 'Enter a base price'),
+  basePrice: finiteNumber().gt(0, { message: 'Enter a base price' }),
   unit: z.enum(['JOB', 'HOUR', 'M2', 'DAY']).optional(),
-  estimatedHours: z.coerce.number().min(0.5).max(240).optional(),
+  estimatedHours: finiteNumber().min(0.5).max(240).optional(),
   description: z.string().trim().max(1000).optional().or(z.literal('')),
   image: z.string().trim().max(500).optional().or(z.literal('')),
+});
+
+const offeringAvailabilitySchema = z.object({
+  isActive: z.boolean(),
 });
 
 const materialCategoryNameSchema = z.object({
@@ -291,9 +296,9 @@ const materialSchema = z.object({
   category: z.string().trim().min(2),
   sku: z.string().trim().max(40).optional().or(z.literal('')),
   unit: z.string().trim().max(20).optional(),
-  price: z.coerce.number().min(0),
-  stock: z.coerce.number().min(0).optional(),
-  minOrderQty: z.coerce.number().min(1).optional(),
+  price: finiteNumber().min(0).max(1_000_000_000),
+  stock: finiteNumber().min(0).max(1_000_000).optional(),
+  minOrderQty: finiteNumber().min(1).max(100000).optional(),
   image: z.string().trim().optional().or(z.literal('')),
   description: z.string().trim().max(800).optional().or(z.literal('')),
   isActive: z.coerce.boolean().optional(),
@@ -366,6 +371,7 @@ module.exports = {
   storeUpdateSchema,
   registerServiceSchema,
   offeringUpdateSchema,
+  offeringAvailabilitySchema,
   catalogCheckSchema,
   catalogCreateSchema,
   catalogWriteSchema,

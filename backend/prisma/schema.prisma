@@ -658,30 +658,33 @@ model notifications {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model payments {
-  id                                       BigInt         @id @default(autoincrement())
-  legacy_mongo_id                          String?        @unique @db.VarChar(24)
-  service_order_id                         BigInt
+  id                                       BigInt          @id @default(autoincrement())
+  legacy_mongo_id                          String?         @unique @db.VarChar(24)
+  service_order_id                         BigInt?
+  quotation_id                             BigInt?
   customer_user_id                         BigInt
   contractor_user_id                       BigInt
-  amount                                   Decimal        @db.Decimal(14, 2)
-  payment_type                             String         @default("FULL_PAYMENT") @db.VarChar(30)
-  status                                   String         @default("UNPAID") @db.VarChar(20)
-  provider                                 String         @default("mock") @db.VarChar(50)
-  transaction_code                         String?        @db.VarChar(255)
-  metadata                                 Json           @default("{}")
-  paid_at                                  DateTime?      @db.Timestamptz(6)
-  refunded_at                              DateTime?      @db.Timestamptz(6)
-  failed_at                                DateTime?      @db.Timestamptz(6)
-  created_at                               DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at                               DateTime       @default(now()) @db.Timestamptz(6)
+  amount                                   Decimal         @db.Decimal(14, 2)
+  payment_type                             String          @default("FULL_PAYMENT") @db.VarChar(30)
+  status                                   String          @default("UNPAID") @db.VarChar(20)
+  provider                                 String          @default("mock") @db.VarChar(50)
+  transaction_code                         String?         @db.VarChar(255)
+  metadata                                 Json            @default("{}")
+  paid_at                                  DateTime?       @db.Timestamptz(6)
+  refunded_at                              DateTime?       @db.Timestamptz(6)
+  failed_at                                DateTime?       @db.Timestamptz(6)
+  created_at                               DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at                               DateTime        @default(now()) @db.Timestamptz(6)
   commissions                              commissions?
-  users_payments_contractor_user_idTousers users          @relation("payments_contractor_user_idTousers", fields: [contractor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payments_contractor")
-  users_payments_customer_user_idTousers   users          @relation("payments_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payments_customer")
-  service_orders                           service_orders @relation(fields: [service_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payments_order")
+  users_payments_contractor_user_idTousers users           @relation("payments_contractor_user_idTousers", fields: [contractor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payments_contractor")
+  users_payments_customer_user_idTousers   users           @relation("payments_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payments_customer")
+  service_orders                           service_orders? @relation(fields: [service_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payments_order")
+  quotations                               quotations?     @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payments_quotation")
 
   @@unique([service_order_id, payment_type], map: "uq_payments_order_type")
   @@index([customer_user_id, status], map: "idx_payments_customer_status")
   @@index([status, created_at(sort: Desc)], map: "idx_payments_status_created")
+  @@index([quotation_id], map: "idx_payments_quotation")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -790,6 +793,7 @@ model quotations {
   repair_requests                            repair_requests   @relation(fields: [repair_request_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_quotations_request")
   chat_rooms                                 chat_rooms?       @relation(fields: [chat_room_id], references: [id], onUpdate: NoAction, map: "fk_quotations_room")
   service_orders                             service_orders?
+  payments                                   payments[]
 
   @@index([contractor_user_id], map: "idx_quotations_contractor")
   @@index([repair_request_id], map: "idx_quotations_request")

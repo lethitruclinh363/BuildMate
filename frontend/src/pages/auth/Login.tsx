@@ -36,7 +36,7 @@ export default function Login() {
       const home = getDefaultRouteByRole(session.user);
       const dest = isPartnerRole(session.user.role) ? home : next || home;
       pushToast({ kind: 'success', title: t('auth.loginSuccess') });
-      navigate(dest, { replace: true });
+      navigate(dest === '/' ? home : dest, { replace: true });
     } catch (err) {
       const ax = err as AxiosError;
       const message = ax.isAxiosError ? getApiErrorMessage(err) : err instanceof Error ? err.message : t('auth.loginFailTitle');

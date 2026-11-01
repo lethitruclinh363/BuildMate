@@ -1,16 +1,38 @@
+const fs = require('fs');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success, created } = require('../utils/response');
 const { publicFileUrl } = require('../middleware/uploadMiddleware');
+const { requireRepairSiteImages } = require('../utils/upload');
 const repairService = require('../services/repairService');
 
+function sweepUploadedFiles(files = {}) {
+  const list = [...(files.images || []), ...(files.videos || [])];
+  list.forEach((file) => {
+    if (!file?.path) return;
+    try {
+      fs.unlinkSync(file.path);
+    } catch {
+      /* already removed */
+    }
+  });
+}
+
 function collectMedia(files = {}) {
-  const images = (files.images || []).map((f) => publicFileUrl(f.path));
-  const videos = (files.videos || []).map((f) => publicFileUrl(f.path));
-  return { images, videos };
+  const checked = requireRepairSiteImages(files);
+  return {
+    images: checked.images.map((f) => publicFileUrl(f.path)),
+    videos: (checked.videos || []).map((f) => publicFileUrl(f.path)),
+  };
 }
 
 const create = asyncHandler(async (req, res) => {
-  const media = collectMedia(req.files);
+  let media;
+  try {
+    media = collectMedia(req.files);
+  } catch (err) {
+    sweepUploadedFiles(req.files);
+    throw err;
+  }
   const data = await repairService.createRequest(req.user.id, { ...req.body, ...media });
   return created(res, data, 'Repair request submitted');
 });
@@ -45,4 +67,4 @@ const cancel = asyncHandler(async (req, res) => {
   return success(res, data, 'Request cancelled');
 });
 
-module.exports = { create, mine, received, getOne, accept, reject, cancel };
+module.exports = { create, mine, received, getOne, accept, reject, cancel, collectMedia, sweepUploadedFiles };

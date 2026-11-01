@@ -6,25 +6,11 @@ import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { CartLink } from '@/features/material-cart/CartLink';
 import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/locales';
-import { useAuth } from '@/context/AuthContext';
-
-/** Nút landing theo role. Khách chưa đăng nhập không có nút này. */
-const LANDING_ENTRY = {
-  CUSTOMER: { to: '/customer/dashboard', labelKey: 'common.openDashboard' },
-  CONTRACTOR: { to: '/contractor/dashboard', labelKey: 'common.openDashboard' },
-  MATERIAL_STORE_OWNER: { to: '/store/dashboard', labelKey: 'common.openDashboard' },
-  STORE: { to: '/store/dashboard', labelKey: 'common.openDashboard' },
-} as const;
-
-function landingEntry(role?: string | null) {
-  if (!role) return null;
-  return LANDING_ENTRY[role as keyof typeof LANDING_ENTRY] ?? null;
-}
+import { getDefaultRouteByRole, useAuth } from '@/context/AuthContext';
 
 export function MainLayout() {
   const { pathname } = useLocation();
   const { currentUser: user } = useAuth();
-  const entry = landingEntry(user?.role);
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const exploreView = pathname === '/explore';
@@ -50,16 +36,11 @@ export function MainLayout() {
     <div className={exploreView ? 'min-h-dvh overflow-x-hidden' : 'min-h-screen'}>
       <header className="sticky top-0 z-40 border-b border-white/10 bg-navy-800/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 md:px-8">
-          <Logo inverted to="/" />
+          <Logo inverted to={user ? getDefaultRouteByRole(user) : '/'} />
           <nav className="hidden items-center gap-8 text-sm text-white/75 md:flex">{links}</nav>
           <div className="flex items-center gap-2">
             <LanguageSwitcher variant="dark" placement="main" className="hidden sm:inline-flex" />
             <CartLink tone="dark" />
-            {entry ? (
-              <Button asChild variant="copper" size="sm">
-                <Link to={entry.to}>{t(entry.labelKey)}</Link>
-              </Button>
-            ) : null}
             {!user ? (
               <>
                 <Button asChild variant="ghost" size="sm" className="hidden text-white hover:bg-white/10 sm:inline-flex">
@@ -87,13 +68,6 @@ export function MainLayout() {
             <nav className="flex flex-col gap-3 text-sm text-white/80">{links}</nav>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <LanguageSwitcher variant="dark" placement="mobile" />
-              {entry ? (
-                <Button asChild variant="copper" size="sm">
-                  <Link to={entry.to} onClick={() => setOpen(false)}>
-                    {t(entry.labelKey)}
-                  </Link>
-                </Button>
-              ) : null}
               {!user ? (
                 <>
                   <Button asChild variant="ghost" size="sm" className="text-white hover:bg-white/10">

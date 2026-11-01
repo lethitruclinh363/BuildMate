@@ -1,39 +1,17 @@
 /**
- * Kết nối MongoDB (Mongoose).
+ * Kết nối cơ sở dữ liệu PostgreSQL qua Prisma ORM.
  *
- * Luồng Sprint 1:
- *   Route → Controller → Service → Repository → Model → Database
- *
- * File này chỉ lo "mở cửa" vào DB. Không chứa business logic.
+ * File này quản lý vòng đời kết nối DB: kết nối khi startup và đóng kết nối an toàn khi shutdown.
  */
-const { env } = require('./env');
+const { prisma } = require('./prisma');
 
 async function connectDatabase() {
-  if (env.databaseProvider === 'postgres') {
-    const { prisma } = require('./prisma');
-    await prisma.$queryRaw`SELECT 1`;
-    console.log('[db] PostgreSQL runtime enabled');
-    return;
-  }
-
-  const mongoose = require('mongoose');
-  mongoose.set('strictQuery', true);
-  await mongoose.connect(env.mongoUri, {
-    autoIndex: !env.isProd,
-  });
-  const { ensurePaymentIndexes } = require('../models/Payment');
-  await ensurePaymentIndexes();
-  console.log(`[db] Connected to MongoDB (${mongoose.connection.name})`);
+  await prisma.$queryRaw`SELECT 1`;
+  console.log('[db] PostgreSQL runtime connected');
 }
 
 async function disconnectDatabase() {
-  if (env.databaseProvider === 'postgres') {
-    const { prisma } = require('./prisma');
-    await prisma.$disconnect().catch(() => {});
-    return;
-  }
-  const mongoose = require('mongoose');
-  if (mongoose.connection.readyState) await mongoose.disconnect();
+  await prisma.$disconnect().catch(() => {});
 }
 
 module.exports = { connectDatabase, disconnectDatabase };

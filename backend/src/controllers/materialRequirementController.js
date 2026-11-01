@@ -34,6 +34,16 @@ const removeItem = asyncHandler(async (req, res) => {
   return success(res, data, 'Item removed');
 });
 
+const save = asyncHandler(async (req, res) => {
+  const data = await service.saveForCustomer(req.user, req.params.id);
+  return success(res, data, 'Material list saved');
+});
+
+const updateSaved = asyncHandler(async (req, res) => {
+  const data = await service.updateSavedMeta(req.user, req.params.id, req.body);
+  return success(res, data, 'Material list updated');
+});
+
 const send = asyncHandler(async (req, res) => {
   const data = await service.sendToStore(req.user, req.params.id, req.body.storeId);
   return success(res, data, 'Material requirement list sent');
@@ -64,6 +74,16 @@ const confirm = asyncHandler(async (req, res) => {
   return success(res, data, 'Material quote confirmed');
 });
 
+const reject = asyncHandler(async (req, res) => {
+  const data = await service.rejectQuote(req.user, req.params.id);
+  return success(res, data, 'Material quote rejected');
+});
+
+const fulfill = asyncHandler(async (req, res) => {
+  const data = await service.advanceFulfillment(req.user, req.params.id, req.body.status);
+  return success(res, data, 'Delivery status updated');
+});
+
 module.exports = {
   create,
   mine,
@@ -71,10 +91,14 @@ module.exports = {
   addItem,
   updateItem,
   removeItem,
+  save,
+  updateSaved,
   send,
   cancel,
   catalog,
   eligibleStores,
   quote,
   confirm,
+  reject,
+  fulfill,
 };

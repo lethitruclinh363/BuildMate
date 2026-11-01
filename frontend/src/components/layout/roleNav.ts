@@ -26,6 +26,7 @@ export function customerNav(t: Translate): DashboardNavItem[] {
     { to: '/customer/request/history', label: t('nav.customer.requests'), icon: Wrench },
     { to: '/customer/chat', label: t('nav.customer.messages'), icon: MessageSquare },
     { to: '/customer/orders', label: t('nav.customer.orders'), icon: ClipboardList },
+    { to: '/customer/material-lists', label: t('nav.customer.materialLists'), icon: Package },
     { to: '/customer/material-orders', label: t('nav.customer.materialOrders'), icon: Package },
     { to: '/customer/reviews', label: t('nav.customer.reviews'), icon: Star },
     { to: '/customer/complaints', label: t('nav.customer.complaints'), icon: Scale },

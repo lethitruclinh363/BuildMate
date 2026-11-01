@@ -230,7 +230,7 @@ function createMaterialDepositService(deps) {
   return { checkout, capture };
 }
 
-function mongooseDeps() {
+function repositoryDeps() {
   const { MaterialOrder, MaterialOrderPayment, MaterialCommission } = require('../repositories/materialOrderAccess');
   const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 
@@ -270,12 +270,10 @@ function mongooseDeps() {
   };
 }
 
-const depositApi = createMaterialDepositService(mongooseDeps());
+const depositApi = createMaterialDepositService(repositoryDeps());
 const { runInTransaction } = require('../repositories/pgContext');
-const { env } = require('../config/env');
 
 function transactional(work) {
-  if (env.databaseProvider !== 'postgres') return work();
   return runInTransaction(() => work());
 }
 

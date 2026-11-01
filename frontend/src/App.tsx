@@ -89,6 +89,12 @@ const MaterialOrderDetailPage = lazy(() =>
 const CustomerMaterialOrdersPage = lazy(() =>
   import('@/pages/customer/CustomerMaterialOrdersPage').then((m) => ({ default: m.CustomerMaterialOrdersPage }))
 );
+const CustomerMaterialListsPage = lazy(() =>
+  import('@/pages/customer/CustomerMaterialListsPage').then((m) => ({ default: m.CustomerMaterialListsPage }))
+);
+const CustomerMaterialListPage = lazy(() =>
+  import('@/pages/customer/CustomerMaterialListPage').then((m) => ({ default: m.CustomerMaterialListPage }))
+);
 const ChatPage = lazy(() => import('@/pages/chat/ChatPage').then((m) => ({ default: m.ChatPage })));
 const CreateRepairRequestPage = lazy(() =>
   import('@/pages/customer/CreateRepairRequestPage').then((m) => ({ default: m.CreateRepairRequestPage }))
@@ -107,6 +113,9 @@ const CustomerOrderDetailPage = lazy(() =>
 );
 const ContractorRequestsPage = lazy(() =>
   import('@/pages/contractor/ContractorRequestsPage').then((m) => ({ default: m.ContractorRequestsPage }))
+);
+const ContractorRequestDetailPage = lazy(() =>
+  import('@/pages/contractor/ContractorRequestDetailPage').then((m) => ({ default: m.ContractorRequestDetailPage }))
 );
 const ContractorOrdersPage = lazy(() =>
   import('@/pages/contractor/ContractorOrdersPage').then((m) => ({ default: m.ContractorOrdersPage }))
@@ -171,6 +180,9 @@ export function App() {
                 <Route element={<CustomerLayout />}>
                   <Route path="/customer/dashboard" element={<CustomerDashboardPage />} />
                   <Route path="/customer/explore" element={<ExplorePage />} />
+                  <Route path="/customer/contractors/:id" element={<ContractorPublicPage />} />
+                  <Route path="/customer/stores/:id/materials/:materialId" element={<PublicMaterialPage />} />
+                  <Route path="/customer/stores/:id" element={<StorePublicPage />} />
                   <Route path="/customer/request/create" element={<CreateRepairRequestPage />} />
                   <Route path="/customer/request/history" element={<RequestHistoryPage />} />
                   <Route path="/customer/chat" element={<ChatPage />} />
@@ -188,6 +200,8 @@ export function App() {
                   <Route path="/material-checkout" element={<MaterialCheckoutPage />} />
                   <Route path="/customer/material-orders" element={<CustomerMaterialOrdersPage />} />
                   <Route path="/customer/material-orders/:id" element={<MaterialOrderDetailPage />} />
+                  <Route path="/customer/material-lists" element={<CustomerMaterialListsPage />} />
+                  <Route path="/customer/material-lists/:listId" element={<CustomerMaterialListPage />} />
                 </Route>
               </Route>
               <Route element={<ProtectedRoute roles={['CONTRACTOR']} />}>
@@ -197,6 +211,7 @@ export function App() {
                   <Route path="/contractor/store" element={<Navigate to="/contractor/verification" replace />} />
                   <Route path="/contractor/services" element={<ContractorServicesPage />} />
                   <Route path="/contractor/requests" element={<ContractorRequestsPage />} />
+                  <Route path="/contractor/requests/:id" element={<ContractorRequestDetailPage />} />
                   <Route path="/contractor/orders" element={<ContractorOrdersPage />} />
                   <Route path="/contractor/orders/:id" element={<ContractorOrderDetailPage />} />
                   <Route path="/contractor/earnings" element={<ContractorEarningsPage />} />

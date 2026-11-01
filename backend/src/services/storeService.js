@@ -1,6 +1,5 @@
 const { STORE_TYPE, STORE_STATUS } = require('../models/Store');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { env } = require('../config/env');
 const { ContractorProfile, Store } = require('../repositories/partnerAccess');
 const { Material, Service } = require('../repositories/offeringAccess');
 const { ApiError } = require('../utils/ApiError');
@@ -143,15 +142,6 @@ async function updateStore(contractorId, payload, lockedType) {
   assertDeliveryPolicy(store, data);
   store.set(data);
   await store.save();
-  if (store.locationConfirmed && env.databaseProvider !== 'postgres') {
-    const coordinates = store.location && store.location.coordinates;
-    await locationCorrection.record({
-      address: store.address,
-      lat: coordinates && coordinates[1],
-      lng: coordinates && coordinates[0],
-      refId: payload.providerRefId,
-    }).catch(() => null);
-  }
   await separateCatalog(store);
   return store.toPublic();
 }

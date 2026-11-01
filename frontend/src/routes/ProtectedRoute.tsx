@@ -73,12 +73,12 @@ export default function ProtectedRoute({ roles }: ProtectedRouteProps) {
 export function GuestOnly() {
   const { currentUser, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <ScreenLoader />;
   if (currentUser) {
     const next = safeReturnPath(new URLSearchParams(location.search).get('next'));
     const home = getDefaultRouteByRole(currentUser);
-    if (next && !isPartnerRole(currentUser.role)) return <Navigate to={next} replace />;
+    if (next && !isPartnerRole(currentUser.role) && next !== '/') return <Navigate to={next} replace />;
     return <Navigate to={home} replace />;
   }
+  if (loading) return <ScreenLoader />;
   return <Outlet />;
 }

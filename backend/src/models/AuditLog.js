@@ -1,4 +1,3 @@
-
 const AUDIT_ACTION = Object.freeze({
   ADMIN_APPROVE: 'ADMIN_APPROVE',
   ADMIN_REJECT: 'ADMIN_REJECT',
@@ -27,46 +26,6 @@ const AUDIT_ACTION = Object.freeze({
   POLICY_UPDATED: 'POLICY_UPDATED',
 });
 
-let built;
-function build() {
-  if (built) return built;
-  const mongoose = require('mongoose');
-const auditLogSchema = new mongoose.Schema(
-  {
-    actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
-    actorRole: { type: String, default: '' },
-    action: { type: String, enum: Object.values(AUDIT_ACTION), required: true, index: true },
-    entityType: { type: String, required: true, trim: true },
-    entityId: { type: String, default: '', index: true },
-    meta: { type: mongoose.Schema.Types.Mixed, default: {} },
-    ip: { type: String, default: '' },
-  },
-  { timestamps: true }
-);
-
-auditLogSchema.index({ createdAt: -1 });
-auditLogSchema.index({ action: 1, createdAt: -1 });
-
-auditLogSchema.methods.toPublic = function toPublic() {
-  return {
-    id: this._id,
-    actorId: this.actorId,
-    actorRole: this.actorRole,
-    action: this.action,
-    entityType: this.entityType,
-    entityId: this.entityId,
-    meta: this.meta,
-    ip: this.ip,
-    createdAt: this.createdAt,
-  };
-};
-
-const AuditLog = mongoose.model('AuditLog', auditLogSchema);
-  built = { AuditLog };
-  return built;
-}
-
 module.exports = {
   AUDIT_ACTION,
-  get AuditLog() { return build().AuditLog; },
 };

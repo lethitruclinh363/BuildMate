@@ -19,6 +19,7 @@ export function FinanceRealtimeListener() {
       if (!TYPES.includes(n.type as (typeof TYPES)[number])) return;
       bump(n.type);
       push({
+        id: n.id ? `notification:${n.id}` : undefined,
         kind: n.type === 'PAYMENT_FAILED' ? 'error' : 'success',
         title: t(`toast.${n.type}`),
         body: n.message,
