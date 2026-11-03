@@ -11,6 +11,18 @@ export type RegisterBody = {
   policyLanguage: 'vi' | 'en';
 };
 
+export type GoogleLoginBody = {
+  credential: string;
+  nonce: string;
+  phoneNumber?: string;
+  acceptedPolicy?: true;
+  policyLanguage?: 'vi' | 'en';
+};
+
+export type GoogleLoginResult =
+  | { requiresRegistration: true; email: string; name: string; avatar: string }
+  | { requiresRegistration: false; token: string; user: AuthPayload['user'] };
+
 /** Service API cho Sprint 1 Auth. Page → service → Axios → backend. */
 export const authApi = {
   register(body: RegisterBody) {
@@ -19,6 +31,10 @@ export const authApi = {
 
   login(email: string, password: string) {
     return api.post<ApiResponse<AuthPayload>>('/auth/login', { email, password }, { silent: true });
+  },
+
+  googleLogin(body: GoogleLoginBody) {
+    return api.post<ApiResponse<GoogleLoginResult>>('/auth/google', body, { silent: true });
   },
 
   verifyEmail(email: string, code: string) {

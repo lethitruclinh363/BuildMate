@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { AxiosError } from 'axios';
 import { api } from '@/lib/api';
-import { authApi } from '@/services/auth.api';
+import { authApi, type GoogleLoginBody, type GoogleLoginResult } from '@/services/auth.api';
 import { useAuthStore } from '@/store/auth.store';
 import { setAppLanguage, t } from '@/locales';
 import type { ApiResponse, AuthPayload, User } from '@/types/user';
@@ -43,6 +43,7 @@ type AuthContextValue = {
   ready: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthPayload>;
+  googleLogin: (body: GoogleLoginBody) => Promise<GoogleLoginResult>;
   logout: () => Promise<void>;
   register: (payload: RegisterPayload) => Promise<ApiResponse<{ emailSent?: boolean } | null>>;
   refreshUser: () => Promise<User | null>;
@@ -161,6 +162,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession]
   );
 
+  const googleLogin = useCallback(async (body: GoogleLoginBody) => {
+    const { data } = await authApi.googleLogin(body);
+    const result = data.data;
+    if (result.requiresRegistration) return result;
+    if (result.user.role !== 'CUSTOMER') {
+      applySession(null, null);
+      throw new Error(t('auth.wrongRole'));
+    }
+    applySession(result.token, result.user);
+    return result;
+  }, [applySession]);
+
   const register = useCallback(async (payload: RegisterPayload) => {
     const { data } = await authApi.register(payload);
     return data;
@@ -243,12 +256,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ready,
       loading,
       login,
+      googleLogin,
       logout,
       register,
       refreshUser,
       dashboardPath: () => homeForUser(currentUser),
     }),
-    [currentUser, token, ready, loading, login, logout, register, refreshUser]
+    [currentUser, token, ready, loading, login, googleLogin, logout, register, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

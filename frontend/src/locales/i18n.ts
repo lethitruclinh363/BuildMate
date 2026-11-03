@@ -145,6 +145,26 @@ const KNOWN_API_ERRORS: Record<string, { vi: string; en: string }> = {
     vi: 'Email hoặc mật khẩu không chính xác.',
     en: 'Invalid email or password.',
   },
+  'Google sign-in is not configured': {
+    vi: 'Đăng nhập Google chưa được cấu hình trên máy chủ.',
+    en: 'Google sign-in is not configured on the server.',
+  },
+  'Google credential is invalid or expired': {
+    vi: 'Thông tin xác thực Google không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.',
+    en: 'The Google credential is invalid or expired. Please try again.',
+  },
+  'Google credential verification is temporarily unavailable': {
+    vi: 'Tạm thời không thể xác minh tài khoản Google. Vui lòng thử lại sau.',
+    en: 'Google verification is temporarily unavailable. Please try again.',
+  },
+  'Use a verified Gmail or Google Workspace account': {
+    vi: 'Vui lòng dùng tài khoản Gmail hoặc Google Workspace đã xác thực.',
+    en: 'Use a verified Gmail or Google Workspace account.',
+  },
+  'Google sign-in is available for customer accounts only': {
+    vi: 'Đăng nhập Google chỉ dành cho tài khoản khách hàng.',
+    en: 'Google sign-in is available for customer accounts only.',
+  },
   'Could not send verification email. Please try resend-code.': {
     vi: 'Không thể gửi email xác thực. Vui lòng thử gửi lại mã.',
     en: 'Could not send verification email. Please try resend-code.',
