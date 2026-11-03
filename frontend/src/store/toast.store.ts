@@ -7,11 +7,12 @@ export interface ToastItem {
   kind: ToastKind;
   title: string;
   body?: string;
+  prominent?: boolean;
 }
 
 interface ToastState {
   items: ToastItem[];
-  push: (toast: Omit<ToastItem, 'id'> & { id?: string }) => void;
+  push: (toast: Omit<ToastItem, 'id'> & { id?: string; durationMs?: number }) => void;
   dismiss: (id: string) => void;
 }
 
@@ -27,7 +28,7 @@ export const useToastStore = create<ToastState>((set) => ({
     set((state) => ({ items: [...state.items, { ...toast, id }].slice(-5) }));
     window.setTimeout(() => {
       set((state) => ({ items: state.items.filter((item) => item.id !== id) }));
-    }, 4200);
+    }, toast.durationMs ?? 4200);
   },
   dismiss: (id) => set((state) => ({ items: state.items.filter((item) => item.id !== id) })),
 }));

@@ -3,6 +3,7 @@ const { validate } = require('../utils/validator');
 const {
   registerSchema,
   loginSchema,
+  googleLoginSchema,
   verifyEmailSchema,
   resendCodeSchema,
   forgotPasswordSchema,
@@ -21,6 +22,7 @@ router.post('/forgot-password', validate(forgotPasswordSchema), authController.f
 router.post('/verify-reset-code', validate(verifyResetCodeSchema), authController.verifyResetCode);
 router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
 router.post('/login', validate(loginSchema), authController.login);
+router.post('/google', validate(googleLoginSchema), authController.googleLogin);
 router.post('/logout', authenticate, authController.logout);
 
 module.exports = router;

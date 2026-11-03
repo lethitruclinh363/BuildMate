@@ -1,6 +1,7 @@
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success, created } = require('../utils/response');
 const authService = require('../services/authService');
+const googleAuthService = require('../services/googleAuthService');
 
 const register = asyncHandler(async (req, res) => {
   const result = await authService.register(req.body);
@@ -20,6 +21,11 @@ const resendCode = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
   const result = await authService.login(req.body);
   return success(res, result, 'Login successful');
+});
+
+const googleLogin = asyncHandler(async (req, res) => {
+  const result = await googleAuthService.login(req.body);
+  return success(res, result, result.requiresRegistration ? 'Complete customer registration' : 'Google login successful');
 });
 
 const logout = asyncHandler(async (req, res) => {
@@ -47,6 +53,7 @@ module.exports = {
   verifyEmail,
   resendCode,
   login,
+  googleLogin,
   logout,
   forgotPassword,
   verifyResetCode,

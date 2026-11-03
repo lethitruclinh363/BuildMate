@@ -46,6 +46,14 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+const googleLoginSchema = z.object({
+  credential: z.string().trim().min(1).max(8192),
+  nonce: z.string().trim().min(1).max(128),
+  phoneNumber: phoneNumberSchema.optional(),
+  acceptedPolicy: z.literal(true).optional(),
+  policyLanguage: z.enum(['vi', 'en']).optional(),
+});
+
 const verifyEmailSchema = z.object({
   email: z.string().trim().email('Enter a valid email').toLowerCase(),
   code: z
@@ -85,6 +93,7 @@ module.exports = {
   passwordSchema,
   registerSchema,
   loginSchema,
+  googleLoginSchema,
   verifyEmailSchema,
   resendCodeSchema,
   forgotPasswordSchema,

@@ -31,7 +31,8 @@ export function AuthLayout() {
   return (
     <div
       className={cn(
-        'grid min-h-screen',
+        'grid',
+        isLogin ? 'h-dvh min-h-0 overflow-hidden' : 'min-h-screen',
         isRegister && 'lg:h-screen lg:overflow-hidden',
         // Login + Register ~60/40 (same split); other auth pages stay 50/50
         wideHero ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : 'lg:grid-cols-2'
@@ -88,8 +89,10 @@ export function AuthLayout() {
       </aside>
       <main
         className={cn(
-          'flex min-h-screen flex-col overflow-y-auto bg-paper-100 px-4 sm:px-6',
+          'flex flex-col overflow-y-auto bg-paper-100 px-4 sm:px-6',
+          isLogin ? 'h-dvh min-h-0' : 'min-h-screen',
           isRegister && 'lg:overflow-hidden',
+          isLogin && 'lg:h-screen',
           isRegister
             ? 'py-2 sm:py-3 lg:h-screen'
             : isLogin || isForgotPassword || isVerifyEmail
