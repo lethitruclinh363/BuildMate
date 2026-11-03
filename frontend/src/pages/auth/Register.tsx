@@ -199,7 +199,6 @@ export default function Register() {
         <ArrowLeft className="h-4 w-4" aria-hidden />
         {t('common.backToLogin')}
       </Link>
-      <p className="text-[11px] uppercase tracking-wider text-copper-500">BuildMate</p>
       <h1 className="mt-1 font-display text-2xl leading-tight text-navy-800">{copy.heading}</h1>
       <p className="mt-1 text-[13px] leading-snug text-ink-400">{copy.lead}</p>
 

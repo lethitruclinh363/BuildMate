@@ -1,8 +1,8 @@
 import { type FormEvent, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PartnerRegisterPanel } from '@/components/auth/PartnerRegisterPanel';
 import { PasswordInput } from '@/components/common/PasswordInput';
-import { BackButton } from '@/components/navigation/BackButton';
 import { getDefaultRouteByRole, isPartnerRole, useAuth } from '@/context/AuthContext';
 import { safeReturnPath, withNextParam } from '@/routes/ProtectedRoute';
 import { withRegisterParams } from '@/lib/register-role';
@@ -53,8 +53,13 @@ export default function Login() {
 
   return (
     <div className="rounded-2xl border border-navy-800/10 bg-white p-7 shadow-sm">
-      <BackButton fallback="/" label={t('common.backToHome')} />
-      <p className="text-xs uppercase tracking-[0.24em] text-copper-500">BuildMate</p>
+      <Link
+        to="/"
+        className="mb-5 inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-[15px] font-medium text-navy-700 hover:text-navy-900 hover:underline"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        {t('common.backToHome')}
+      </Link>
       <h1 className="mt-2 font-display text-3xl text-navy-800">{t('auth.loginHeading')}</h1>
       <p className="mt-2 text-sm text-ink-400">{t('auth.loginLead')}</p>
 
@@ -86,7 +91,7 @@ export default function Login() {
           autoComplete="current-password"
         />
         <div className="flex justify-end">
-          <Link to="/forgot-password" className="text-sm text-copper-600 hover:underline">
+          <Link to="/forgot-password" className="text-sm font-semibold text-navy-800 hover:text-navy-700 hover:underline">
             {t('auth.forgot')}
           </Link>
         </div>

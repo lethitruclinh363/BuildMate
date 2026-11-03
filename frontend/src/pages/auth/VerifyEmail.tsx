@@ -1,16 +1,17 @@
-import { motion } from 'framer-motion';
+import { ArrowLeft } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getApiErrorMessage } from '@/lib/api';
 import { withNextParam } from '@/routes/ProtectedRoute';
 import type { AxiosError } from 'axios';
 import { getOtpCooldown, setOtpCooldown } from '@/lib/otp-cooldown';
+import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
 import { authApi } from '@/services/auth.api';
 import { useToastStore } from '@/store/toast.store';
 
 const fieldClass =
-  'mt-1.5 w-full rounded-2xl border border-navy-800/12 bg-white px-4 py-3 text-sm tracking-[0.4em] text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20';
+  'mt-1.5 h-12 w-full rounded-2xl border border-navy-800/12 bg-white px-4 text-sm text-navy-800 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-500/10';
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
@@ -94,11 +95,14 @@ export default function VerifyEmail() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-[28px] border border-navy-800/8 bg-white p-7 shadow-lift"
-    >
+    <div className="rounded-2xl border border-navy-800/10 bg-white p-7 shadow-sm">
+      <Link
+        to={withNextParam(`/login?email=${encodeURIComponent(email)}`, params.get('next'))}
+        className="mb-5 inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-[15px] font-medium text-navy-700 hover:text-navy-900 hover:underline"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        {t('auth.backToLogin')}
+      </Link>
       <p className="text-xs uppercase tracking-[0.24em] text-copper-500">{t('auth.verifyEyebrow')}</p>
       <h1 className="mt-2 font-display text-3xl text-navy-800">{t('auth.verifyTitle')}</h1>
       <p className="mt-2 text-sm text-ink-400">{t('auth.verifyLead')}</p>
@@ -110,7 +114,7 @@ export default function VerifyEmail() {
         <label className="block text-sm font-medium text-navy-800">
           Email
           <input
-            className="mt-1.5 w-full rounded-2xl border border-navy-800/12 bg-white px-4 py-3 text-sm tracking-normal text-navy-800 outline-none focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20"
+            className={fieldClass}
             type="email"
             required
             value={email}
@@ -120,7 +124,10 @@ export default function VerifyEmail() {
         <label className="block text-sm font-medium text-navy-800">
           OTP
           <input
-            className={fieldClass}
+            className={cn(
+              fieldClass,
+              error && 'border-red-500 focus:border-red-500 focus:ring-red-500/10'
+            )}
             inputMode="numeric"
             maxLength={6}
             required
@@ -132,7 +139,7 @@ export default function VerifyEmail() {
         <button
           type="submit"
           disabled={loading || code.length !== 6}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-navy-800 text-sm font-semibold text-paper-50 disabled:opacity-60"
+          className="flex h-12 w-full items-center justify-center rounded-full bg-navy-800 text-sm font-semibold text-paper-50 transition hover:bg-navy-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? t('auth.verifying') : t('auth.verifyBtn')}
         </button>
@@ -140,7 +147,7 @@ export default function VerifyEmail() {
           type="button"
           disabled={resending || countdown > 0 || !email}
           onClick={() => void onResend()}
-          className="flex h-11 w-full items-center justify-center rounded-full border border-navy-800/15 text-sm font-semibold text-navy-800 disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex h-11 w-full items-center justify-center rounded-full border border-navy-800/15 text-sm font-semibold text-navy-800 transition hover:bg-paper-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {resending
             ? t('auth.resending')
@@ -150,11 +157,6 @@ export default function VerifyEmail() {
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-ink-400">
-        <Link to={withNextParam('/login', params.get('next'))} className="font-semibold text-navy-800 hover:text-copper-500">
-          {t('auth.backToLogin')}
-        </Link>
-      </p>
-    </motion.div>
+    </div>
   );
 }
