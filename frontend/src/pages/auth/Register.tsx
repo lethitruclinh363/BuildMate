@@ -1,9 +1,8 @@
-import { motion } from 'framer-motion';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PolicyConsent } from '@/components/auth/PolicyConsent';
 import { PasswordInput } from '@/components/common/PasswordInput';
-import { BackButton } from '@/components/navigation/BackButton';
 import { useAuth } from '@/context/AuthContext';
 import { withNextParam } from '@/routes/ProtectedRoute';
 import { getApiErrorMessage, getApiErrorPayload } from '@/lib/api';
@@ -32,10 +31,10 @@ function fieldStatus(touched: boolean, message: string, hasValue: boolean): Fiel
 
 function controlClass(status: FieldStatus) {
   return cn(
-    'mt-1.5 h-12 w-full rounded-2xl border bg-white px-4 text-sm text-navy-800 outline-none transition focus:ring-4',
+    'mt-0.5 h-9 w-full rounded-xl border bg-white px-3 text-sm text-navy-800 outline-none transition focus:ring-2',
     status === 'error' && 'border-red-400 focus:border-red-400 focus:ring-red-400/20',
     status === 'valid' && 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-400/20',
-    status === 'idle' && 'border-navy-800/12 focus:border-copper-400 focus:ring-copper-400/20'
+    status === 'idle' && 'border-navy-800/12 focus:border-navy-500 focus:ring-navy-500/10'
   );
 }
 
@@ -192,18 +191,24 @@ export default function Register() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full">
-      <BackButton fallback="/login" label={t('common.backToLogin')} />
-      <p className="text-xs uppercase tracking-[0.24em] text-copper-500">BuildMate</p>
-      <h1 className="mt-2 font-display text-[1.75rem] leading-tight text-navy-800 sm:text-3xl">{copy.heading}</h1>
-      <p className="mt-2 text-sm leading-relaxed text-ink-400">{copy.lead}</p>
+    <div className="w-full rounded-2xl border border-navy-800/10 bg-white p-5 shadow-sm sm:p-6">
+      <Link
+        to={withNextParam('/login', params.get('next'))}
+        className="mb-2 inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-[15px] font-medium text-navy-700 hover:text-navy-900 hover:underline"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        {t('common.backToLogin')}
+      </Link>
+      <p className="text-[11px] uppercase tracking-wider text-copper-500">BuildMate</p>
+      <h1 className="mt-1 font-display text-2xl leading-tight text-navy-800">{copy.heading}</h1>
+      <p className="mt-1 text-[13px] leading-snug text-ink-400">{copy.lead}</p>
 
       {error ? (
-        <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+        <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       ) : null}
 
-      <form className="mt-4 space-y-3.5" onSubmit={onSubmit} noValidate>
-        <label className="block text-sm font-medium text-navy-800" htmlFor="register-name">
+      <form className="mt-2.5 space-y-1.5" onSubmit={onSubmit} noValidate>
+        <label className="block text-[13px] font-medium leading-tight text-navy-800" htmlFor="register-name">
           {t('auth.fullName')}
           <input
             id="register-name"
@@ -218,13 +223,18 @@ export default function Register() {
               markTouched('name');
             }}
           />
-          {nameStatus === 'error' ? (
-            <span id="register-name-error" className="mt-1.5 block text-xs font-normal text-red-600">
-              {nameMessage}
-            </span>
-          ) : null}
+          <span
+            id="register-name-error"
+            title={nameStatus === 'error' ? nameMessage : undefined}
+            className={cn(
+              'mt-1 block h-3 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] leading-3 font-normal',
+              nameStatus === 'error' ? 'text-red-600' : 'invisible'
+            )}
+          >
+            {nameStatus === 'error' ? nameMessage : '\u00a0'}
+          </span>
         </label>
-        <label className="block text-sm font-medium text-navy-800" htmlFor="register-email">
+        <label className="block text-[13px] font-medium leading-tight text-navy-800" htmlFor="register-email">
           {t('auth.email')}
           <input
             id="register-email"
@@ -241,13 +251,18 @@ export default function Register() {
               markTouched('email');
             }}
           />
-          {emailStatus === 'error' ? (
-            <span id="register-email-error" className="mt-1.5 block text-xs font-normal text-red-600">
-              {emailMessage}
-            </span>
-          ) : null}
+          <span
+            id="register-email-error"
+            title={emailStatus === 'error' ? emailMessage : undefined}
+            className={cn(
+              'mt-1 block h-3 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] leading-3 font-normal',
+              emailStatus === 'error' ? 'text-red-600' : 'invisible'
+            )}
+          >
+            {emailStatus === 'error' ? emailMessage : '\u00a0'}
+          </span>
         </label>
-        <label className="block text-sm font-medium text-navy-800" htmlFor="register-phone">
+        <label className="block text-[13px] font-medium leading-tight text-navy-800" htmlFor="register-phone">
           {t('auth.phone')}
           <input
             id="register-phone"
@@ -266,20 +281,27 @@ export default function Register() {
             }}
             onChange={(e) => onPhoneChange(e.target.value)}
           />
-          {phoneStatus === 'error' ? (
-            <span id="register-phone-error" className="mt-1.5 block text-xs font-normal text-red-600">
-              {phoneMessage}
-            </span>
-          ) : null}
+          <span
+            id="register-phone-error"
+            title={phoneStatus === 'error' ? phoneMessage : undefined}
+            className={cn(
+              'mt-1 block h-3 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] leading-3 font-normal',
+              phoneStatus === 'error' ? 'text-red-600' : 'invisible'
+            )}
+          >
+            {phoneStatus === 'error' ? phoneMessage : '\u00a0'}
+          </span>
         </label>
         <PasswordInput
           id="register-password"
           label={t('auth.password')}
+          className="h-9 rounded-xl"
           autoComplete="new-password"
           disabled={loading}
           value={password}
           error={passwordStatus === 'error' ? passwordMessage : undefined}
           valid={passwordStatus === 'valid'}
+          reserveErrorSpace
           onBlur={() => markTouched('password')}
           onChange={(e) => {
             setPassword(e.target.value);
@@ -289,11 +311,13 @@ export default function Register() {
         <PasswordInput
           id="register-confirm"
           label={t('auth.confirmPassword')}
+          className="h-9 rounded-xl"
           autoComplete="new-password"
           disabled={loading}
           value={confirm}
           error={confirmStatus === 'error' ? confirmMessage : undefined}
           valid={confirmStatus === 'valid'}
+          reserveErrorSpace
           onBlur={() => markTouched('confirm')}
           onChange={(e) => {
             setConfirm(e.target.value);
@@ -304,18 +328,18 @@ export default function Register() {
         <button
           type="submit"
           disabled={loading || !formValid}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-navy-800 text-sm font-semibold text-paper-50 shadow-card transition hover:bg-navy-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-10 w-full items-center justify-center rounded-full bg-navy-800 text-sm font-semibold text-paper-50 shadow-card transition hover:bg-navy-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? t('auth.registerLoading') : t('common.register')}
         </button>
       </form>
 
-      <p className="mt-5 text-center text-sm text-ink-400">
+      <p className="mt-2.5 text-center text-[13px] text-ink-400">
         {t('auth.hasAccount')}{' '}
         <Link to={withNextParam('/login', params.get('next'))} className="font-semibold text-navy-800 hover:text-copper-500">
           {t('auth.loginBtn')}
         </Link>
       </p>
-    </motion.div>
+    </div>
   );
 }

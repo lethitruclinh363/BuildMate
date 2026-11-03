@@ -7,15 +7,25 @@ type PasswordInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & 
   label: string;
   error?: string;
   valid?: boolean;
+  reserveErrorSpace?: boolean;
 };
 
 const fieldClass =
-  'h-12 w-full rounded-2xl border border-navy-800/12 bg-white px-4 pr-12 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20';
+  'h-12 w-full rounded-2xl border border-navy-800/12 bg-white px-4 pr-12 text-sm text-navy-800 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-500/10';
 
 /**
  * Ô mật khẩu dùng chung: click icon mắt để hiện / ẩn chữ.
  */
-export function PasswordInput({ label, id, className, disabled, error, valid, ...props }: PasswordInputProps) {
+export function PasswordInput({
+  label,
+  id,
+  className,
+  disabled,
+  error,
+  valid,
+  reserveErrorSpace = false,
+  ...props
+}: PasswordInputProps) {
   const { t } = useI18n();
   const [visible, setVisible] = useState(false);
   const inputId = id || 'password-input';
@@ -50,9 +60,16 @@ export function PasswordInput({ label, id, className, disabled, error, valid, ..
           {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </span>
-      {error ? (
-        <span id={errorId} className="mt-1.5 block text-xs font-normal text-red-600">
-          {error}
+      {error || reserveErrorSpace ? (
+        <span
+          id={error ? errorId : undefined}
+          title={error}
+          className={cn(
+            'mt-1 block h-3 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] leading-3 font-normal',
+            error ? 'text-red-600' : 'invisible'
+          )}
+        >
+          {error || '\u00a0'}
         </span>
       ) : null}
     </label>

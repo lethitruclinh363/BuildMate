@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { type FormEvent, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PartnerRegisterPanel } from '@/components/auth/PartnerRegisterPanel';
@@ -13,7 +12,7 @@ import { useToastStore } from '@/store/toast.store';
 import type { AxiosError } from 'axios';
 
 const fieldClass =
-  'mt-1.5 h-12 w-full rounded-2xl border border-navy-800/12 bg-white px-4 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20';
+  'mt-1.5 h-12 w-full rounded-2xl border border-navy-800/12 bg-white px-4 text-sm text-navy-800 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-500/10';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -53,12 +52,7 @@ export default function Login() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="rounded-[28px] border border-navy-800/8 bg-white p-7 shadow-lift"
-    >
+    <div className="rounded-2xl border border-navy-800/10 bg-white p-7 shadow-sm">
       <BackButton fallback="/" label={t('common.backToHome')} />
       <p className="text-xs uppercase tracking-[0.24em] text-copper-500">BuildMate</p>
       <h1 className="mt-2 font-display text-3xl text-navy-800">{t('auth.loginHeading')}</h1>
@@ -118,6 +112,6 @@ export default function Login() {
       <div className="mt-6 lg:hidden">
         <PartnerRegisterPanel variant="light" />
       </div>
-    </motion.div>
+    </div>
   );
 }

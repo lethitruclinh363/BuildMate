@@ -13,6 +13,7 @@ export function AuthLayout() {
   const isLogin = location.pathname === '/login';
   const isRegister = location.pathname === '/register';
   const registerRole = isRegister ? parseRegisterRole(params.get('role')) : null;
+  const simpleHero = isLogin || isRegister;
 
   const registerBlurb =
     registerRole === 'CONTRACTOR'
@@ -29,6 +30,7 @@ export function AuthLayout() {
     <div
       className={cn(
         'grid min-h-screen',
+        isRegister && 'lg:h-screen lg:overflow-hidden',
         // Login + Register ~60/40 (same split); other auth pages stay 50/50
         wideHero ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : 'lg:grid-cols-2'
       )}
@@ -42,8 +44,8 @@ export function AuthLayout() {
             wideHero ? 'object-[46%_36%]' : 'object-[56%_38%]'
           )}
         />
-        <div className="absolute inset-0 bg-hero-wash" />
-        <div className="absolute inset-0 blueprint-frame" />
+        <div className={cn('absolute inset-0', simpleHero ? 'bg-navy-800/65' : 'bg-hero-wash')} />
+        {!simpleHero ? <div className="absolute inset-0 blueprint-frame" /> : null}
         <div
           className={cn(
             'relative z-10 flex w-full flex-col justify-between text-white',
@@ -56,12 +58,24 @@ export function AuthLayout() {
           </div>
 
           {isLogin ? (
-            <PartnerRegisterPanel variant="dark" />
+            <PartnerRegisterPanel variant="dark" className="lg:translate-y-16" />
           ) : (
-            <div className={cn('max-w-md', isRegister && 'xl:max-w-lg')}>
-              <p className="text-xs uppercase tracking-[0.28em] text-copper-300">{t('brand.eyebrow')}</p>
-              <h1 className="mt-4 font-display text-4xl font-semibold leading-tight">{t('auth.authPanelTitle')}</h1>
-              <p className="mt-4 text-white/70">{registerBlurb || t('auth.authPanelBody')}</p>
+            <div className={cn('max-w-md lg:translate-y-16', isRegister && 'xl:max-w-lg')}>
+              <p className="text-xs uppercase tracking-wider text-copper-200">
+                {t('brand.eyebrow')}
+              </p>
+              <h1 className="mt-4 font-display text-3xl font-semibold leading-tight">
+                {t('auth.authPanelTitle')}
+              </h1>
+              <p className="mt-4 text-white/80">{registerBlurb || t('auth.authPanelBody')}</p>
+              {isRegister && (registerRole === 'CONTRACTOR' || registerRole === 'MATERIAL_STORE_OWNER') ? (
+                <PartnerRegisterPanel
+                  variant="dark"
+                  compact
+                  selectedRole={registerRole}
+                  className="mt-5"
+                />
+              ) : null}
             </div>
           )}
 
@@ -73,7 +87,12 @@ export function AuthLayout() {
       <main
         className={cn(
           'flex min-h-screen flex-col overflow-y-auto bg-paper-100 px-4 sm:px-6',
-          wideHero ? 'py-6 sm:py-8' : 'py-8 sm:py-10'
+          isRegister && 'lg:overflow-hidden',
+          isRegister
+            ? 'py-2 sm:py-3 lg:h-screen'
+            : isLogin
+              ? 'py-4 sm:py-6'
+              : 'py-8 sm:py-10'
         )}
       >
         <div className={cn('m-auto w-full', wideHero ? 'max-w-[24rem]' : 'max-w-md')}>
