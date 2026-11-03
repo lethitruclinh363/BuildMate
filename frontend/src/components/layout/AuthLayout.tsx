@@ -12,6 +12,8 @@ export function AuthLayout() {
   const [params] = useSearchParams();
   const isLogin = location.pathname === '/login';
   const isRegister = location.pathname === '/register';
+  const isForgotPassword = location.pathname === '/forgot-password';
+  const isVerifyEmail = location.pathname === '/verify-email';
   const registerRole = isRegister ? parseRegisterRole(params.get('role')) : null;
   const simpleHero = isLogin || isRegister;
 
@@ -24,7 +26,7 @@ export function AuthLayout() {
           ? t('auth.registerLeadCustomer')
           : null;
 
-  const wideHero = isLogin || isRegister;
+  const wideHero = isLogin || isRegister || isForgotPassword || isVerifyEmail;
 
   return (
     <div
@@ -58,9 +60,9 @@ export function AuthLayout() {
           </div>
 
           {isLogin ? (
-            <PartnerRegisterPanel variant="dark" className="lg:translate-y-16" />
+            <PartnerRegisterPanel variant="dark" className="lg:translate-y-32" />
           ) : (
-            <div className={cn('max-w-md lg:translate-y-16', isRegister && 'xl:max-w-lg')}>
+            <div className={cn('max-w-md lg:translate-y-32', isRegister && 'xl:max-w-lg')}>
               <p className="text-xs uppercase tracking-wider text-copper-200">
                 {t('brand.eyebrow')}
               </p>
@@ -90,7 +92,7 @@ export function AuthLayout() {
           isRegister && 'lg:overflow-hidden',
           isRegister
             ? 'py-2 sm:py-3 lg:h-screen'
-            : isLogin
+            : isLogin || isForgotPassword || isVerifyEmail
               ? 'py-4 sm:py-6'
               : 'py-8 sm:py-10'
         )}

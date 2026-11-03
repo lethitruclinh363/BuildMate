@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { ArrowLeft } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PasswordInput } from '@/components/common/PasswordInput';
@@ -11,7 +11,7 @@ import { authApi } from '@/services/auth.api';
 import { useToastStore } from '@/store/toast.store';
 
 const fieldClass =
-  'mt-1.5 w-full rounded-2xl border border-navy-800/12 bg-white px-4 py-3 text-sm text-navy-800 outline-none transition focus:border-copper-400 focus:ring-4 focus:ring-copper-400/20';
+  'mt-1.5 h-12 w-full rounded-2xl border border-navy-800/12 bg-white px-4 text-sm text-navy-800 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-500/10';
 
 type FieldKey = 'password' | 'confirm';
 type FieldStatus = 'idle' | 'error' | 'valid';
@@ -206,12 +206,14 @@ export default function ForgotPassword() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-[28px] border border-navy-800/8 bg-white p-7 shadow-lift"
-    >
-      <p className="text-xs uppercase tracking-[0.24em] text-copper-500">BuildMate</p>
+    <div className="rounded-2xl border border-navy-800/10 bg-white p-7 shadow-sm">
+      <Link
+        to="/login"
+        className="mb-5 inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-[15px] font-medium text-navy-700 hover:text-navy-900 hover:underline"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        {t('auth.backToLogin')}
+      </Link>
       <h1 className="mt-2 font-display text-3xl text-navy-800">{t('auth.forgotTitle')}</h1>
       <p className="mt-2 text-sm text-ink-400">
         {t('auth.forgotStep', {
@@ -378,11 +380,6 @@ export default function ForgotPassword() {
         </form>
       ) : null}
 
-      <p className="mt-6 text-center text-sm text-ink-400">
-        <Link to="/login" className="font-semibold text-navy-800 hover:text-copper-500">
-          {t('auth.backToLogin')}
-        </Link>
-      </p>
-    </motion.div>
+    </div>
   );
 }

@@ -151,7 +151,7 @@ export function ProfilePage() {
             <Camera className="h-4 w-4" />
             {t('profile.changeAvatar')}
           </Button>
-          <div className="mt-6 rounded-2xl bg-paper-100 p-4 text-left">
+          <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-left">
             <p className="flex items-center gap-2 text-sm font-semibold text-navy-800">
               <ShieldCheck className="h-4 w-4 text-copper-500" />
               {t('profile.status')}
@@ -159,8 +159,8 @@ export function ProfilePage() {
             <Badge className="mt-2" tone={user.status === 'ACTIVE' ? 'success' : 'warn'}>
               {labeled(t, 'status', user.status)}
             </Badge>
-            <p className="mt-2 text-xs text-ink-400">{labeled(t, 'role', user.role)}</p>
-            <p className="mt-1 text-xs text-ink-400">
+            <p className="mt-2 text-xs text-ink-600">{labeled(t, 'role', user.role)}</p>
+            <p className="mt-1 text-xs text-ink-600">
               {t('profile.memberSince', { date: new Date(user.createdAt || Date.now()).toLocaleDateString() })}
             </p>
           </div>
@@ -237,7 +237,7 @@ export function ProfilePage() {
                 </button>
               </div>
 
-              <div className="relative">
+              <div className="relative sm:col-start-2">
                 <Input
                   id="confirm"
                   type={showConfirmPassword ? 'text' : 'password'}
@@ -264,7 +264,6 @@ export function ProfilePage() {
             </div>
             <Button
               className="mt-4"
-              variant="copper"
               loading={pwdBusy}
               disabled={
                 currentPassword.length < 8 ||
