@@ -247,8 +247,8 @@ function buildOverview(
         format: 'compact',
         delta: deltas.gmv,
         hint: 'dash.hintGmv',
-        hintCount: (analytics.orders.completed || 0) + (analytics.orders.materialCompleted || 0),
-        href: '/analytics',
+        hintCount: analytics.orders.completed || 0,
+        href: '/orders',
       },
       {
         key: 'commission',

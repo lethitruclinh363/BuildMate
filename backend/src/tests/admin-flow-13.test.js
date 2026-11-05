@@ -127,19 +127,22 @@ describe('Flow 13 public uploads and admin ACL source', () => {
     assert.match(adminAuthRoutes, /allowRole\('ADMIN'\)/);
     assert.match(adminRoutes, /allowRole\('ADMIN'\)/);
     assert.match(adminRoutes, /router\.get\('\/orders'/);
-    assert.match(adminRoutes, /router\.get\('\/material-orders'/);
+    assert.doesNotMatch(adminRoutes, /router\.get\('\/material-orders'/);
   });
 
   it('does not bind dashboard GMV to finance.revenue or fabricate chart series', () => {
     const dashboard = readAdmin('features/dashboard/services/dashboard.api.ts');
-    const analyticsPage = readAdmin('analytics/AnalyticsPage.tsx');
     const analyticsService = readBe('services/analyticsService.js');
     const format = readAdmin('features/dashboard/lib/format.ts');
+    const sidebar = readAdmin('layouts/Sidebar.tsx');
+    const routes = readAdmin('routes/index.tsx');
     assert.match(dashboard, /analytics\.finance\.gmv/);
     assert.equal(/value:\s*analytics\.finance\.revenue/.test(dashboard), false);
     assert.equal(/distribute\(/.test(dashboard), false);
     assert.equal(/delta:\s*analytics\.complaints\.open \? 12/.test(dashboard), false);
-    assert.match(analyticsPage, /data\.finance\.gmv/);
+    assert.equal(fs.existsSync(path.join(__dirname, '../../../admin/src/analytics/AnalyticsPage.tsx')), false);
+    assert.doesNotMatch(sidebar, /to: '\/analytics'/);
+    assert.match(routes, /Navigate to="\/dashboard" replace/);
     assert.match(analyticsService, /revenue:\s*commission\.platform/);
     assert.match(analyticsService, /gmv,/);
     assert.match(analyticsService, /materialPlatformRevenue:\s*0/);

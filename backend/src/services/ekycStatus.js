@@ -11,6 +11,53 @@ const EKYC_STATUS = Object.freeze({
 const FACE_DECISIONS = Object.freeze(['MATCH', 'REVIEW_REQUIRED', 'NOT_MATCH']);
 const SUBMITTABLE = new Set([EKYC_STATUS.AI_PASSED, EKYC_STATUS.AI_REVIEW_REQUIRED]);
 
+function isValidCitizenDob(value) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || '').trim());
+  if (!match) return false;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
+    return false;
+  }
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  return year >= 1900 && parsed <= today;
+}
+
+function ocrRequiredComplete(ocr = {}) {
+  const idNumber = String(ocr.idNumber || ocr.id_card_number || '').replace(/\D/g, '');
+  const fullName = String(ocr.fullName || ocr.full_name || '').trim();
+  const dateOfBirth = String(ocr.dateOfBirth || ocr.date_of_birth || '').trim();
+  return Boolean(idNumber.length === 12 && fullName.length >= 2 && isValidCitizenDob(dateOfBirth));
+}
+
+function mapOcrResult(ocr = {}) {
+  const mapped = {
+    idNumber: String(ocr.id_card_number || ocr.idNumber || '').replace(/\D/g, ''),
+    fullName: String(ocr.full_name || ocr.fullName || '').trim(),
+    dateOfBirth: String(ocr.date_of_birth || ocr.dateOfBirth || '').trim(),
+    gender: String(ocr.gender || '').trim(),
+    hometown: String(ocr.hometown || '').trim(),
+    issues: Array.isArray(ocr.validation_errors)
+      ? ocr.validation_errors
+      : Array.isArray(ocr.issues)
+        ? ocr.issues
+        : [],
+  };
+  mapped.passed = Boolean(ocr.validation_passed) && ocrRequiredComplete(mapped);
+  return mapped;
+}
+
+function preflightOcrFields(ocr = {}) {
+  const fields = [];
+  if (!String(ocr.fullName || '').trim() || String(ocr.fullName).trim().length < 2) fields.push('MISSING_NAME');
+  if (String(ocr.idNumber || '').replace(/\D/g, '').length !== 12) fields.push('MISSING_ID');
+  if (!isValidCitizenDob(ocr.dateOfBirth)) fields.push('MISSING_DOB');
+  return fields;
+}
+
 function resolveAiStatus({ ocrPassed, livenessPassed, faceDecision }) {
   if (!ocrPassed || !livenessPassed) return EKYC_STATUS.AI_FAILED;
   if (faceDecision === 'MATCH') return EKYC_STATUS.AI_PASSED;
@@ -49,13 +96,15 @@ function toPublic(doc) {
     status: source.status || EKYC_STATUS.NOT_STARTED,
     frontDocumentId: source.frontDocumentId || null,
     backDocumentId: source.backDocumentId || null,
+    hasFront: Boolean(source.cardImages?.front || source.frontDocumentId),
+    hasBack: Boolean(source.cardImages?.back || source.backDocumentId),
     ocr: {
       idNumber: ocr.idNumber || '',
       fullName: ocr.fullName || '',
       dateOfBirth: ocr.dateOfBirth || '',
       gender: ocr.gender || '',
       hometown: ocr.hometown || '',
-      passed: Boolean(ocr.passed),
+      passed: Boolean(ocr.passed) && ocrRequiredComplete(ocr),
       errors: Array.isArray(ocr.issues) ? ocr.issues : Array.isArray(ocr.errors) ? ocr.errors : [],
     },
     liveness: {
@@ -117,6 +166,10 @@ function archiveAttempt(doc) {
 module.exports = {
   EKYC_STATUS,
   FACE_DECISIONS,
+  isValidCitizenDob,
+  ocrRequiredComplete,
+  mapOcrResult,
+  preflightOcrFields,
   resolveAiStatus,
   canSubmitEkyc,
   emptyOcr,

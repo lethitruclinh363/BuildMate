@@ -14,9 +14,7 @@ import { formatQtyWithUnit } from '@/lib/mrl-display';
 import { materialStoreApi, vnd } from '@/lib/partner-api';
 import type { CatalogMaterial } from '@/types/partner';
 import {
-  isMrlFulfillment,
   materialRequirementApi,
-  MRL_NEXT_FULFILLMENT,
   quoteLineAmount,
   quoteTotalOf,
   type MaterialRequirementList,
@@ -25,7 +23,7 @@ import { useI18n } from '@/locales';
 import { useSocket } from '@/providers/SocketProvider';
 import { useToastStore } from '@/store/toast.store';
 
-const STATUS_STEPS = ['SENT', 'QUOTED', 'CONFIRMED', 'PREPARING', 'DELIVERING', 'DELIVERED'] as const;
+const STATUS_STEPS = ['SENT', 'QUOTED'] as const;
 
 function statusTone(status: string): 'mist' | 'copper' | 'success' | 'warn' | 'danger' {
   if (status === 'DELIVERED' || status === 'CONFIRMED') return 'success';
@@ -42,8 +40,6 @@ export function StoreMaterialRequestDetailPage() {
   const [list, setList] = useState<MaterialRequirementList | null>(null);
   const [catalog, setCatalog] = useState<CatalogMaterial[]>([]);
   const [prices, setPrices] = useState<Record<string, { unitPrice: number; availableQty: number; note: string }>>({});
-  const [deliveryFee, setDeliveryFee] = useState(0);
-  const [deliveryTime, setDeliveryTime] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -88,21 +84,15 @@ export function StoreMaterialRequestDetailPage() {
       const row = prices[item.id];
       const qty = Number(row?.availableQty || 0);
       return sum + qty * Number(row?.unitPrice || 0);
-    }, Number(deliveryFee) || 0);
-  }, [list, prices, deliveryFee]);
+    }, 0);
+  }, [list, prices]);
 
   const quote = list?.quotes?.[0] || null;
   const confirmedTotal = quote ? quoteTotalOf(quote) : 0;
-  const nextStatus = list ? MRL_NEXT_FULFILLMENT[list.status] : undefined;
 
   const onQuote = (event: FormEvent) => {
     event.preventDefault();
     if (!list || busy || submittingRef.current) return;
-    const fee = Number(deliveryFee);
-    if (!Number.isFinite(fee) || fee < 0) {
-      setError(t('validation.invalid'));
-      return;
-    }
     const quoted = (list.items || []).map((item) => ({
       itemId: item.id,
       unitPrice: Number(prices[item.id]?.unitPrice),
@@ -117,8 +107,8 @@ export function StoreMaterialRequestDetailPage() {
     setBusy(true);
     materialRequirementApi
       .quote(list.id, {
-        deliveryFee,
-        note: [deliveryTime.trim() ? `${t('mrl.deliveryTime')}: ${deliveryTime.trim()}` : '', note.trim()].filter(Boolean).join('\n'),
+        deliveryFee: 0,
+        note: note.trim(),
         items: quoted,
       })
       .then((res) => {
@@ -133,24 +123,6 @@ export function StoreMaterialRequestDetailPage() {
       });
   };
 
-  const onFulfill = () => {
-    if (!list || !nextStatus) return;
-    setBusy(true);
-    materialRequirementApi
-      .fulfill(list.id, nextStatus)
-      .then((res) => {
-        setList(res.data.data);
-        setError('');
-        toast({ kind: 'success', title: t(`mrl.status.${res.data.data.status}`) });
-      })
-      .catch((err: unknown) => {
-        const message = te(getApiErrorMessage(err));
-        setError(message);
-        toast({ kind: 'error', title: message });
-      })
-      .finally(() => setBusy(false));
-  };
-
   if (loading) return <DashboardSkeleton />;
   if (error && !list) return <ErrorState body={error} onRetry={() => window.location.reload()} />;
   if (!list) return null;
@@ -162,7 +134,7 @@ export function StoreMaterialRequestDetailPage() {
       <BackButton fallback="/store/material-requests" />
       <PageHeader
         eyebrow={t('mrl.storeEyebrow')}
-        title={isMrlFulfillment(list.status) ? t('mrl.orderTitle') : t('mrl.storeDetailTitle')}
+        title={t('mrl.storeDetailTitle')}
         description={t('mrl.storeDetailBody')}
       />
       {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
@@ -244,8 +216,6 @@ export function StoreMaterialRequestDetailPage() {
               </p>
             </div>
           ))}
-          <Input id="mrl-fee" label={t('mrl.deliveryFee')} type="number" min={0} step="1" value={deliveryFee} onChange={(e) => setDeliveryFee(Number(e.target.value))} />
-          <Input id="mrl-eta" label={t('mrl.deliveryTime')} value={deliveryTime} onChange={(e) => setDeliveryTime(e.target.value)} />
           <Input id="mrl-note" label={t('mrl.notes')} value={note} onChange={(e) => setNote(e.target.value)} />
           <p className="text-sm font-medium text-navy-800">{t('mrl.total')}: {vnd(draftTotal)}</p>
           <Button type="submit" disabled={busy}>{busy ? (t('common.loading') || 'Đang gửi...') : t('mrl.sendQuote')}</Button>
@@ -253,7 +223,7 @@ export function StoreMaterialRequestDetailPage() {
       ) : null}
 
       {list.status === 'QUOTED' ? (
-        <p className="text-sm text-ink-500">{t('mrl.waitingCustomerConfirm')}</p>
+        <p className="text-sm text-ink-500">{t('mrl.advisoryQuoteHint')}</p>
       ) : null}
 
       {quote && list.status !== 'SENT' ? (
@@ -265,7 +235,9 @@ export function StoreMaterialRequestDetailPage() {
               <span>{vnd(quoteLineAmount(line))}</span>
             </p>
           ))}
-          <p className="mt-2 text-sm text-ink-500">{t('mrl.deliveryFee')}: {vnd(quote.deliveryFee)}</p>
+          {Number(quote.deliveryFee) > 0 ? (
+            <p className="mt-2 text-sm text-ink-500">{t('mrl.deliveryFee')}: {vnd(quote.deliveryFee)}</p>
+          ) : null}
           {quote.note ? <p className="mt-1 text-sm text-ink-500">{quote.note}</p> : null}
           <p className="text-sm font-medium text-navy-800">{t('mrl.total')}: {vnd(confirmedTotal)}</p>
         </div>
@@ -289,17 +261,6 @@ export function StoreMaterialRequestDetailPage() {
         </div>
       ) : null}
 
-      {isMrlFulfillment(list.status) ? (
-        <div className="rounded-2xl border border-copper-300/70 bg-white p-4">
-          {list.status === 'DELIVERED' ? (
-            <p className="text-sm text-ink-500">{t('mrl.fulfillmentDone')}</p>
-          ) : (
-            <Button disabled={busy} onClick={onFulfill}>
-              {nextStatus === 'PREPARING' ? t('mrl.createOrder') : nextStatus === 'DELIVERING' ? t('mrl.advanceDelivering') : t('mrl.advanceDelivered')}
-            </Button>
-          )}
-        </div>
-      ) : null}
     </PageTransition>
   );
 }

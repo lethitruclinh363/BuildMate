@@ -7,11 +7,9 @@ const { RepairRequest } = require('../repositories/conversationAccess');
 const { REVIEW_TARGET } = require('../models/Review');
 const { COMPLAINT_STATUS } = require('../models/Complaint');
 const { Order, Review, Complaint } = require('../repositories/commerceAccess');
-const { MaterialOrder } = require('../repositories/materialOrderAccess');
 const { userRepository } = require('../repositories/userRepository');
 const { publicPricedServiceMatch } = require('../constants/contractorServices');
 const { ORDER_STATUS } = require('../utils/order.rules');
-const { MATERIAL_ORDER_STATUS } = require('../utils/material-order.rules');
 const score = require('./featuredScore');
 const activationService = require('./activation.service');
 
@@ -25,20 +23,6 @@ const ACCEPTED_JOBS = [
   ORDER_STATUS.COMPLETED,
   ORDER_STATUS.CUSTOMER_ACCEPTED,
   ORDER_STATUS.CANCELLED,
-];
-const COMPLETED_MATERIAL = [
-  MATERIAL_ORDER_STATUS.DELIVERED,
-  MATERIAL_ORDER_STATUS.CUSTOMER_RECEIVED,
-  MATERIAL_ORDER_STATUS.COMPLETED,
-];
-const ACCEPTED_MATERIAL = [
-  MATERIAL_ORDER_STATUS.DEPOSIT_PAID,
-  MATERIAL_ORDER_STATUS.CONFIRMED,
-  MATERIAL_ORDER_STATUS.PREPARING,
-  MATERIAL_ORDER_STATUS.READY_FOR_DELIVERY,
-  MATERIAL_ORDER_STATUS.DELIVERING,
-  ...COMPLETED_MATERIAL,
-  MATERIAL_ORDER_STATUS.CANCELLED,
 ];
 
 let cache = { at: 0, data: null };
@@ -57,7 +41,7 @@ async function loadSignals(stores) {
   const storeIds = stores.map((store) => store._id);
   const ownerIds = stores.map((store) => store.contractorId);
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const [services, materials, orders, materialOrders, reviews, complaints, requests] = await Promise.all([
+  const [services, materials, orders, reviews, complaints, requests] = await Promise.all([
     Service.aggregate([
       { $match: { storeId: { $in: storeIds }, ...publicPricedServiceMatch() } },
       { $group: { _id: '$storeId', count: { $sum: 1 }, categories: { $addToSet: '$category' } } },
@@ -75,17 +59,6 @@ async function loadSignals(stores) {
           cancelled: { $sum: { $cond: [{ $eq: ['$status', ORDER_STATUS.CANCELLED] }, 1, 0] } },
           accepted: { $sum: { $cond: [{ $in: ['$status', ACCEPTED_JOBS] }, 1, 0] } },
           recent: { $sum: { $cond: [{ $gte: ['$updatedAt', since] }, 1, 0] } },
-        },
-      },
-    ]),
-    MaterialOrder.aggregate([
-      { $match: { storeId: { $in: storeIds } } },
-      {
-        $group: {
-          _id: '$storeId',
-          completed: { $sum: { $cond: [{ $in: ['$status', COMPLETED_MATERIAL] }, 1, 0] } },
-          cancelled: { $sum: { $cond: [{ $eq: ['$status', MATERIAL_ORDER_STATUS.CANCELLED] }, 1, 0] } },
-          accepted: { $sum: { $cond: [{ $in: ['$status', ACCEPTED_MATERIAL] }, 1, 0] } },
         },
       },
     ]),
@@ -129,7 +102,6 @@ async function loadSignals(stores) {
     services: indexBy(services, '_id'),
     materials: indexBy(materials, '_id'),
     orders: indexBy(orders, '_id'),
-    materialOrders: indexBy(materialOrders, '_id'),
     complaints: indexBy(complaints, '_id'),
     requests: indexBy(requests, '_id'),
     reviews: reviewFacet.byTarget,
@@ -152,7 +124,6 @@ function toCandidate(store, profile, user, signals) {
   const service = signals.services.get(String(store._id)) || { count: 0, categories: [] };
   const material = signals.materials.get(String(store._id)) || { count: 0 };
   const jobs = signals.orders.get(String(store.contractorId)) || {};
-  const deliveries = signals.materialOrders.get(String(store._id)) || {};
   const requests = signals.requests.get(String(store.contractorId)) || {};
   const complaints = signals.complaints.get(String(store.contractorId)) || { count: 0 };
   const materialStore = store.storeType === STORE_TYPE.MATERIALS;
@@ -177,12 +148,13 @@ function toCandidate(store, profile, user, signals) {
     rating: reviews.count ? reviews.average : null,
     reviewCount: reviews.count,
     completedJobs: jobs.completed || 0,
-    completedOrders: deliveries.completed || 0,
+    completedOrders: 0,
+    productCount: material.count || 0,
     averageRating: reviews.average,
     globalAverageRating: reviews.global,
     acceptedJobs: jobs.accepted || 0,
-    acceptedOrders: deliveries.accepted || 0,
-    cancelled: (materialStore ? deliveries.cancelled : jobs.cancelled) || 0,
+    acceptedOrders: 0,
+    cancelled: materialStore ? 0 : jobs.cancelled || 0,
     complaints: complaints.count || 0,
     responseRate: requests.total ? (requests.answered / requests.total) * 100 : null,
     recentActivity: jobs.recent || 0,

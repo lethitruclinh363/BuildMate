@@ -6,10 +6,8 @@ import { formatDistance } from '@/features/map/lib/distance';
 import { openGoogleMapsDirections } from '@/features/map/lib/location';
 import { catalogCategoryLabel } from '@/data/contractor-services';
 import { categoryDisplayLabel } from '@/data/material-categories';
-import { trustLineKind } from '@/features/reviews/components/reputationDisplay';
 import { chatApi } from '@/features/chat/services/sprint4.api';
 import { usePartnerPaths } from '@/lib/partner-paths';
-import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
 import { repairCreatePath, withAuthRedirect } from '@/types/sprint4';
@@ -57,13 +55,8 @@ export function ExplorePopup({
   const categories = [...new Set(place.services.map((service) => catalogCategoryLabel(service.category, t)))].slice(0, 4);
   const materials = kind === 'store' ? materialLine(place, t) : '';
   const profilePath = kind === 'contractor' ? paths.contractor(place.contractorId) : paths.store(place.id);
-  const trustKind = trustLineKind(place.reviewCount, place.reputationScore);
   const ratingLabel =
     place.reviewCount > 0 ? `${place.rating.toFixed(1)} (${place.reviewCount})` : t('explore.noRating');
-  const trustNote =
-    trustKind === 'full'
-      ? t('explore.trustScore', { reputation: Number(place.reputationScore).toFixed(1) })
-      : t('explore.trustPending');
 
   async function openChat() {
     const fallback = kind === 'contractor' ? repairCreatePath(place.contractorId) : paths.store(place.id);
@@ -123,7 +116,6 @@ export function ExplorePopup({
             </p>
           ) : null}
         </div>
-        <p className="mt-1 text-sm text-ink-500">{trustNote}</p>
 
         {kind === 'contractor' && categories.length ? (
           <p className="mt-3 flex items-start gap-1.5 text-sm leading-6 text-ink-600">
@@ -134,10 +126,7 @@ export function ExplorePopup({
         {kind === 'store' ? (
           <div className="mt-3 space-y-1 text-sm leading-6 text-ink-600">
             {materials ? <p>{t('explore.materialLine')}: {materials}</p> : null}
-            <p>
-              {t('explore.deliveryRadius', { km: place.serviceRadiusKm || 0 })}
-              {place.deliveryEnabled ? ` · ${t('explore.deliveryFee', { fee: vnd(place.baseDeliveryFee || 0) })}` : ''}
-            </p>
+            <p>{t('explore.deliveryRadius', { km: place.serviceRadiusKm || 0 })}</p>
           </div>
         ) : null}
       </div>

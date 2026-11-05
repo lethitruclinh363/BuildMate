@@ -1,5 +1,4 @@
 import {
-  BadgeCheck,
   Bell,
   ClipboardCheck,
   ClipboardList,
@@ -27,7 +26,6 @@ export function customerNav(t: Translate): DashboardNavItem[] {
     { to: '/customer/chat', label: t('nav.customer.messages'), icon: MessageSquare },
     { to: '/customer/orders', label: t('nav.customer.orders'), icon: ClipboardList },
     { to: '/customer/material-lists', label: t('nav.customer.materialLists'), icon: Package },
-    { to: '/customer/material-orders', label: t('nav.customer.materialOrders'), icon: Package },
     { to: '/customer/reviews', label: t('nav.customer.reviews'), icon: Star },
     { to: '/customer/complaints', label: t('nav.customer.complaints'), icon: Scale },
     { to: '/customer/notifications', label: t('nav.customer.alerts'), icon: Bell },
@@ -45,7 +43,6 @@ export function contractorNav(t: Translate): DashboardNavItem[] {
     { to: '/contractor/orders', label: t('nav.contractor.orders'), icon: ClipboardList },
     { to: '/contractor/earnings', label: t('nav.contractor.revenue'), icon: Wallet },
     { to: '/contractor/reviews', label: t('nav.contractor.reviews'), icon: Star },
-    { to: '/contractor/reputation', label: t('nav.contractor.reputation'), icon: BadgeCheck },
     { to: '/contractor/notifications', label: t('nav.contractor.alerts'), icon: Bell },
     { to: '/contractor/account', label: t('nav.contractor.account'), icon: UserRound },
   ];

@@ -295,6 +295,7 @@ model contractor_profiles {
   submitted_at                                 DateTime?                        @db.Timestamptz(6)
   reviewed_at                                  DateTime?                        @db.Timestamptz(6)
   reviewed_by                                  BigInt?
+  weekly_hours                                 Json?
   created_at                                   DateTime                         @default(now()) @db.Timestamptz(6)
   updated_at                                   DateTime                         @default(now()) @db.Timestamptz(6)
   contractor_documents                         contractor_documents[]
@@ -616,6 +617,82 @@ model materials {
   @@index([store_id, is_active], map: "idx_materials_store_active")
 }
 
+/// Material Request lists. Partial unique indexes live in SQL scripts 18/23/24.
+model material_requirement_lists {
+  id               BigInt   @id @default(autoincrement())
+  legacy_mongo_id  String?  @unique @db.VarChar(24)
+  repair_request_id BigInt?
+  contractor_user_id BigInt?
+  customer_user_id BigInt?
+  store_id         BigInt?
+  parent_list_id   BigInt?
+  status           String   @default("DRAFT") @db.VarChar(30)
+  note             String   @default("") @db.VarChar(1000)
+  title            String   @default("") @db.VarChar(140)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  material_requirement_items material_requirement_items[]
+  material_quotes            material_quotes[]
+  parent_list                material_requirement_lists?  @relation("mrl_parent", fields: [parent_list_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  child_lists                material_requirement_lists[] @relation("mrl_parent")
+  repair_requests            repair_requests? @relation(fields: [repair_request_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mrl_repair_request")
+  users_mrl_contractor       users?           @relation("material_requirement_lists_contractor_user_idTousers", fields: [contractor_user_id], references: [id], onUpdate: NoAction, map: "fk_mrl_contractor")
+  users_mrl_customer         users?           @relation("material_requirement_lists_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_mrl_customer")
+  stores                     stores?          @relation(fields: [store_id], references: [id], onUpdate: NoAction, map: "fk_mrl_store")
+
+  @@index([contractor_user_id, created_at(sort: Desc)], map: "idx_mrl_contractor")
+  @@index([store_id, status], map: "idx_mrl_store_status")
+  @@index([customer_user_id], map: "idx_mrl_customer_user")
+  @@index([parent_list_id], map: "idx_mrl_parent")
+}
+
+model material_requirement_items {
+  id             BigInt   @id @default(autoincrement())
+  list_id        BigInt
+  name           String   @db.VarChar(140)
+  specification  String   @default("") @db.VarChar(200)
+  unit           String   @default("") @db.VarChar(40)
+  quantity       Decimal  @db.Decimal(14, 3)
+  notes          String   @default("") @db.VarChar(500)
+  sort_order     Int      @default(0)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @db.Timestamptz(6)
+  material_requirement_lists material_requirement_lists @relation(fields: [list_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mrl_items_list")
+  material_quote_items       material_quote_items[]
+
+  @@index([list_id, sort_order], map: "idx_mrl_items_list")
+}
+
+model material_quotes {
+  id             BigInt   @id @default(autoincrement())
+  legacy_mongo_id String? @unique @db.VarChar(24)
+  list_id        BigInt
+  store_id       BigInt
+  store_user_id  BigInt
+  status         String   @default("SENT") @db.VarChar(30)
+  delivery_fee   Decimal  @default(0) @db.Decimal(14, 2)
+  note           String   @default("") @db.VarChar(1000)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @db.Timestamptz(6)
+  material_requirement_lists material_requirement_lists @relation(fields: [list_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_material_quotes_list")
+  stores                     stores                     @relation(fields: [store_id], references: [id], onUpdate: NoAction, map: "fk_material_quotes_store")
+  users                      users                      @relation("material_quotes_store_user_idTousers", fields: [store_user_id], references: [id], onUpdate: NoAction, map: "fk_material_quotes_store_user")
+  material_quote_items       material_quote_items[]
+
+  @@index([list_id, created_at(sort: Desc)], map: "idx_material_quotes_list")
+}
+
+model material_quote_items {
+  id                   BigInt  @id @default(autoincrement())
+  quote_id             BigInt
+  requirement_item_id  BigInt
+  unit_price           Decimal @default(0) @db.Decimal(14, 2)
+  available_qty        Decimal @default(0) @db.Decimal(14, 3)
+  note                 String  @default("") @db.VarChar(500)
+  material_quotes            material_quotes            @relation(fields: [quote_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_material_quote_items_quote")
+  material_requirement_items material_requirement_items @relation(fields: [requirement_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_material_quote_items_item")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model messages {
   id              BigInt      @id @default(autoincrement())
@@ -837,6 +914,7 @@ model repair_requests {
   users_repair_requests_customer_user_idTousers   users                  @relation("repair_requests_customer_user_idTousers", fields: [customer_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_repair_requests_customer")
   locations                                       locations?             @relation(fields: [location_id], references: [id], onUpdate: NoAction, map: "fk_repair_requests_location")
   stores                                          stores?                @relation(fields: [store_id], references: [id], onUpdate: NoAction, map: "fk_repair_requests_store")
+  material_requirement_lists                      material_requirement_lists[]
   service_orders                                  service_orders?
 
   @@index([contractor_user_id, created_at(sort: Desc)], map: "idx_repair_requests_contractor_created")
@@ -1051,7 +1129,7 @@ model stores {
   display_years           Int?
   display_worker_count    Int?
   public_seeded           Boolean               @default(false)
-  opening_hours           String                @default("07:00 – 18:00") @db.VarChar(100)
+  opening_hours           String                @default("") @db.VarChar(200)
   service_radius_km       Decimal               @default(5) @db.Decimal(8, 2)
   category                String                @default("General repair") @db.VarChar(120)
   verified                Boolean               @default(false)
@@ -1065,6 +1143,8 @@ model stores {
   material_categories     material_categories[]
   material_orders         material_orders[]
   materials               materials[]
+  material_requirement_lists material_requirement_lists[]
+  material_quotes         material_quotes[]
   repair_requests         repair_requests[]
   service_orders          service_orders[]
   services                services[]
@@ -1134,6 +1214,9 @@ model users {
   material_orders_material_orders_customer_user_idTousers                              material_orders[]               @relation("material_orders_customer_user_idTousers")
   material_orders_material_orders_store_owner_user_idTousers                           material_orders[]               @relation("material_orders_store_owner_user_idTousers")
   messages                                                                             messages[]
+  material_requirement_lists_material_requirement_lists_contractor_user_idTousers      material_requirement_lists[]    @relation("material_requirement_lists_contractor_user_idTousers")
+  material_requirement_lists_material_requirement_lists_customer_user_idTousers        material_requirement_lists[]    @relation("material_requirement_lists_customer_user_idTousers")
+  material_quotes_material_quotes_store_user_idTousers                                 material_quotes[]               @relation("material_quotes_store_user_idTousers")
   notifications                                                                        notifications[]
   payments_payments_contractor_user_idTousers                                          payments[]                      @relation("payments_contractor_user_idTousers")
   payments_payments_customer_user_idTousers                                            payments[]                      @relation("payments_customer_user_idTousers")

@@ -18,7 +18,6 @@ const {
   storeCategorySchema,
   locationChangeRequestSchema,
 } = require('../validators/partner.validator');
-const { updateMaterialOrderStatusSchema } = require('../validators/material-order.validator');
 const { reviewListQuerySchema } = require('../validators/finance.validator');
 const { verificationUpload } = require('../middleware/uploadMiddleware');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
@@ -26,7 +25,6 @@ const { ApiError } = require('../utils/ApiError');
 const { asyncHandler } = require('../utils/asyncHandler');
 const storeController = require('../controllers/storeController');
 const materialController = require('../controllers/materialController');
-const materialOrderController = require('../controllers/material-order.controller');
 const contractorController = require('../controllers/contractorController');
 const reviewController = require('../controllers/reviewController');
 const locationChangeController = require('../controllers/locationChange.controller');
@@ -105,27 +103,7 @@ router.get('/categories/check', ...owner, validate(materialCategoryNameSchema, '
 router.post('/categories/custom', ...owner, validate(materialCategoryNameSchema), materialController.createCategory);
 router.post('/categories/register', ...owner, validate(materialCategoryNameSchema), materialController.registerCategory);
 
-router.get('/orders', ...owner, loadStore, requireMaterialStore, materialOrderController.listStore);
-router.get('/earnings', ...owner, loadStore, requireMaterialStore, materialOrderController.earnings);
-router.get('/orders/:id', ...owner, loadStore, requireMaterialStore, materialOrderController.getStore);
-router.post(
-  '/orders/:id/collected',
-  ...owner,
-  loadStore,
-  requireMaterialStore,
-  materialOrderController.settleCollected
-);
-router.patch(
-  '/orders/:id',
-  ...owner,
-  loadStore,
-  requireMaterialStore,
-  validate(updateMaterialOrderStatusSchema),
-  materialOrderController.updateStoreStatus
-);
-
 router.get('/reviews', ...owner, validate(reviewListQuerySchema, 'query'), reviewController.listStore);
-router.get('/reputation', ...owner, reviewController.storeReputation);
 router.get('/materials', ...owner, loadStore, requireMaterialStore, materialController.list);
 router.post(
   '/materials',

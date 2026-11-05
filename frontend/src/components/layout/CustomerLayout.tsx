@@ -5,9 +5,7 @@ import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { Avatar } from '@/components/ui/Avatar';
 import { Dropdown } from '@/components/ui/Dropdown';
-import { CartLink } from '@/features/material-cart/CartLink';
 import { NotificationBell } from '@/features/notification/components/NotificationBell';
-import { MaterialOrderLiveListener } from '@/features/material-orders/material-order-live';
 import { OrderRealtimeListener } from '@/features/orders/components/OrderRealtimeListener';
 import { FinanceRealtimeListener } from '@/features/payments/components/FinanceRealtimeListener';
 import { customerNav } from '@/components/layout/roleNav';
@@ -43,7 +41,6 @@ export function CustomerLayout() {
           <Logo to="/customer/dashboard" />
           <div className="ml-auto flex items-center gap-2">
             <LanguageSwitcher variant="light" placement="customer-header" className="hidden sm:inline-flex" />
-            <CartLink />
             <NotificationBell />
             <Dropdown
               trigger={
@@ -105,7 +102,6 @@ export function CustomerLayout() {
         }
       >
         <OrderRealtimeListener />
-        <MaterialOrderLiveListener />
         <FinanceRealtimeListener />
         <Outlet />
       </main>

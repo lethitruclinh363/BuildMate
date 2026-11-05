@@ -8,11 +8,12 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Badge } from '@/components/ui/Badge';
 import { getApiErrorMessage } from '@/lib/api';
+import { formatQtyWithUnit } from '@/lib/mrl-display';
 import { materialRequirementApi, type MaterialRequirementList } from '@/lib/material-requirement-api';
 import { useI18n } from '@/locales';
 import { useSocket } from '@/providers/SocketProvider';
 
-const STORE_FILTERS = ['SENT', 'QUOTED', 'CONFIRMED', 'PREPARING', 'DELIVERING', 'DELIVERED', 'CANCELLED'] as const;
+const STORE_FILTERS = ['SENT', 'QUOTED', 'CANCELLED'] as const;
 
 function statusTone(status: string): 'mist' | 'copper' | 'success' | 'warn' | 'danger' {
   if (status === 'DELIVERED' || status === 'CONFIRMED') return 'success';
@@ -103,9 +104,14 @@ export function StoreMaterialRequestsPage() {
             <Link key={row.id} to={`/store/material-requests/${row.id}`} className="flex items-center justify-between gap-3 border-b border-navy-800/5 px-4 py-4 last:border-0 hover:bg-paper-100">
               <div>
                 <p className="font-medium text-navy-800">{row.customerName || `${t('mrl.listLabel')} ${row.id.slice(-6)}`}</p>
+                <p className="text-sm text-navy-800">
+                  {row.title || row.items?.[0]?.name || t('mrl.listLabel')}
+                  {row.items?.[0] ? ` · ${formatQtyWithUnit(row.items[0].quantity, row.items[0].unit)}` : ''}
+                </p>
                 <p className="text-sm text-ink-400">
                   {row.requestCode ? `${row.requestCode} · ` : ''}
-                  {row.siteAddress || t('mrl.noSpec')} · {(row.items || []).length} {t('mrl.itemCount')}
+                  {(row.items || []).length} {t('mrl.itemCount')}
+                  {row.note ? ` · ${row.note}` : ''}
                   {row.updatedAt || row.createdAt ? ` · ${new Date(row.updatedAt || row.createdAt || '').toLocaleString()}` : ''}
                 </p>
               </div>

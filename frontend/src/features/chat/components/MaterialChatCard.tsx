@@ -11,23 +11,17 @@ export function MaterialChatCard({
   listStatus,
   busy,
   onSendRequest,
-  onConfirm,
-  onReject,
 }: {
   payload: MrlChatPayload;
   role?: string;
   listStatus?: string;
   busy?: boolean;
   onSendRequest?: () => void;
-  onConfirm?: () => void;
-  onReject?: () => void;
 }) {
   const { t } = useI18n();
   const customer = role === 'CUSTOMER';
   const store = role === 'MATERIAL_STORE_OWNER';
   const status = payload.status || listStatus || '';
-  const quoted = status === 'QUOTED';
-  const confirmed = Boolean(status && ['CONFIRMED', 'PREPARING', 'DELIVERING', 'DELIVERED'].includes(status));
   const detailHref = customer
     ? `/customer/material-lists/${payload.listId}`
     : `/store/material-requests/${payload.listId}`;
@@ -65,9 +59,12 @@ export function MaterialChatCard({
 
       {payload.kind === 'MRL_QUOTE' ? (
         <div className="mt-3 space-y-1 text-sm">
-          <p className="text-ink-500">{t('mrl.deliveryFee')}: {vnd(payload.deliveryFee || 0)}</p>
+          {Number(payload.deliveryFee) > 0 ? (
+            <p className="text-ink-500">{t('mrl.deliveryFee')}: {vnd(payload.deliveryFee || 0)}</p>
+          ) : null}
           {payload.note ? <p className="text-ink-500">{payload.note}</p> : null}
           <p className="font-semibold text-navy-800">{t('mrl.total')}: {vnd(payload.total || 0)}</p>
+          <p className="text-ink-500">{t('mrl.advisoryQuoteHint')}</p>
         </div>
       ) : null}
 
@@ -89,25 +86,8 @@ export function MaterialChatCard({
         </Button>
       ) : null}
 
-      {payload.kind === 'MRL_QUOTE' && customer && quoted ? (
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {onConfirm ? (
-            <Button disabled={busy} onClick={onConfirm}>{t('mrl.confirm')}</Button>
-          ) : null}
-          {onReject ? (
-            <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" disabled={busy} onClick={onReject}>
-              {t('mrl.rejectQuote')}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {payload.kind === 'MRL_QUOTE' && confirmed ? (
-        <p className="mt-3 text-sm text-ink-500">{t('mrl.customerConfirmedHint')}</p>
-      ) : null}
-
       <Button asChild className="mt-4 w-full" variant="outline">
-        <Link to={detailHref}>{payload.kind === 'MRL_CONFIRMED' || payload.kind === 'MRL_PROGRESS' ? t('mrl.orderTitle') : t('mrl.viewRequest')}</Link>
+        <Link to={detailHref}>{t('mrl.viewRequest')}</Link>
       </Button>
     </div>
   );

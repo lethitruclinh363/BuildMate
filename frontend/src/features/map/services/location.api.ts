@@ -1,6 +1,5 @@
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@/types/user';
-import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { NearbyPlace, PublicContractorProfile, PublicHighlights, PublicMaterial, PublicService, PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 import type { MaterialCategoryPick } from '@/data/material-categories';
 import type { CatalogService, CatalogMaterial, Storefront } from '@/types/partner';
@@ -57,7 +56,6 @@ export const locationApi = {
       ApiResponse<{
         publicProfile: PublicContractorProfile | null;
         highlights?: PublicHighlights;
-        reputation?: ReputationSnapshot | null;
         contractor: { id: string; userId: string; businessName: string; name: string } | null;
         store: Storefront | null;
         services: CatalogService[];

@@ -51,7 +51,11 @@ function PartnerDirectoryPage({ role }: { role: 'CONTRACTOR' | 'MATERIAL_STORE_O
           <Badge key={row.id} tone={tone[row.verificationStatus] || 'navy'}>
             {row.verificationStatus}
           </Badge>,
-          <Link key={`${row.id}-u`} to={`${queue}?id=${row.id}`} className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline">
+          <Link
+            key={`${row.id}-u`}
+            to={role === 'CONTRACTOR' ? `/contractors/${row.id}/profile` : `/material-stores/${row.id}/profile`}
+            className="font-semibold text-[#2B6280] hover:text-[#173B4F] hover:underline"
+          >
             {t('partners.profile')}
           </Link>,
         ])}

@@ -1,12 +1,16 @@
-# 🛡️ eKYC AI Service
+# eKYC AI Service
 
-FastAPI microservice xác thực danh tính điện tử (eKYC) tích hợp:
-- **DeepFace** – Đăng ký embedding selfie và xác minh khuôn mặt khi check-in
-- **YOLOv11** – Phát hiện vùng số CCCD, họ tên và ngày sinh
-- **VietOCR** – Đọc tiếng Việt trong từng vùng thông tin
+FastAPI microservice xác thực danh tính điện tử (eKYC) cho đối tác BuildMate
+(Chủ đội thợ và Chủ cửa hàng vật liệu):
 
-Ảnh CCCD chỉ dùng cho OCR/hồ sơ. Khi đăng ký eKYC, hệ thống không so sánh
-chân dung trên CCCD với selfie. Việc đối chiếu khuôn mặt chỉ diễn ra tại check-in.
+- **DeepFace / Facenet512** – embedding khuôn mặt
+- **RetinaFace + MiniFASNet** – liveness / anti-spoof
+- **YOLOv11** – phát hiện vùng số CCCD, họ tên và ngày sinh
+- **VietOCR** – đọc tiếng Việt trong từng vùng thông tin
+
+Node.js/Prisma là backend chính và nguồn dữ liệu PostgreSQL. Dịch vụ Python
+chỉ xử lý AI/CV qua REST nội bộ (`X-Internal-Token`) và không có database riêng.
+OCR, liveness và đối chiếu chân dung CCCD đều chạy trong quy trình đăng ký đối tác.
 
 ---
 
@@ -121,7 +125,7 @@ Selfie không được gửi tới API này. Đăng ký khuôn mặt thực hi�
 
 Nhận năm multipart field `selfie_image`, `left_image`, `right_image`, `up_image`,
 `down_image`. Endpoint kiểm tra active liveness, anti-spoofing, xác nhận năm frame
-thuộc cùng một người rồi tổng hợp thành face template 512 chiều để Spring Boot lưu.
+thuộc cùng một người rồi tổng hợp thành face template 512 chiều để Node.js lưu.
 Endpoint không nhận và không so sánh ảnh CCCD.
 
 ### `POST /api/v1/face/check-readiness`
@@ -134,7 +138,7 @@ và không lưu ảnh.
 
 Nhận face template đã đăng ký, một frame nhìn thẳng và một frame thử thách quay trái
 hoặc phải. Endpoint kiểm tra express active liveness, anti-spoofing rồi so sánh khuôn
-mặt check-in với face template nhiều góc đã đăng ký.
+mặt với face template nhiều góc đã đăng ký. Endpoint này không dùng trong wizard đăng ký đối tác BuildMate.
 
 ---
 
@@ -181,16 +185,15 @@ pip install fastapi uvicorn[standard] deepface ultralytics vietocr \
 
 ---
 
-## 🔌 Tích hợp với Spring Boot Backend
+## Tích hợp với backend Node.js
 
-Gọi từ Java (Spring Boot) bằng `RestTemplate` hoặc `WebClient`:
+Node.js gọi REST nội bộ và gửi `X-Internal-Token`. Ảnh CCCD/khuôn mặt được lưu
+trên đĩa riêng của API Node; Python nhận file upload, không giữ PostgreSQL riêng.
 
-```java
-// Ví dụ gọi từ Spring Boot
-String eKYCUrl = "http://localhost:8000/api/v1/ai/verify-ekyc";
-Map<String, String> body = Map.of(
-    "front_image_url", frontUrl,
-    "back_image_url",  backUrl
-);
-ResponseEntity<EKYCResponse> response = restTemplate.postForEntity(eKYCUrl, body, EKYCResponse.class);
+```
+POST /api/v1/ai/verify-ekyc-upload
+POST /api/v1/face/check-readiness
+POST /api/v1/face/validate-frame
+POST /api/v1/face/enroll
+POST /api/v1/face/match-id-portrait
 ```

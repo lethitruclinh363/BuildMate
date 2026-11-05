@@ -1,5 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   snapshotContractorQuote,
   defaultEscrowRecord,
@@ -299,13 +301,10 @@ describe('finance access guards', () => {
 });
 
 describe('material deposit API guard (TC22)', () => {
-  it('rejects deposit checkout for free-policy orders', () => {
-    const { evaluateDepositCheckout } = require('../utils/material-deposit.rules');
-    const decision = evaluateDepositCheckout(
-      { customerId: 'c1', status: 'PENDING_CONFIRMATION', depositRateSnapshot: 0, depositAmount: 0 },
-      'c1'
-    );
-    assert.equal(decision.ok, false);
-    assert.equal(decision.status, 409);
+  it('removes the discontinued material-deposit checkout helper', () => {
+    const rulesPath = path.join(__dirname, '../utils/material-deposit.rules.js');
+    assert.equal(fs.existsSync(rulesPath), false);
+    assert.equal(isLegacyMaterialOrder({ depositRateSnapshot: 0, depositAmount: 0 }), false);
+    assert.equal(isLegacyMaterialOrder({ depositRateSnapshot: 15, depositAmount: 40500 }), true);
   });
 });

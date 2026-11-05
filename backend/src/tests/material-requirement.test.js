@@ -175,11 +175,12 @@ describe('Material Requirement List source wiring', () => {
     assert.match(app, /contractor\/material-requirements/);
     assert.match(app, /customer\/material-lists/);
     assert.match(app, /store\/material-requests/);
-    assert.match(readBe('routes/materialRequirementRoutes.js'), /:id\/fulfillment/);
-    assert.match(service, /Only the material store can update delivery status/);
+    assert.match(readBe('routes/materialRequirementRoutes.js'), /\/direct/);
+    assert.match(service, /Only customers can send a direct material request/);
+    assert.match(service, /Material delivery tracking is no longer available/);
     assert.match(service, /isFulfillmentStatus\(list\.status\)/);
     assert.doesNotMatch(readFe('pages/contractor/ContractorMaterialRequirementPage.tsx'), /fulfill\(/);
-    assert.match(readFe('pages/store/StoreMaterialRequestDetailPage.tsx'), /\.fulfill\(/);
+    assert.doesNotMatch(readFe('pages/store/StoreMaterialRequestDetailPage.tsx'), /\.fulfill\(/);
     assert.doesNotMatch(readFe('pages/contractor/ContractorMaterialRequirementPage.tsx'), /id="mrl-store"/);
     assert.doesNotMatch(readFe('pages/customer/CustomerMaterialListPage.tsx'), /mrl-store-\$/);
     assert.match(readFe('pages/customer/CustomerMaterialListPage.tsx'), /mrl-choose-store-map/);
@@ -192,7 +193,7 @@ describe('Material Requirement List source wiring', () => {
     assert.match(readFe('pages/chat/ChatPage.tsx'), /MaterialListPicker/);
     assert.match(readFe('pages/customer/CustomerQuotationPage.tsx'), /mrl\.saveList/);
     assert.match(readFe('pages/customer/CustomerQuotationPage.tsx'), /mrl\.findNearby/);
-    assert.match(readFe('features/chat/components/MaterialChatCard.tsx'), /mrl\.rejectQuote/);
+    assert.match(readFe('features/chat/components/MaterialChatCard.tsx'), /mrl\.advisoryQuoteHint/);
     assert.match(readBe('routes/materialRequirementRoutes.js'), /:id\/save/);
     assert.match(readBe('routes/materialRequirementRoutes.js'), /:id\/reject/);
     assert.match(readBe('repositories/materialRequirement.postgres.js'), /ensureCustomerSaveSchema/);
@@ -202,8 +203,10 @@ describe('Material Requirement List source wiring', () => {
     assert.match(readBe('utils/mrl-chat.js'), /\[\[BM:MRL\]\]/);
     assert.match(readBe('repositories/materialRequirement.postgres.js'), /ensureFulfillmentConstraint/);
     assert.match(service, /postStoreChat/);
-    assert.match(service, /Delivery status is not enabled on this database/);
     assert.match(readFe('pages/store/StoreDashboard.jsx'), /store\/material-requests/);
+    assert.match(readFe('features/material-request/RequestMaterialsButton.tsx'), /materialRequirementApi\.createDirect/);
+    assert.doesNotMatch(readBe('routes/index.js'), /material-checkout/);
+    assert.doesNotMatch(readBe('routes/index.js'), /material-orders/);
     assert.match(readFe('pages/contractor/CreateQuotationPage.tsx'), /materialRequirementApi\.create/);
     assert.match(readFe('pages/contractor/CreateQuotationPage.tsx'), /quotationApi\.create/);
     assert.doesNotMatch(readFe('pages/contractor/CreateQuotationPage.tsx'), /material-requirements\/new/);
@@ -285,7 +288,10 @@ describe('Material Requirement List database guard', () => {
     const sql18 = fs.readFileSync(path.resolve(__dirname, '../../scripts/dev-db/18-material-requirement.sql'), 'utf8');
     const sql21 = fs.readFileSync(path.resolve(__dirname, '../../scripts/dev-db/21-mrl-fulfillment.sql'), 'utf8');
     const sql23 = fs.readFileSync(path.resolve(__dirname, '../../scripts/dev-db/23-mrl-customer-save.sql'), 'utf8');
+    const sql24 = fs.readFileSync(path.resolve(__dirname, '../../scripts/dev-db/24-mrl-direct-request.sql'), 'utf8');
+    const schema = fs.readFileSync(path.resolve(__dirname, '../../prisma/schema.prisma'), 'utf8');
     assert.match(sql18, /PREPARING.*DELIVERING.*DELIVERED/s);
+    assert.match(sql18, /customer_user_id/);
     assert.match(sql21, /DROP CONSTRAINT IF EXISTS chk_mrl_status/);
     assert.match(sql21, /PREPARING/);
     assert.doesNotMatch(sql21, /DROP TABLE /i);
@@ -293,5 +299,252 @@ describe('Material Requirement List database guard', () => {
     assert.match(sql23, /DROP INDEX IF EXISTS uq_mrl_active_request/);
     assert.match(sql23, /uq_mrl_parent_store/);
     assert.doesNotMatch(sql23, /DROP TABLE /i);
+    assert.match(sql24, /ALTER COLUMN repair_request_id DROP NOT NULL/);
+    assert.match(sql24, /customer_user_id/);
+    assert.doesNotMatch(sql24, /DROP TABLE /i);
+    assert.match(schema, /model material_requirement_lists/);
+    assert.match(schema, /repair_request_id BigInt\?/);
+    assert.match(readBe('repositories/materialRequirement.postgres.js'), /ensureDirectRequestSchema/);
+  });
+});
+
+describe('Material Request owner mapping and duplicate guards', () => {
+  it('notifies the store owner public user id from stores.owner_user_id', () => {
+    const service = readBe('services/material-requirement.service.js');
+    const partner = readBe('repositories/partner.postgres.js');
+    const repo = readBe('repositories/materialRequirement.postgres.js');
+    assert.match(partner, /contractorId: row\.users\?\.legacy_mongo_id/);
+    assert.match(partner, /where\.users = \{ legacy_mongo_id: id \}/);
+    assert.match(repo, /ow\.legacy_mongo_id AS owner_legacy_id/);
+    assert.match(service, /function storeOwnerPublicId/);
+    assert.match(service, /store\?\.contractorId \|\| storeRow\?\.owner_legacy_id/);
+    assert.match(service, /notifyStoreOfRequest\(store, storeRow, latest\)/);
+    assert.match(service, /mrl-request:/);
+  });
+
+  it('guards double submit and shows material lines on the store inbox', () => {
+    const button = readFe('features/material-request/RequestMaterialsButton.tsx');
+    const inbox = readFe('pages/store/StoreMaterialRequestsPage.tsx');
+    const detail = readFe('pages/store/StoreMaterialRequestDetailPage.tsx');
+    assert.match(button, /submittingRef/);
+    assert.match(button, /material\.name/);
+    assert.match(button, /material\.unit/);
+    assert.match(inbox, /formatQtyWithUnit/);
+    assert.match(inbox, /row\.items\?\.\[0\]/);
+    assert.match(inbox, /row\.customerName/);
+    assert.doesNotMatch(inbox, /siteAddress \|\| t\('mrl\.noSpec'\)/);
+    assert.match(detail, /list\.customerName/);
+    assert.match(detail, /MaterialItemLines/);
+    assert.match(detail, /deliveryFee: 0/);
+    assert.match(detail, /advisoryQuoteHint/);
+  });
+});
+
+describe('Material Request HTTP auth when API is up', () => {
+  it('rejects unauthenticated direct create and unmounted purchase paths', async (t) => {
+    const origin = process.env.BUILDMATE_API_ORIGIN || 'http://127.0.0.1:5000';
+    try {
+      const health = await fetch(`${origin}/api/health`);
+      if (!health.ok) {
+        t.skip('API is not reachable');
+        return;
+      }
+    } catch {
+      t.skip('API is not reachable');
+      return;
+    }
+
+    const unauth = await fetch(`${origin}/api/material-requirements/direct`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        storeId: '000000000000000000000000',
+        items: [{ name: 'Xi Mang PCB40', quantity: 2, unit: 'Bao' }],
+      }),
+    });
+    assert.equal(unauth.status, 401);
+
+    const invalid = await fetch(`${origin}/api/material-requirements/direct`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storeId: 'abc', items: [] }),
+    });
+    assert.equal(invalid.status, 401);
+
+    const order = await fetch(`${origin}/api/material-orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const pay = await fetch(`${origin}/api/material-checkout/quote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    assert.equal(order.status, 404);
+    assert.equal(pay.status, 404);
+  });
+});
+
+describe('Material Request isolated Postgres journeys', () => {
+  it('sends a customer request to the owning store, notifies, and opens chat', async (t) => {
+    const { testDatabaseReady, deleteFixtureUsers } = require('./helpers/pg-cleanup');
+    if (!testDatabaseReady()) {
+      t.skip('PostgreSQL test database is not available');
+      return;
+    }
+
+    const { createUser, ROLES } = require('./helpers/party');
+    const { signToken } = require('../services/authService');
+    const { startTestServer, api } = require('./helpers/http');
+    const { Store, ContractorProfile } = require('../repositories/partnerAccess');
+    const { Material } = require('../repositories/offeringAccess');
+    const { STORE_STATUS } = require('../models/Store');
+    const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
+    const { prisma } = require('../config/prisma');
+    const { Notification } = require('../repositories/systemAccess');
+    const { ChatRoom } = require('../repositories/conversationAccess');
+
+    const stamp = Date.now();
+    const ids = [];
+    const server = await startTestServer();
+    try {
+      const customer = await createUser({
+        name: 'MRL Direct Customer',
+        email: `mrl.direct.customer.${stamp}@buildmate.test`,
+        password: 'Demo@1234',
+        role: ROLES.CUSTOMER,
+      });
+      const owner = await createUser({
+        name: 'MRL Direct Store',
+        email: `mrl.direct.store.${stamp}@buildmate.test`,
+        password: 'Demo@1234',
+        role: ROLES.MATERIAL_STORE_OWNER,
+      });
+      const stranger = await createUser({
+        name: 'MRL Direct Stranger',
+        email: `mrl.direct.stranger.${stamp}@buildmate.test`,
+        password: 'Demo@1234',
+        role: ROLES.CUSTOMER,
+      });
+      ids.push(customer._id, owner._id, stranger._id);
+
+      await ContractorProfile.create({
+        userId: owner._id,
+        businessName: 'Direct Cement Yard',
+        verificationStatus: VERIFICATION_STATUS.APPROVED,
+      });
+      const store = await Store.create({
+        contractorId: owner._id,
+        name: 'Direct Cement Yard',
+        description: 'Catalog store for material requests',
+        phone: '0901234567',
+        avatar: '/uploads/store.png',
+        coverImage: '/uploads/cover.png',
+        address: 'Can Tho',
+        city: 'Can Tho',
+        storeType: 'MATERIALS',
+        status: STORE_STATUS.LIVE,
+        openingHours: '07:00 – 18:00',
+        location: { type: 'Point', coordinates: [105.746, 10.045] },
+        locationConfirmed: true,
+      });
+      await Material.create({
+        storeId: store._id,
+        contractorId: owner._id,
+        name: 'Xi Mang PCB40',
+        category: 'Cement',
+        unit: 'Bao',
+        price: 100000,
+        stock: 50,
+        isActive: true,
+      });
+
+      const customerToken = signToken(customer);
+      const ownerToken = signToken(owner);
+      const strangerToken = signToken(stranger);
+
+      const invalid = await api(server.origin, {
+        method: 'POST',
+        path: '/api/material-requirements/direct',
+        token: customerToken,
+        body: { storeId: store._id, items: [{ name: 'Xi', quantity: 0, unit: 'Bao' }] },
+      });
+      assert.equal(invalid.status, 422);
+
+      const missingStore = await api(server.origin, {
+        method: 'POST',
+        path: '/api/material-requirements/direct',
+        token: customerToken,
+        body: { storeId: '000000000000000000000000', items: [{ name: 'Xi Mang PCB40', quantity: 2, unit: 'Bao' }] },
+      });
+      assert.ok([404, 409].includes(missingStore.status), `unexpected missing store status ${missingStore.status}`);
+
+      const created = await api(server.origin, {
+        method: 'POST',
+        path: '/api/material-requirements/direct',
+        token: customerToken,
+        body: {
+          storeId: store._id,
+          title: 'Xi Mang PCB40',
+          note: 'Can 2 bao giao som',
+          items: [{ name: 'Xi Mang PCB40', specification: 'PCB40', unit: 'Bao', quantity: 2, notes: 'Can 2 bao giao som' }],
+        },
+      });
+      assert.equal(created.status, 201, created.json?.message || JSON.stringify(created.json));
+      const list = created.json?.data;
+      assert.equal(list.customerId, String(customer._id));
+      assert.equal(list.storeId, String(store._id));
+      assert.equal(list.customerName, 'MRL Direct Customer');
+      assert.equal(list.items[0].name, 'Xi Mang PCB40');
+      assert.equal(list.items[0].quantity, 2);
+      assert.equal(list.items[0].unit, 'Bao');
+      assert.ok(!list.requestId);
+
+      const orders = await prisma.material_orders.count({
+        where: { customer_user_id: (await prisma.users.findFirst({ where: { legacy_mongo_id: String(customer._id) }, select: { id: true } })).id },
+      });
+      assert.equal(orders, 0);
+
+      const inbox = await api(server.origin, {
+        path: '/api/material-requirements',
+        token: ownerToken,
+      });
+      assert.equal(inbox.status, 200);
+      const mine = inbox.json?.data || [];
+      assert.equal(mine.some((row) => row.id === list.id), true);
+      const shown = mine.find((row) => row.id === list.id);
+      assert.equal(shown.customerName, 'MRL Direct Customer');
+      assert.equal(shown.items[0].name, 'Xi Mang PCB40');
+
+      const strangerInbox = await api(server.origin, {
+        path: `/api/material-requirements/${list.id}`,
+        token: strangerToken,
+      });
+      assert.equal(strangerInbox.status, 403);
+
+      const notices = await Notification.find({ userId: owner._id });
+      const noticeRows = Array.isArray(notices) ? notices : await notices;
+      const hit = (noticeRows || []).map((row) => row.toPublic?.() || row).find((row) => String(row.link || '').includes(list.id));
+      assert.ok(hit, 'store owner did not receive a notification');
+      assert.match(String(hit.link), /\/store\/material-requests\//);
+
+      const rooms = await ChatRoom.find({ customerId: customer._id, storeId: store._id });
+      const roomList = Array.isArray(rooms) ? rooms : await rooms;
+      assert.ok(roomList.length >= 1, 'expected a customer-store chat room');
+
+      const quote = await api(server.origin, {
+        method: 'POST',
+        path: `/api/material-requirements/${list.id}/quotes`,
+        token: ownerToken,
+        body: {
+          deliveryFee: 0,
+          note: 'Gia tu van',
+          items: [{ itemId: list.items[0].id, unitPrice: 98000, availableQty: 2, note: 'Bao 50kg' }],
+        },
+      });
+      assert.equal(quote.status, 201, quote.json?.message || JSON.stringify(quote.json));
+      assert.equal(quote.json?.data?.status, 'QUOTED');
+      assert.equal(Number(quote.json?.data?.quotes?.[0]?.deliveryFee || 0), 0);
+      const afterQuoteOrders = await prisma.material_orders.count({
+        where: { customer_user_id: (await prisma.users.findFirst({ where: { legacy_mongo_id: String(customer._id) }, select: { id: true } })).id },
+      });
+      assert.equal(afterQuoteOrders, 0);
+    } finally {
+      await server.close();
+      await deleteFixtureUsers(ids);
+    }
   });
 });

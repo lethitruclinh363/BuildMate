@@ -186,4 +186,26 @@ async function ensureLocationChangeTable() {
   locationChangeReady = true;
 }
 
-module.exports = { ensureSaleColumns, ensureChatColumns, ensureLocationColumns, ensureLocationChangeTable };
+let weeklyHoursReady = false;
+
+async function ensureWeeklyHoursColumn() {
+  if (weeklyHoursReady) return;
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE contractor_profiles ADD COLUMN IF NOT EXISTS weekly_hours jsonb`);
+  } catch {}
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE stores ALTER COLUMN opening_hours TYPE varchar(200)`);
+  } catch {}
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE stores ALTER COLUMN opening_hours SET DEFAULT ''`);
+  } catch {}
+  weeklyHoursReady = true;
+}
+
+module.exports = {
+  ensureSaleColumns,
+  ensureChatColumns,
+  ensureLocationColumns,
+  ensureLocationChangeTable,
+  ensureWeeklyHoursColumn,
+};

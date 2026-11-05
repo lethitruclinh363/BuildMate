@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from app.core.internal_auth import require_internal_token
 from app.schemas.ekyc_schema import EKYCRequest, EKYCResponse
 from app.services.ekyc_service import extract_id_card_details
-from app.services.face_service import decode_image
+from app.services.face_service import assert_not_large_selfie, decode_image
 from app.utils.image_utils import download_image
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,10 @@ router = APIRouter(
         500: {"description": "Lỗi server nội bộ"},
     },
 )
-async def verify_ekyc(payload: EKYCRequest) -> EKYCResponse:
+async def verify_ekyc(
+    payload: EKYCRequest,
+    _: None = Depends(require_internal_token),
+) -> EKYCResponse:
     """
     Mặt sau hiện được tải để kiểm tra URL/ảnh hợp lệ; OCR thực hiện trên mặt trước.
     """
@@ -112,22 +115,25 @@ def _response_from_details(details: dict) -> EKYCResponse:
 )
 async def verify_ekyc_upload(
     front_image: Annotated[UploadFile, File(description="Ảnh mặt trước CCCD")],
-    back_image: Annotated[UploadFile, File(description="Ảnh mặt sau CCCD")],
+    back_image: Annotated[UploadFile | None, File(description="Ảnh mặt sau CCCD")] = None,
     _: None = Depends(require_internal_token),
 ) -> EKYCResponse:
     try:
         front_img = decode_image(await front_image.read(), "ảnh mặt trước CCCD")
+        assert_not_large_selfie(front_img, "ảnh mặt trước CCCD")
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     finally:
         await front_image.close()
 
-    try:
-        decode_image(await back_image.read(), "ảnh mặt sau CCCD")
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    finally:
-        await back_image.close()
+    if back_image is not None:
+        try:
+            back_img = decode_image(await back_image.read(), "ảnh mặt sau CCCD")
+            assert_not_large_selfie(back_img, "ảnh mặt sau CCCD")
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        finally:
+            await back_image.close()
 
     try:
         details = extract_id_card_details(front_img)

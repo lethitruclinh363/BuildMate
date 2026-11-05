@@ -1,18 +1,8 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { distanceKm, describePlace, directionsUrl, gpsErrorKind, mapSearchUrl, requirePlace } = require('../utils/geo');
-const { summarizeMaterialCheckout } = require('../utils/material-checkout');
 const { sanitizeChatLocation } = require('../utils/chat-location');
 const { geoNearStage } = require('../services/locationService');
-
-const policy = {
-  deliveryEnabled: true,
-  serviceRadiusKm: 10,
-  baseDeliveryFee: 30000,
-  freeDeliveryRadiusKm: 2,
-  deliveryFeePerKm: 8000,
-  minimumOrderAmount: 0,
-};
 
 describe('shared place mapping', () => {
   it('saves a repair pin as GeoJSON [lng, lat] and reads it back after reload', () => {
@@ -39,24 +29,18 @@ describe('shared place mapping', () => {
     assert.equal(requirePlace(null), null);
   });
 
-  it('keeps chat LOCATION in the same place shape used by repair and checkout', () => {
+  it('keeps chat LOCATION in the same place shape used by repair', () => {
     const location = sanitizeChatLocation({ lat: 10.1, lng: 105.7, address: 'A', label: 'B' });
     assert.deepEqual(describePlace(location), location);
     assert.deepEqual(describePlace({ place: location }), location);
   });
 
-  it('prices shipping from the selected delivery coordinates', () => {
+  it('measures distance from selected coordinates without a checkout quote', () => {
     const store = { lat: 10.045, lng: 105.746 };
     const selected = { lat: 10.045 + 7 / 111.195, lng: 105.746 };
     const km = distanceKm(store, selected);
     assert.ok(Math.abs(km - 7) < 0.05);
     assert.equal(distanceKm(store, store), 0);
-    const quote = summarizeMaterialCheckout({ policy, distanceKm: km, materialSubtotal: 500000 });
-    assert.equal(quote.ok, true);
-    assert.ok(Math.abs(quote.distanceKm - 7) < 0.05);
-    assert.ok(quote.shippingFee > policy.baseDeliveryFee);
-    const atStore = summarizeMaterialCheckout({ policy, distanceKm: 0, materialSubtotal: 500000 });
-    assert.notEqual(quote.shippingFee, atStore.shippingFee);
   });
 
   it('builds a Google Maps directions link and can include an origin', () => {

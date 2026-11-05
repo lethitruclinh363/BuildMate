@@ -20,7 +20,7 @@ describe('Flow 14 Customer dashboard activity blocks', () => {
     assert.equal(page.includes('activityBars'), false);
     assert.equal(page.includes('bg-navy-800/90'), false);
     assert.match(page, /customerHome\.activityEmpty/);
-    assert.match(page, /materialOrderApi/);
+    assert.match(page, /materialRequirementApi/);
     assert.match(page, /chatApi/);
     assert.match(page, /CUSTOMER_ACCEPTED/);
   });
@@ -31,7 +31,7 @@ describe('Flow 14 Customer dashboard activity blocks', () => {
     assert.match(page, /to: '\/customer\/request\/history'/);
     assert.match(page, /to: '\/customer\/orders'/);
     assert.match(page, /to: '\/customer\/chat'/);
-    assert.match(page, /\/customer\/material-orders/);
+    assert.match(page, /\/customer\/material-lists/);
   });
 });
 
@@ -41,7 +41,8 @@ describe('Flow 14 Admin dashboard after GMV fix', () => {
     assert.match(dashboard, /analytics\.finance\.gmv/);
     assert.equal(/value:\s*analytics\.finance\.revenue/.test(dashboard), false);
     assert.equal(/distribute\(/.test(dashboard), false);
-    assert.match(dashboard, /href: '\/analytics'/);
+    assert.doesNotMatch(dashboard, /href: '\/analytics'/);
+    assert.match(dashboard, /href: '\/orders'/);
     assert.match(dashboard, /href: '\/commission'/);
   });
 

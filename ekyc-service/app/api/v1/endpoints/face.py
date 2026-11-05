@@ -108,6 +108,7 @@ async def check_readiness(
         UploadFile,
         File(description="Ảnh preview ngay trước khi bắt đầu quét"),
     ],
+    _: None = Depends(require_internal_token),
 ) -> FaceReadinessResponse:
     image = await _read_image(selfie_image, "ảnh kiểm tra")
     try:
@@ -192,6 +193,7 @@ async def validate_frame(
         UploadFile | None,
         File(description="Ảnh quay ngang trước đó, dùng để xác nhận hai hướng quay đối nhau"),
     ] = None,
+    _: None = Depends(require_internal_token),
 ) -> FrameValidationResponse:
     step = step.strip().lower()
     if step not in _STEP_POSE_RULES:
@@ -528,6 +530,7 @@ async def enroll_face(
         UploadFile,
         File(description="Ảnh sau khi khách nhìn xuống"),
     ],
+    _: None = Depends(require_internal_token),
 ) -> FaceEnrollmentResponse:
     selfie = await _read_image(selfie_image, "ảnh chính diện")
     left = await _read_image(left_image, "ảnh quay trái")
@@ -674,7 +677,7 @@ async def enroll_face(
         "Nhận frame chính diện và một frame thử thách quay trái hoặc phải "
         "để kiểm tra active liveness nhanh. "
         "Sau đó kiểm tra anti-spoofing và so sánh khuôn mặt thật "
-        "với registered_embedding do Spring Boot lưu. "
+        "với registered_embedding do backend Node.js lưu. "
         "Để dev test trên Swagger, có thể bỏ embedding và tải reference_image "
         "thay thế. Chỉ được cung cấp một trong hai nguồn tham chiếu."
     ),

@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   BadgeCheck,
-  BarChart3,
   Building2,
   ClipboardList,
   CreditCard,
@@ -15,7 +14,6 @@ import {
   ScrollText,
   Settings,
   ShieldAlert,
-  ShoppingBag,
   Wrench,
   Star,
   Store,
@@ -32,14 +30,12 @@ const items = [
   { to: '/contractors', key: 'contractors', icon: Building2 },
   { to: '/material-stores', key: 'stores', icon: Store },
   { to: '/orders', key: 'orders', icon: ClipboardList },
-  { to: '/material-orders', key: 'materialOrders', icon: ShoppingBag },
   { to: '/services', key: 'serviceCatalog', icon: Wrench },
   { to: '/payments', key: 'payments', icon: CreditCard },
   { to: '/escrow', key: 'escrow', icon: Landmark },
   { to: '/commission', key: 'commission', icon: Percent },
   { to: '/reviews', key: 'reviews', icon: Star },
   { to: '/complaints', key: 'complaints', icon: ShieldAlert },
-  { to: '/analytics', key: 'analytics', icon: BarChart3 },
   { to: '/audit', key: 'audit', icon: ScrollText },
 ] as const;
 

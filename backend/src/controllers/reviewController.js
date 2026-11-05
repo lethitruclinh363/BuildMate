@@ -1,26 +1,15 @@
 const { asyncHandler } = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const reviewService = require('../services/reviewService');
-const reputationService = require('../services/reputationService');
 
 const create = asyncHandler(async (req, res) => {
   const data = await reviewService.createReview(req.user.id, req.body);
   return success(res, data, 'Review created', 201);
 });
 
-const createMaterial = asyncHandler(async (req, res) => {
-  const data = await reviewService.createMaterialStoreReview(req.user.id, req.body);
-  return success(res, data, 'Review created', 201);
-});
-
 const listStore = asyncHandler(async (req, res) => {
   const data = await reviewService.listStoreReviews(req.user.id, req.query);
   return success(res, data, 'Reviews loaded');
-});
-
-const storeReputation = asyncHandler(async (req, res) => {
-  const reputation = await reputationService.forMaterialStore(req.user.id);
-  return success(res, { reputation }, 'Reputation loaded');
 });
 
 function publicReview(row) {
@@ -66,4 +55,4 @@ const report = asyncHandler(async (req, res) => {
   return success(res, data, 'Review reported');
 });
 
-module.exports = { create, createMaterial, listStore, storeReputation, listForUser, reply, report };
+module.exports = { create, listStore, listForUser, reply, report };

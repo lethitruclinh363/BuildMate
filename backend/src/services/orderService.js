@@ -266,57 +266,7 @@ async function assertParty(order, user) {
 
 async function getOrder(id, user) {
   const order = await Order.findById(id);
-  if (!order) {
-    const { MaterialOrder } = require('../repositories/materialOrderAccess');
-    const { Store, findUsersByIds } = require('../repositories/partnerAccess');
-    const materialOrder = await MaterialOrder.findById(id);
-    if (!materialOrder) throw new ApiError(404, 'Order not found');
-    const uid = String(user.id);
-    if (user.role !== 'ADMIN' && String(materialOrder.customerId) !== uid && String(materialOrder.storeOwnerId) !== uid) {
-      throw new ApiError(403, 'You cannot view this order');
-    }
-    const [customerUsers, store] = await Promise.all([
-      findUsersByIds([materialOrder.customerId]),
-      Store.findById(materialOrder.storeId),
-    ]);
-    const customer = customerUsers[0] || null;
-    return {
-      id: String(materialOrder._id),
-      _id: String(materialOrder._id),
-      orderCode: materialOrder.orderCode,
-      title: `Vật liệu: ${store?.name || 'Cửa hàng vật liệu'}`,
-      description: `Đơn hàng vật liệu COD - Giao tới: ${materialOrder.deliveryAddress}`,
-      amount: Number(materialOrder.totalAmount),
-      status: materialOrder.status,
-      paymentStatus: materialOrder.remainingSettledOffline ? 'PAID' : materialOrder.paymentStatus,
-      customerId: String(materialOrder.customerId),
-      customerName: customer?.name || customer?.email || '',
-      contractorId: String(materialOrder.storeOwnerId),
-      storeId: String(materialOrder.storeId),
-      storeName: store?.name || '',
-      createdAt: materialOrder.createdAt,
-      updatedAt: materialOrder.updatedAt,
-      completedAt: materialOrder.status === 'COMPLETED' ? materialOrder.updatedAt : null,
-      statusHistory: materialOrder.statusHistory || [],
-      items: materialOrder.items || [],
-      isMaterialOrder: true,
-      deliveryAddress: materialOrder.deliveryAddress,
-      materialSubtotal: Number(materialOrder.materialSubtotal),
-      shippingFee: Number(materialOrder.shippingFee),
-      totalAmount: Number(materialOrder.totalAmount),
-      remainingSettledOffline: materialOrder.remainingSettledOffline,
-      payment: {
-        id: `cod-${materialOrder._id}`,
-        type: 'COD',
-        amount: Number(materialOrder.totalAmount),
-        status: materialOrder.remainingSettledOffline ? 'PAID' : 'UNPAID',
-        provider: 'COD',
-      },
-      finance: null,
-      escrow: null,
-      assignments: [],
-    };
-  }
+  if (!order) throw new ApiError(404, 'Order not found');
   await assertParty(order, user);
   const payment = await Payment.findOne({ orderId: order._id, type: PAYMENT_TYPE.DEPOSIT })
     || await Payment.findOne({ orderId: order._id });

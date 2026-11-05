@@ -206,67 +206,6 @@ async function listStoreReviews(storeOwnerId, options = {}) {
   return listTargetReviews(storeOwnerId, REVIEW_TARGET.MATERIAL_STORE, options);
 }
 
-const RECEIVED_MATERIAL_STATUSES = new Set(['CUSTOMER_RECEIVED', 'COMPLETED']);
-
-function assertMaterialStoreReview(order, customerId) {
-  if (!order) throw new ApiError(404, 'Material order not found');
-  if (String(order.customerId) !== String(customerId)) {
-    throw new ApiError(403, 'Only the customer can review this order');
-  }
-  if (String(order.storeOwnerId) === String(customerId)) {
-    throw new ApiError(403, 'You cannot review your own store');
-  }
-  if (!RECEIVED_MATERIAL_STATUSES.has(order.status)) {
-    throw new ApiError(409, 'Reviews are allowed only after the material order is received');
-  }
-}
-
-async function createMaterialStoreReview(customerId, payload) {
-  const { MaterialOrder } = require('../repositories/materialOrderAccess');
-  const order = await MaterialOrder.findById(payload.materialOrderId);
-  assertMaterialStoreReview(order, customerId);
-
-  let review;
-  try {
-    review = await Review.create({
-      materialOrderId: order._id,
-      customerId,
-      targetUserId: order.storeOwnerId,
-      targetType: REVIEW_TARGET.MATERIAL_STORE,
-      rating: payload.rating,
-      comment: payload.comment || '',
-      images: [],
-    });
-  } catch (err) {
-    if (err.code === 11000) {
-      throw new ApiError(409, 'You have already reviewed this store on the order');
-    }
-    throw err;
-  }
-
-  await recomputeTargetRating(order.storeOwnerId, REVIEW_TARGET.MATERIAL_STORE);
-  await notify({
-    userId: order.storeOwnerId,
-    title: 'New review',
-    message: `${payload.rating}/5 · ${order.orderCode || ''}`,
-    type: NOTIFICATION_TYPE.NEW_REVIEW,
-    link: '/store/reviews',
-    meta: { materialOrderId: String(order._id), reviewId: String(review._id) },
-  });
-  await writeAudit({
-    actorId: customerId,
-    actorRole: 'CUSTOMER',
-    action: AUDIT_ACTION.REVIEW_CREATED,
-    entityType: 'Review',
-    entityId: review._id,
-    meta: { materialOrderId: String(order._id), rating: payload.rating, targetType: REVIEW_TARGET.MATERIAL_STORE },
-  });
-  review.orderCode = order.orderCode || '';
-  review.orderStatus = order.status || '';
-  const [presented] = await presentReviews([review]);
-  return presented;
-}
-
 async function ownContractorReview(contractorId, reviewId) {
   const review = await Review.findById(reviewId);
   if (!review || String(review.targetUserId) !== String(contractorId)) {
@@ -317,8 +256,6 @@ module.exports = {
   listForUser,
   listContractorReviews,
   listStoreReviews,
-  createMaterialStoreReview,
-  assertMaterialStoreReview,
   reviewSummary,
   pageReviews,
   recomputeTargetRating,

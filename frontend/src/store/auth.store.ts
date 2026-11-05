@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '@/lib/api';
+import { clearPartnerNav } from '@/features/ekyc/ekycNav';
 import type { AuthPayload, User } from '@/types/user';
 import type { ApiResponse } from '@/types/user';
 
@@ -44,12 +45,14 @@ export const useAuthStore = create<AuthState>()(
         set({ user, token, loading: false });
       },
       logout: async () => {
+        const userId = get().user?.id;
         try {
           if (get().token) await api.post('/auth/logout');
         } catch {
           /* client still clears session */
         }
         set({ user: null, token: null, loading: false });
+        if (userId) clearPartnerNav(userId);
       },
       restore: async () => {
         const token = get().token;

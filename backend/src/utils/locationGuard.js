@@ -26,6 +26,13 @@ function isLocationPayloadPresent(payload) {
   return false;
 }
 
+function withoutLocationFields(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
+  const next = { ...payload };
+  for (const key of FORBIDDEN_LOCATION_KEYS) delete next[key];
+  return next;
+}
+
 function assertLocationNotDirectlyModifiable(isApproved, payload) {
   if (!isApproved) return;
   if (isLocationPayloadPresent(payload)) {
@@ -37,5 +44,6 @@ module.exports = {
   LOCATION_LOCKED_MESSAGE,
   FORBIDDEN_LOCATION_KEYS,
   isLocationPayloadPresent,
+  withoutLocationFields,
   assertLocationNotDirectlyModifiable,
 };
