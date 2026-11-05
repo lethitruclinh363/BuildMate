@@ -9,6 +9,32 @@ const {
   isCategory,
 } = require('../constants/contractorServices');
 
+const weeklyDaySchema = z.object({
+  weekday: z.number().int().min(1).max(7).optional(),
+  dayOfWeek: z.number().int().min(1).max(7).optional(),
+  day: z.number().int().min(1).max(7).optional(),
+  closed: z.boolean().optional(),
+  isOpen: z.boolean().optional(),
+  open: z.union([z.string().max(8), z.null()]).optional(),
+  close: z.union([z.string().max(8), z.null()]).optional(),
+  openTime: z.union([z.string().max(8), z.null()]).optional(),
+  closeTime: z.union([z.string().max(8), z.null()]).optional(),
+});
+
+const weeklyHoursSchema = z
+  .union([
+    z.array(weeklyDaySchema).length(7),
+    z.object({
+      configured: z.boolean().optional(),
+      days: z.array(weeklyDaySchema).length(7).optional(),
+      operatingHours: z.array(weeklyDaySchema).length(7).optional(),
+    }),
+  ])
+  .nullable()
+  .optional();
+
+const operatingHoursSchema = z.array(weeklyDaySchema).length(7).optional();
+
 const contactPhoneSchema = z
   .string()
   .trim()
@@ -54,6 +80,7 @@ const profileSchema = z.object({
   providerRefId: z.string().trim().max(2000).optional().or(z.literal('')).or(z.null()),
   description: z.string().trim().max(1200).optional().or(z.literal('')),
   yearsExperience: finiteNumber().min(0).max(80).optional(),
+  weeklyHours: weeklyHoursSchema,
   serviceAreas: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
   materialCategories: z
     .array(
@@ -168,7 +195,9 @@ const publicProfileSchema = z.object({
   crewPhotos: z.array(z.string().max(500)).max(8).optional(),
   publicCertificates: z.array(z.string().max(500)).max(8).optional(),
   serviceAreas: z.array(z.string().trim().min(1).max(80)).max(8).optional(),
-  openingHours: z.string().trim().max(80).optional().or(z.literal('')),
+  openingHours: z.string().trim().max(200).optional().or(z.literal('')),
+  weeklyHours: weeklyHoursSchema,
+  operatingHours: operatingHoursSchema,
   achievements: z.string().trim().max(500).optional().or(z.literal('')),
   yearsExperience: finiteNumber().min(0).max(80).optional(),
   workerCount: finiteNumber().int().min(0).max(500).optional(),
@@ -188,7 +217,9 @@ const storePublicProfileSchema = z.object({
   coverImage: z.string().trim().max(500).optional().or(z.literal('')),
   gallery: z.array(z.string().max(500)).max(12).optional(),
   serviceAreas: z.array(z.string().trim().min(1).max(80)).max(8).optional(),
-  openingHours: z.string().trim().max(80).optional().or(z.literal('')),
+  openingHours: z.string().trim().max(200).optional().or(z.literal('')),
+  weeklyHours: weeklyHoursSchema,
+  operatingHours: operatingHoursSchema,
   showroomNote: z.string().trim().max(500).optional().or(z.literal('')),
   deliveryNote: z.string().trim().max(500).optional().or(z.literal('')),
   serviceRadiusKm: finiteNumber().min(1).max(50).optional(),

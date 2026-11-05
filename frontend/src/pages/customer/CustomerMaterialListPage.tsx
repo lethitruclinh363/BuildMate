@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/Input';
 import { getApiErrorMessage } from '@/lib/api';
 import { vnd } from '@/lib/partner-api';
 import {
-  isMrlFulfillment,
   materialRequirementApi,
   quoteLineAmount,
   quoteTotalOf,
@@ -108,7 +107,6 @@ export function CustomerMaterialListPage() {
   if (!list) return null;
 
   const draft = list.kind === 'SAVED' && list.status === 'DRAFT';
-  const quoted = list.status === 'QUOTED' && quote?.status === 'SENT';
 
   return (
     <PageTransition>
@@ -266,39 +264,12 @@ export function CustomerMaterialListPage() {
               <span>{vnd(quoteLineAmount(line))}</span>
             </p>
           ))}
-          <p className="mt-2 text-sm text-ink-500">{t('mrl.deliveryFee')}: {vnd(quote.deliveryFee)}</p>
+          {Number(quote.deliveryFee) > 0 ? (
+            <p className="mt-2 text-sm text-ink-500">{t('mrl.deliveryFee')}: {vnd(quote.deliveryFee)}</p>
+          ) : null}
           {quote.note ? <p className="mt-1 text-sm text-ink-500">{quote.note}</p> : null}
           <p className="text-sm font-medium text-navy-800">{t('mrl.total')}: {vnd(total)}</p>
-          {quoted ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                disabled={busy}
-                onClick={() => void run(async () => {
-                  const res = await materialRequirementApi.confirm(list.id);
-                  applyList(res.data.data);
-                }, t('mrl.confirm'))}
-              >
-                {t('mrl.confirm')}
-              </Button>
-              <Button
-                variant="outline"
-                className="border-red-200 text-red-700 hover:bg-red-50"
-                disabled={busy}
-                onClick={() => void run(async () => {
-                  const res = await materialRequirementApi.reject(list.id);
-                  applyList(res.data.data);
-                }, t('mrl.rejectQuote'))}
-              >
-                {t('mrl.rejectQuote')}
-              </Button>
-            </div>
-          ) : isMrlFulfillment(list.status) ? (
-            <p className="mt-3 text-sm text-ink-500">
-              {list.status === 'DELIVERED' ? t('mrl.fulfillmentDone') : t('mrl.customerConfirmedHint')}
-            </p>
-          ) : quote.status === 'REJECTED' ? (
-            <p className="mt-3 text-sm text-ink-500">{t('mrl.rejectedHint')}</p>
-          ) : null}
+          <p className="mt-3 text-sm text-ink-500">{t('mrl.advisoryQuoteHint')}</p>
         </div>
       ) : list.status === 'SENT' ? (
         <p className="mb-6 text-sm text-ink-500">{t('mrl.waitingQuote')}</p>

@@ -9,7 +9,7 @@ const COPY = {
     [POLICY_TYPES.TERMS_OF_SERVICE]: {
       title: 'Điều khoản dịch vụ',
       blocks: [
-        'BuildMate là nền tảng xây dựng địa phương, kết nối chủ nhà, chủ đội thợ và chủ cửa hàng vật liệu. BuildMate điều phối yêu cầu, báo giá, đơn thi công và đơn vật liệu. BuildMate không phải nhà thầu thi công và không phải cửa hàng bán vật liệu.',
+        'BuildMate là nền tảng xây dựng địa phương, kết nối chủ nhà, chủ đội thợ và chủ cửa hàng vật liệu. BuildMate điều phối yêu cầu sửa chữa, báo giá, đơn thi công và yêu cầu vật tư. BuildMate không phải nhà thầu thi công và không phải cửa hàng bán vật liệu.',
         'Khi tạo tài khoản, bạn xác nhận thông tin họ tên, email và số điện thoại là đúng. Email phải được xác thực bằng mã OTP trước khi đăng nhập. Mỗi người chỉ dùng tài khoản của mình.',
         'Chủ nhà gửi yêu cầu sửa chữa kèm địa điểm. Chủ đội thợ gửi báo giá. Đơn chỉ hình thành khi chủ nhà chấp nhận báo giá. Tiến độ thi công được cập nhật trên đơn để các bên cùng theo dõi.',
         'Đơn sửa chữa Contractor thu tiền cọc 15% trên BuildMate. Phí nền tảng 5% được chốt theo snapshot khi khách chấp nhận báo giá. Cửa hàng vật liệu dùng nền tảng miễn phí, không cọc và không hoa hồng. Thanh toán và hoàn tiền tuân theo Chính sách thanh toán và Chính sách hoàn tiền đang hiệu lực.',
@@ -46,10 +46,10 @@ const COPY = {
     [POLICY_TYPES.MATERIAL_STORE_POLICY]: {
       title: 'Chính sách chủ cửa hàng vật liệu',
       blocks: [
-        'Chủ cửa hàng vật liệu đăng vật liệu, giá, tồn kho và khu vực giao hàng để chủ nhà và đội thợ đặt hàng cho công trình. Cửa hàng sử dụng BuildMate miễn phí: không phí đăng ký, không phí tháng, không hoa hồng, không đặt cọc.',
-        'Giá và đơn vị tính hiển thị trên gian hàng phải khớp với đơn được xác nhận. Khách thanh toán trực tiếp cho cửa hàng (COD hoặc chuyển khoản ngoài nền tảng). BuildMate không giữ tiền đơn vật liệu.',
+        'Chủ cửa hàng vật liệu đăng catalog vật liệu, giá tham khảo, tồn kho và ghi chú giao hàng để chủ nhà và đội thợ gửi yêu cầu vật tư. Cửa hàng sử dụng BuildMate miễn phí: không phí đăng ký, không phí tháng, không hoa hồng, không đặt cọc.',
+        'Giá và đơn vị tính trên gian hàng là thông tin catalog. Báo giá nếu có chỉ mang tính tư vấn. BuildMate không tạo đơn mua, không thu tiền và không vận chuyển hộ cửa hàng.',
         'Hồ sơ cửa hàng cần được duyệt trước khi gian hàng công khai. Hình ảnh và mô tả không được gây hiểu nhầm về xuất xứ hoặc chất lượng.',
-        'Khiếu nại về thiếu hàng, sai quy cách hoặc giao trễ được xử lý giữa khách và cửa hàng, có hỗ trợ khiếu nại trên nền tảng. Đơn vật liệu cũ đã đặt cọc được giữ nguyên lịch sử, không chuyển thành COD.',
+        'Thỏa thuận mua, giao hàng và thanh toán diễn ra trực tiếp giữa khách và cửa hàng, có thể trao đổi qua chat. Đơn vật liệu lịch sử nếu còn trên hệ thống được giữ nguyên, không chuyển thành giao dịch mới trên nền tảng.',
       ],
     },
     [POLICY_TYPES.PAYMENT_POLICY]: {
@@ -57,7 +57,7 @@ const COPY = {
       blocks: [
         'Đơn sửa chữa: khách thanh toán cọc 15% tổng báo giá đã chấp nhận. BuildMate giữ khoản này (escrow, mô phỏng trong đồ án). Phí nền tảng = 5% tổng báo giá, không phải 5% của tiền cọc. 85% còn lại khách thanh toán trực tiếp cho Contractor và không phải doanh thu BuildMate.',
         'Doanh thu BuildMate chỉ ghi nhận khi đơn sửa chữa đủ điều kiện quyết toán: đã đóng cọc, đã nghiệm thu, không tranh chấp đang chặn, và phần 85% đã được đối soát. Khi đó hệ thống giải ngân 10% cho Contractor và ghi 5% phí nền tảng.',
-        'Đơn vật liệu mới không đặt cọc, không hoa hồng, không giữ tiền trên nền tảng. Tổng đơn = tiền hàng + phí vận chuyển, thuộc giao dịch trực tiếp giữa khách và cửa hàng.',
+        'Yêu cầu vật tư không tạo đơn mua trên BuildMate, không đặt cọc, không hoa hồng và không phát sinh phí vận chuyển của nền tảng. Mọi thanh toán nếu có thuộc thỏa thuận trực tiếp giữa khách và cửa hàng.',
         'Cổng thanh toán hiện tại là mô phỏng cho đồ án. Trạng thái PAID/REFUNDED/RELEASED trên sổ cái demo không có nghĩa tiền thật đã chuyển. Giao dịch bị nghi ngờ gian lận có thể bị tạm giữ.',
       ],
     },
@@ -66,7 +66,7 @@ const COPY = {
       blocks: [
         'Hủy đơn sửa chữa chưa đóng cọc: không phát sinh phí. Khách tự ý hủy sau khi đã cọc: hệ thống giữ 15% theo điều khoản đã chấp thuận, không giải ngân ngay, Admin xử lý phân bổ. Contractor tự ý hủy hoặc không thực hiện: hoàn toàn bộ 15% cho khách, BuildMate không ghi 5% hoa hồng.',
         'Hai bên thỏa thuận hủy: ghi số tiền đề xuất hoàn, không vượt số dư cọc đang giữ, Admin xác nhận. Khi có tranh chấp, escrow chuyển FROZEN, không giải ngân và không hoàn tự động.',
-        'Đơn vật liệu không có cọc nên không phạt mất cọc. Đơn chưa vận chuyển có thể hủy. Đơn đã giao xử lý từ chối nhận hàng, hàng lỗi hoặc hoàn tiền trực tiếp giữa khách và cửa hàng.',
+        'Yêu cầu vật tư không thu tiền trên nền tảng nên không phát sinh hoàn tiền nền tảng. Đơn vật liệu lịch sử nếu từng đặt cọc được giữ nguyên trên sổ lịch sử, không mở lại luồng mua hàng.',
         'Hoàn tiền cọc Contractor trên đồ án là giao dịch mô phỏng, ghi trên đơn gốc. Không hoàn hai lần cùng một khoản escrow.',
       ],
     },
@@ -75,7 +75,7 @@ const COPY = {
     [POLICY_TYPES.TERMS_OF_SERVICE]: {
       title: 'Terms of Service',
       blocks: [
-        'BuildMate is a local construction platform that connects homeowners, contractor crews, and material stores. BuildMate coordinates requests, quotations, construction orders, and material orders. BuildMate is not the contractor on site and is not the store selling materials.',
+        'BuildMate is a local construction platform that connects homeowners, contractor crews, and material stores. BuildMate coordinates repair requests, quotations, construction orders, and material requests. BuildMate is not the contractor on site and is not the store selling materials.',
         'When you create an account you confirm that your name, email, and phone number are accurate. The email must be verified with a one-time code before sign-in. Each person uses only their own account.',
         'A homeowner sends a repair request with a location. A contractor sends a quotation. An order exists only after the homeowner accepts that quotation. Site progress is updated on the order so every party can follow it.',
         'Contractor repair orders collect a 15% deposit on BuildMate. The 5% platform fee is snapshotted when the customer accepts the quote. Material stores use the platform for free: no deposit and no commission. Payments and refunds follow the Payment Policy and Refund Policy then in effect.',
@@ -112,10 +112,10 @@ const COPY = {
     [POLICY_TYPES.MATERIAL_STORE_POLICY]: {
       title: 'Material Store Policy',
       blocks: [
-        'A material store owner lists materials, prices, stock, and a delivery area so homeowners and crews can order for a site. Stores use BuildMate for free: no signup fee, no monthly fee, no commission, and no deposit.',
-        'The price and unit shown on the listing must match the confirmed order. The customer pays the store directly (COD or an off-platform transfer). BuildMate does not hold money for material orders.',
+        'A material store owner lists a catalog of materials, reference prices, stock, and delivery notes so homeowners and crews can send material requests. Stores use BuildMate for free: no signup fee, no monthly fee, no commission, and no deposit.',
+        'The price and unit on a listing are catalog information. Any quote is advisory only. BuildMate does not create a purchase order, collect payment, or ship goods for the store.',
         'The store profile must be approved before the shop is public. Photos and descriptions must not misstate origin or quality.',
-        'Complaints about shortages, wrong specification, or late delivery are handled between the customer and the store, with platform complaint tools. Legacy material orders that already paid a deposit keep their history and are not converted to COD.',
+        'Buying, delivery, and payment are agreed directly between the customer and the store, including through chat. Historical material orders remain on record and are not reopened as new platform purchases.',
       ],
     },
     [POLICY_TYPES.PAYMENT_POLICY]: {
@@ -123,7 +123,7 @@ const COPY = {
       blocks: [
         'Repair orders: the customer pays a 15% deposit on the accepted quote. BuildMate holds that amount (escrow, mocked in this thesis). Platform fee = 5% of the quote total, not 5% of the deposit. The remaining 85% is paid directly to the contractor and is not BuildMate revenue.',
         'BuildMate revenue is recorded only when a repair order is eligible to settle: deposit paid, customer accepted, no blocking complaint, and the 85% remainder reconciled. Then the system releases 10% to the contractor and posts the 5% platform fee.',
-        'New material orders have no deposit, no commission, and no platform hold. Order total = goods + shipping, as a direct sale between customer and store.',
+        'A material request does not create a BuildMate purchase order, deposit, commission, or platform shipping fee. Any payment belongs to a direct agreement between the customer and the store.',
         'The current gateway is a mock for the thesis. PAID/REFUNDED/RELEASED on the demo ledger does not mean real money moved. A transaction suspected of fraud may be held.',
       ],
     },
@@ -132,7 +132,7 @@ const COPY = {
       blocks: [
         'Cancelling a repair order before the deposit is paid creates no fee. If the customer cancels after the deposit, BuildMate holds the 15% under the accepted terms and does not release it immediately; an admin allocates it. If the contractor cancels or does not perform, the customer is refunded the full 15% and BuildMate does not post the 5% fee.',
         'A mutual cancellation records a proposed refund, never above the held deposit, and needs admin confirmation. A dispute freezes escrow: no payout and no automatic refund.',
-        'Material orders have no deposit, so there is no deposit penalty. Undelivered orders may be cancelled. Delivered orders use refusal, defect, or direct refund between customer and store.',
+        'A material request does not collect platform payment, so it does not create a platform refund. Historical material orders that once held a deposit stay on the ledger and are not reopened as a purchase flow.',
         'Contractor deposit refunds in this thesis are mock ledger entries on the original order. The same escrow cannot be refunded twice.',
       ],
     },

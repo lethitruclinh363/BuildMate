@@ -7,7 +7,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
+import { RequestMaterialsButton } from '@/features/material-request/RequestMaterialsButton';
 import { locationApi } from '@/features/map/services/location.api';
 import { publicPriceVisible, saleBannerKey, saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
 import { productImageUrl, vnd } from '@/lib/partner-api';
@@ -91,7 +91,7 @@ export function PublicMaterialPage() {
             <div className="flex justify-between gap-4"><dt>{t('materialPage.minQty')}</dt><dd>{formatQty(item.minOrderQty)} {item.unit}</dd></div>
           </dl>
           {item.description ? <p className="mt-4 text-sm leading-6 text-ink-600">{item.description}</p> : null}
-          <AddToMaterialCart material={item} storeId={String(store.id)} storeName={store.name} />
+          <RequestMaterialsButton material={item} storeId={String(store.id)} storeName={store.name} />
           <Button asChild variant="outline" className="mt-4">
             <Link to={paths.store(store.id)}>{t('common.back')}</Link>
           </Button>

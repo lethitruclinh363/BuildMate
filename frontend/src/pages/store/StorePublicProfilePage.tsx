@@ -1,6 +1,10 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BadgeCheck, Clock, MapPin, Star } from 'lucide-react';
+import { BadgeCheck, MapPin, Star } from 'lucide-react';
+import { LockedAccountFields } from '@/features/operating-hours/LockedAccountFields';
+import { OperatingHoursEditor } from '@/features/operating-hours/OperatingHoursEditor';
+import { OperatingHoursDisplay } from '@/features/operating-hours/OperatingHoursDisplay';
+import { normalizeWeeklyHours, weeklyHoursError } from '@/features/operating-hours/weeklyHours';
 import type { AxiosError } from 'axios';
 import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
@@ -35,7 +39,6 @@ import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { ApiResponse } from '@/types/user';
 import type { CatalogMaterial } from '@/types/partner';
-import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 
 type EditKey = 'info' | 'contact' | 'address' | 'hours' | 'areas';
@@ -96,7 +99,6 @@ export function StorePublicProfilePage() {
   const [catalog, setCatalog] = useState<MaterialCategoryPick[]>([]);
   const [materials, setMaterials] = useState<CatalogMaterial[]>([]);
   const [reviews, setReviews] = useState<{ average: number; count: number; items: PublicStoreReview[] } | null>(null);
-  const [reputation, setReputation] = useState<ReputationSnapshot | null>(null);
   const [activeCategory, setActiveCategory] = useState('');
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [categoryName, setCategoryName] = useState('');
@@ -124,7 +126,12 @@ export function StorePublicProfilePage() {
       .getPublicProfile()
       .then((res) => {
         const legal = res.data.data.verified;
-        const next: PublicStoreProfile = { ...res.data.data.publicProfile };
+        const next: PublicStoreProfile = {
+          ...res.data.data.publicProfile,
+          weeklyHours: normalizeWeeklyHours(
+            res.data.data.publicProfile.weeklyHours || res.data.data.publicProfile.operatingHours
+          ),
+        };
         if (!next.contactName && legal?.representativeName) next.contactName = legal.representativeName;
         if (!next.contactEmail && legal?.contactEmail) next.contactEmail = legal.contactEmail;
         if (!next.phone && legal?.contactPhone) next.phone = legal.contactPhone;
@@ -136,7 +143,6 @@ export function StorePublicProfilePage() {
         setCategories(res.data.data.categories || []);
         setMaterials(res.data.data.materials || []);
         setReviews(res.data.data.reviews || null);
-        setReputation(res.data.data.reputation || null);
       })
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setLoading(false));
@@ -221,9 +227,10 @@ export function StorePublicProfilePage() {
       setEditing('info');
       return;
     }
-    if (profile.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.contactEmail.trim())) {
-      setError(t('storePublic.emailInvalid'));
-      setEditing('contact');
+    const hoursError = weeklyHoursError(normalizeWeeklyHours(profile.weeklyHours));
+    if (hoursError) {
+      setError(t(hoursError));
+      setEditing('hours');
       return;
     }
     setBusy(true);
@@ -236,19 +243,21 @@ export function StorePublicProfilePage() {
         phone: profile.phone,
         contactName: profile.contactName,
         contactEmail: profile.contactEmail,
-        address: profile.address,
-        city: profile.city,
         avatar: profile.avatar,
         logo: profile.logo,
         coverImage: profile.coverImage,
         gallery: profile.gallery,
-        openingHours: profile.openingHours,
+        weeklyHours: normalizeWeeklyHours(profile.weeklyHours),
         showroomNote: profile.showroomNote,
         deliveryNote: profile.deliveryNote,
         serviceRadiusKm: profile.serviceRadiusKm || 5,
         serviceAreas: areas.split(',').map((item) => item.trim()).filter(Boolean),
       });
-      const next = { ...profile, ...res.data.data };
+      const next = {
+        ...profile,
+        ...res.data.data,
+        weeklyHours: normalizeWeeklyHours(res.data.data.weeklyHours || res.data.data.operatingHours),
+      };
       setProfile(next);
       setSaved(next);
       setAreas((next.serviceAreas || []).join(', '));
@@ -321,7 +330,6 @@ export function StorePublicProfilePage() {
           categories={categories}
           materials={materials}
           reviews={reviews}
-          reputation={reputation}
           preview
         />
       </PageTransition>
@@ -487,8 +495,7 @@ export function StorePublicProfilePage() {
             {editing === 'contact' ? (
               <div className="grid gap-4">
                 <Input label={t('storePublic.contactPerson')} value={profile.contactName || ''} onChange={(event) => setField('contactName', event.target.value)} />
-                <Input label={t('storePublic.phone')} value={profile.phone} onChange={(event) => setField('phone', event.target.value)} />
-                <Input label={t('storePublic.email')} type="email" value={profile.contactEmail || ''} onChange={(event) => setField('contactEmail', event.target.value)} />
+                <LockedAccountFields phone={profile.phone} email={profile.contactEmail || ''} />
               </div>
             ) : (
               <dl className="grid gap-4 sm:grid-cols-2">
@@ -538,12 +545,12 @@ export function StorePublicProfilePage() {
             action={<TextButton onClick={() => setEditing(editing === 'hours' ? null : 'hours')}>{editing === 'hours' ? t('publicProfile.doneSection') : t('storePublic.edit')}</TextButton>}
           >
             {editing === 'hours' ? (
-              <Input label={t('storePublic.hours')} value={profile.openingHours} onChange={(event) => setField('openingHours', event.target.value)} />
+              <OperatingHoursEditor
+                value={normalizeWeeklyHours(profile.weeklyHours)}
+                onChange={(weeklyHours) => setField('weeklyHours', weeklyHours)}
+              />
             ) : (
-              <p className="inline-flex items-center gap-2 font-display text-2xl text-navy-800">
-                <Clock className="h-5 w-5 text-copper-500" />
-                {profile.openingHours.trim() || t('storePublic.noHours')}
-              </p>
+              <OperatingHoursDisplay hours={normalizeWeeklyHours(profile.weeklyHours)} />
             )}
           </Block>
 

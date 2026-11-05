@@ -20,6 +20,17 @@ export interface PublicContractorProfile {
   publicCertificates: string[];
   achievements: string;
   openingHours: string;
+  weeklyHours?: {
+    configured: boolean;
+    days: { weekday: number; closed: boolean; open: string | null; close: string | null }[];
+  } | null;
+  operatingHours?: Array<{
+    dayOfWeek: number;
+    isOpen: boolean;
+    openTime: string | null;
+    closeTime: string | null;
+  }>;
+  hoursStatus?: { state: 'UNSET' | 'OPEN' | 'CLOSED' | 'REST'; weekday: number; open: string | null; close: string | null };
   serviceAreas: string[];
   yearsExperience: number;
   workerCount: number;
@@ -49,6 +60,17 @@ export interface PublicStoreProfile {
   coverImage: string;
   gallery: string[];
   openingHours: string;
+  weeklyHours?: {
+    configured: boolean;
+    days: { weekday: number; closed: boolean; open: string | null; close: string | null }[];
+  } | null;
+  operatingHours?: Array<{
+    dayOfWeek: number;
+    isOpen: boolean;
+    openTime: string | null;
+    closeTime: string | null;
+  }>;
+  hoursStatus?: { state: 'UNSET' | 'OPEN' | 'CLOSED' | 'REST'; weekday: number; open: string | null; close: string | null };
   serviceAreas: string[];
   serviceRadiusKm?: number;
   deliveryEnabled?: boolean;
@@ -102,8 +124,6 @@ export interface NearbyPlace {
   verified: boolean;
   rating: number;
   reviewCount: number;
-  reputationScore?: number | null;
-  reputationGrade?: string | null;
   completedProjects?: number;
   distance: number;
   distanceMeters?: number;

@@ -108,7 +108,7 @@ export function PublicReviewList({ targetUserId, targetType }: { targetUserId: s
                   {row.comment ? <p className="mt-2 text-sm leading-6 text-ink-600">{row.comment}</p> : null}
                   {row.contractorReply ? (
                     <p className="mt-3 rounded-2xl bg-navy-800/5 px-3 py-2 text-sm leading-6 text-navy-800">
-                      <span className="block text-xs font-semibold uppercase tracking-wide text-ink-400">{t('reputation.providerReply')}</span>
+                      <span className="block text-xs font-semibold uppercase tracking-wide text-ink-400">{t('review.providerReply')}</span>
                       {row.contractorReply}
                     </p>
                   ) : null}

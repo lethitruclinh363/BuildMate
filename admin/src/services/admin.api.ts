@@ -14,8 +14,6 @@ import type {
   AdminUsersPayload,
   AdminUserDetail,
   CustomerDetail,
-  MaterialOrder,
-  AdminMaterialOrderPayload,
   PartnerApplication,
   ReviewListPayload,
   VerificationStatus,
@@ -271,26 +269,19 @@ export const adminApi = {
       unwrap((await api.get<ApiResponse<OrderDetail[]>>('/admin/orders')).data)
     ),
 
-  listMaterialOrders: async (params?: {
-    q?: string;
-    status?: string;
-    paymentStatus?: string;
-    startDate?: string;
-    endDate?: string;
-    page?: number;
-    limit?: number;
-  }) => unwrap((await api.get<ApiResponse<AdminMaterialOrderPayload>>('/admin/material-orders', { params })).data),
-
-  getMaterialOrder: async (id: string) =>
-    unwrap((await api.get<ApiResponse<MaterialOrder>>(`/admin/material-orders/${id}`)).data),
-
   getOrder: async (id: string) => unwrap((await api.get<ApiResponse<OrderDetail>>(`/orders/${id}`)).data),
 
   getOrderPayments: async (orderId: string) =>
     unwrap((await api.get<ApiResponse<OrderPaymentsPayload>>(`/payments/order/${orderId}`)).data),
 
-  getReviewsForUser: async (userId: string) =>
-    unwrap((await api.get<ApiResponse<ReviewListPayload>>(`/reviews/user/${userId}`)).data),
+  getReviewsForUser: async (userId: string, targetType?: 'CONTRACTOR' | 'MATERIAL_STORE') =>
+    unwrap(
+      (
+        await api.get<ApiResponse<ReviewListPayload>>(`/reviews/user/${userId}`, {
+          params: targetType ? { targetType } : undefined,
+        })
+      ).data
+    ),
 
   getProfile: async () => unwrap((await api.get<ApiResponse<User>>('/admin/auth/me')).data),
 

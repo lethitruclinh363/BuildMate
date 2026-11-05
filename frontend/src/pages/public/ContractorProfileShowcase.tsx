@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, MapPin, Phone, Star } from 'lucide-react';
+import { OperatingHoursDisplay } from '@/features/operating-hours/OperatingHoursDisplay';
+import { normalizeWeeklyHours } from '@/features/operating-hours/weeklyHours';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { PublicReviewList } from '@/features/reviews/components/PublicReviewList';
-import { PublicTrustPanel } from '@/features/reviews/components/PublicTrustPanel';
-import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
@@ -36,13 +36,11 @@ export function ContractorProfileShowcase({
   profile,
   services,
   highlights,
-  reputation,
   preview,
 }: {
   profile: PublicContractorProfile;
   services: CatalogService[];
   highlights?: PublicHighlights;
-  reputation?: ReputationSnapshot | null;
   preview?: boolean;
 }) {
   const { t } = useI18n();
@@ -56,7 +54,6 @@ export function ContractorProfileShowcase({
     profile.yearsExperience > 0 ? { label: t('public.experience'), value: t('public.experienceYears', { n: profile.yearsExperience }) } : null,
     profile.workerCount > 0 ? { label: t('public.crewSize'), value: t('public.crewCount', { n: profile.workerCount }) } : null,
     profile.city ? { label: t('public.areas'), value: profile.city } : null,
-    profile.openingHours ? { label: t('public.hours'), value: profile.openingHours } : null,
   ].filter((item): item is { label: string; value: string } => Boolean(item));
 
   const highlightItems = [
@@ -193,16 +190,6 @@ export function ContractorProfileShowcase({
         </div>
       </section>
 
-      <PublicTrustPanel
-        name={profile.displayName}
-        verified={profile.verified}
-        reputation={reputation}
-        reviewAverage={total > 0 ? average : null}
-        reviewCount={total}
-        completionLabel={t('reputation.contractorCardCompletion')}
-        onTimeLabel={t('reputation.contractorCardOnTime')}
-      />
-
       <section>
         <h2 className="font-display text-2xl text-navy-800">{t('public.about')}</h2>
         {profile.description ? <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-600">{profile.description}</p> : null}
@@ -218,6 +205,10 @@ export function ContractorProfileShowcase({
           </div>
         ) : null}
       </section>
+
+      <Card hover={false}>
+        <OperatingHoursDisplay hours={normalizeWeeklyHours(profile.weeklyHours || profile.operatingHours)} />
+      </Card>
 
       <section>
         <h2 className="font-display text-2xl text-navy-800">{t('public.services')}</h2>

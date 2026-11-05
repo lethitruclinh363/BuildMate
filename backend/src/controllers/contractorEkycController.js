@@ -54,6 +54,11 @@ const processVerification = asyncHandler(async (req, res) => {
   return success(res, data, 'Identity verification processed');
 });
 
+const restart = asyncHandler(async (req, res) => {
+  const data = await contractorEkycService.restartAttempt(req.user.id, req.contractorProfile);
+  return success(res, data, 'Identity verification restarted');
+});
+
 const submit = asyncHandler(async (req, res) => {
   const data = await contractorEkycService.submit(req.user.id, req.contractorProfile);
   return success(res, data, 'Identity verification submitted');
@@ -94,6 +99,7 @@ module.exports = {
   readiness,
   validateFrame,
   processVerification,
+  restart,
   submit,
   file,
   adminFile,

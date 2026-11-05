@@ -316,8 +316,7 @@ async function main() {
       items: [{ materialId: CEMENT_ID, quantity: 1 }],
     },
   });
-  const q = quoteRes.json?.data;
-  record('COD-01', 'cod', 'quote 2_100_000 with 100k ship', q?.orderTotal, q?.ok === true && q?.orderTotal === 2100000 && q?.shippingFee === 100000);
+  record('COD-01', 'cod', 'checkout quote unmounted', quoteRes.status, quoteRes.status === 404);
 
   const orderCod = await request('/material-orders', {
     method: 'POST',
@@ -332,55 +331,14 @@ async function main() {
       items: [{ materialId: CEMENT_ID, quantity: 1 }],
     },
   });
-  const materialOrderId = orderCod.json?.data?.id || orderCod.json?.data?._id || orderCod.json?.data?.legacyMongoId;
-  record('COD-02', 'cod', 'create COD order', orderCod.ok, orderCod.ok, { materialOrderId });
+  record('COD-02', 'cod', 'material-order create unmounted', orderCod.status, orderCod.status === 404);
 
-  if (materialOrderId) {
-    const dbCod = await pgCheck(
-      pg,
-      `SELECT order_code, status, total_amount, deposit_amount, platform_fee_amount, payment_status
-       FROM material_orders WHERE legacy_mongo_id = $1 OR id::text = $1`,
-      [String(materialOrderId)]
-    );
-    const row = dbCod.rows[0] || {};
-    record(
-      'COD-03',
-      'cod',
-      'fee 0 deposit 0',
-      `${row.deposit_amount}/${row.platform_fee_amount}/${row.total_amount}`,
-      Number(row.deposit_amount) === 0 && Number(row.platform_fee_amount) === 0 && Number(row.total_amount) === 2100000
-    );
-
-    const steps = ['CONFIRMED', 'PREPARING', 'READY_FOR_DELIVERY', 'DELIVERING', 'DELIVERED'];
-    let status = row.status;
-    for (const next of steps) {
-      if (status === next) continue;
-      const adv = await request(`/material-store/orders/${materialOrderId}`, {
-        method: 'PATCH',
-        token: store.token,
-        body: { status: next },
-      });
-      status = adv.json?.data?.status || status;
-    }
-    record('COD-04', 'cod', 'store reaches DELIVERED', status, status === 'DELIVERED');
-
-    const recv = await request(`/material-orders/${materialOrderId}/receive`, { method: 'POST', token: customer.token });
-    record('COD-05', 'cod', 'customer received', recv.json?.data?.status, /CUSTOMER_RECEIVED|COMPLETED/.test(String(recv.json?.data?.status || '')));
-    const recv2 = await request(`/material-orders/${materialOrderId}/receive`, { method: 'POST', token: customer.token });
-    record('RACE-06', 'race', 'second receive not 500', recv2.status < 500, recv2.status < 500);
-
-    const collect = await request(`/material-store/orders/${materialOrderId}/collected`, { method: 'POST', token: store.token });
-    record('COD-06', 'cod', 'store collected COD', collect.json?.data?.paymentStatus, collect.ok);
-    const collect2 = await request(`/material-store/orders/${materialOrderId}/collected`, { method: 'POST', token: store.token });
-    record('RACE-07', 'race', 'second COD collect blocked or ok', collect2.status === 409 || collect2.ok, collect2.status === 409 || collect2.ok);
-
-    const review = await request('/reviews/material-orders', {
-      method: 'POST',
-      token: customer.token,
-      body: { materialOrderId, rating: 5, comment: 'Isolated E2E delivery was on time.' },
-    });
-    record('COD-07', 'cod', 'store review', review.ok || review.status === 409, review.ok || review.status === 409);
-  }
+  const review = await request('/reviews/material-orders', {
+    method: 'POST',
+    token: customer.token,
+    body: { materialOrderId: '000000000000000000000000', rating: 5, comment: 'Isolated E2E should not create a purchase review.' },
+  });
+  record('COD-07', 'cod', 'material-order review unmounted', review.status, review.status === 404);
 
   const pause = await request('/contractor/activation/pause', { method: 'POST', token: contractor.token });
   record('ACT-01', 'activation', 'contractor pause', pause.ok, pause.ok);

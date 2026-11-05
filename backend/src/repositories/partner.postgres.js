@@ -11,6 +11,48 @@ function text(value, max) {
   return max ? raw.slice(0, max) : raw;
 }
 
+function coerceJson(value) {
+  if (typeof value !== 'string') return value ?? null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+async function writeWeeklyHours(tx, profileId, weeklyHours) {
+  const { ensureWeeklyHoursColumn } = require('./column-ensure');
+  await ensureWeeklyHoursColumn();
+  if (weeklyHours === undefined) return;
+  const id = Number(profileId);
+  if (!Number.isFinite(id)) return;
+  if (weeklyHours == null) {
+    await tx.$executeRawUnsafe(`UPDATE contractor_profiles SET weekly_hours = NULL WHERE id = ${id}`);
+    return;
+  }
+  const json = JSON.stringify(weeklyHours).replace(/'/g, "''");
+  await tx.$executeRawUnsafe(`UPDATE contractor_profiles SET weekly_hours = '${json}'::jsonb WHERE id = ${id}`);
+}
+
+async function attachWeeklyHours(rows) {
+  const { ensureWeeklyHoursColumn } = require('./column-ensure');
+  await ensureWeeklyHoursColumn();
+  if (!rows?.length) return rows;
+  const ids = rows.map((row) => Number(row.id)).filter((id) => Number.isFinite(id));
+  if (!ids.length) return rows;
+  const extra = await prisma.$queryRawUnsafe(
+    `SELECT id, weekly_hours FROM contractor_profiles WHERE id IN (${ids.join(',')})`
+  );
+  const map = new Map((extra || []).map((row) => [String(row.id), coerceJson(row.weekly_hours)]));
+  for (const row of rows) {
+    const attached = map.has(String(row.id)) ? map.get(String(row.id)) : coerceJson(row.weekly_hours);
+    row.weekly_hours = attached ?? null;
+  }
+  return rows;
+}
+
 function legacyOf(value) {
   if (!value) return '';
   if (typeof value === 'object') return String(value._id || value.id || '');
@@ -121,6 +163,7 @@ class PgProfile {
           images: project.images || [],
         })),
       },
+      weeklyHours: this.weeklyHours || null,
       completedSteps: this.completedSteps,
       verificationStatus: this.verificationStatus,
       documents: this.documents,
@@ -329,6 +372,7 @@ function profileFromRows(row) {
       size: Number(doc.file_size || 0),
       uploadedAt: doc.uploaded_at,
     })),
+    weeklyHours: coerceJson(row.weekly_hours) || null,
     completedSteps: steps,
     rejectionReason: row.rejection_reason || '',
     submittedAt: row.submitted_at,
@@ -427,7 +471,10 @@ const storeInclude = {
 };
 
 async function allProfiles() {
+  const { ensureWeeklyHoursColumn } = require('./column-ensure');
+  await ensureWeeklyHoursColumn();
   const rows = await prisma.contractor_profiles.findMany({ include: profileInclude });
+  await attachWeeklyHours(rows);
   return rows.map(profileFromRows);
 }
 
@@ -607,8 +654,9 @@ async function persistProfile(profile, outerTx) {
   const owner = await userRow(profile.userId);
   if (!owner) throw new Error('Contractor profile owner is not in PostgreSQL');
   const reviewer = profile.reviewedBy ? await userRow(profile.reviewedBy) : null;
-  const { ensureLocationColumns } = require('./column-ensure');
+  const { ensureLocationColumns, ensureWeeklyHoursColumn } = require('./column-ensure');
   await ensureLocationColumns();
+  await ensureWeeklyHoursColumn();
   const run = async (tx) => {
     const lat = profile.lat !== undefined ? profile.lat : (profile.latitude !== undefined ? profile.latitude : (profile.location?.coordinates?.[1] !== undefined ? profile.location.coordinates[1] : undefined));
     const lng = profile.lng !== undefined ? profile.lng : (profile.longitude !== undefined ? profile.longitude : (profile.location?.coordinates?.[0] !== undefined ? profile.location.coordinates[0] : undefined));
@@ -663,6 +711,7 @@ async function persistProfile(profile, outerTx) {
       profile.pgId = row.id;
       profile._id = row.legacy_mongo_id;
     }
+    await writeWeeklyHours(tx, row.id, profile.weeklyHours);
     profile.locationId = locationId;
     const profileId = row.id;
     const { ensureSaleColumns } = require('./column-ensure');
@@ -784,8 +833,9 @@ async function persistProfile(profile, outerTx) {
 async function persistStore(store, outerTx) {
   const owner = await userRow(store.contractorId);
   if (!owner) throw new Error('Store owner is not in PostgreSQL');
-  const { ensureLocationColumns } = require('./column-ensure');
+  const { ensureLocationColumns, ensureWeeklyHoursColumn } = require('./column-ensure');
   await ensureLocationColumns();
+  await ensureWeeklyHoursColumn();
   const latVal = store.lat !== undefined ? store.lat : (store.latitude !== undefined ? store.latitude : (store.location?.coordinates?.[1] !== undefined ? store.location.coordinates[1] : undefined));
   const lngVal = store.lng !== undefined ? store.lng : (store.longitude !== undefined ? store.longitude : (store.location?.coordinates?.[0] !== undefined ? store.location.coordinates[0] : undefined));
   const run = async (tx) => {
@@ -825,7 +875,7 @@ async function persistStore(store, outerTx) {
       display_years: store.displayYears == null ? null : Number(store.displayYears),
       display_worker_count: store.displayWorkerCount == null ? null : Number(store.displayWorkerCount),
       public_seeded: Boolean(store.publicSeeded),
-      opening_hours: text(store.openingHours, 100) || '07:00 – 18:00',
+      opening_hours: text(store.openingHours, 200),
       service_radius_km: store.serviceRadiusKm || 5,
       category: text(store.category, 120) || 'General repair',
       verified: Boolean(store.verified),
@@ -921,9 +971,12 @@ function storeWhere(filter) {
 }
 
 async function profilesFor(filter) {
+  const { ensureWeeklyHoursColumn } = require('./column-ensure');
+  await ensureWeeklyHoursColumn();
   const where = profileWhere(filter);
   if (!where) return null;
   const rows = await prisma.contractor_profiles.findMany({ where, include: profileInclude });
+  await attachWeeklyHours(rows);
   return rows.map(profileFromRows);
 }
 
@@ -974,6 +1027,7 @@ const ContractorProfile = {
       serviceAreas: data.serviceAreas || [],
       materialCategories: data.materialCategories || [],
       services: data.services || [],
+      weeklyHours: data.weeklyHours || null,
       _id: data._id,
       verificationStatus: data.verificationStatus || 'DRAFT',
       portfolio: data.portfolio,
@@ -1066,7 +1120,7 @@ const Store = {
       displayWorkerCount: data.displayWorkerCount ?? null,
       serviceAreas: data.serviceAreas || [],
       publicSeeded: Boolean(data.publicSeeded),
-      openingHours: data.openingHours || '07:00 – 18:00',
+      openingHours: data.openingHours || '',
       serviceRadiusKm: data.serviceRadiusKm || 5,
       category: data.category || 'General repair',
       verified: Boolean(data.verified),

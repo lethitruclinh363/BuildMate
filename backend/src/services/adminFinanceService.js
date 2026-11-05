@@ -23,15 +23,7 @@ async function buildLedger() {
   }
   const posted = await Commission.find({ status: COMMISSION_STATUS.POSTED });
   ledger.platformFeePosted = posted.reduce((sum, row) => sum + roundVnd(row.platformAmount), 0);
-  try {
-    const { MaterialOrder } = require('../repositories/materialOrderAccess');
-    const materialRows = await MaterialOrder.find({
-      status: { $in: ['COMPLETED', 'CUSTOMER_RECEIVED'] },
-    }).select('totalAmount');
-    ledger.materialGmv = materialRows.reduce((sum, row) => sum + roundVnd(row.totalAmount), 0);
-  } catch (_err) {
-    ledger.materialGmv = 0;
-  }
+  ledger.materialGmv = 0;
   ledger.mock = true;
   return ledger;
 }

@@ -45,6 +45,10 @@ export interface ContractorProfile {
   providerRefId?: string | null;
   description: string;
   yearsExperience: number;
+  weeklyHours?: {
+    configured: boolean;
+    days: { weekday: number; closed: boolean; open: string | null; close: string | null }[];
+  } | null;
   serviceAreas: string[];
   materialCategories?: {
     name: string;
@@ -90,6 +94,10 @@ export interface Storefront {
   coverImage: string;
   gallery: string[];
   openingHours: string;
+  weeklyHours?: {
+    configured: boolean;
+    days: { weekday: number; closed: boolean; open: string | null; close: string | null }[];
+  } | null;
   serviceRadiusKm: number;
   deliveryEnabled?: boolean;
   baseDeliveryFee?: number;

@@ -194,10 +194,6 @@ export function UserDetailPage() {
               <span className="font-display text-xl font-bold text-[#16283C]">{counts?.repairOrders ?? 0}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-[0.16em] text-[#526477]">Đơn vật liệu:</span>
-              <span className="font-display text-xl font-bold text-[#16283C]">{counts?.materialOrders ?? 0}</span>
-            </div>
-            <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-[0.16em] text-[#526477]">Khiếu nại liên quan:</span>
               <span className="font-display text-xl font-bold text-[#16283C]">{counts?.complaints ?? 0}</span>
             </div>

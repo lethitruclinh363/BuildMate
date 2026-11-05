@@ -32,19 +32,6 @@ async function countLiveStores(storeType) {
   }
 }
 
-async function loadMaterialRows() {
-  try {
-    const { MaterialOrder } = require('../repositories/materialOrderAccess');
-    const [all, completed] = await Promise.all([
-      MaterialOrder.find({}),
-      MaterialOrder.find({ status: { $in: ['COMPLETED', 'CUSTOMER_RECEIVED'] } }),
-    ]);
-    return { all, completed };
-  } catch (_err) {
-    return { all: [], completed: [] };
-  }
-}
-
 async function computeAnalytics() {
   const [
     totalUsers,
@@ -67,7 +54,6 @@ async function computeAnalytics() {
     complaintsTotal,
     liveContractorStores,
     liveMaterialStores,
-    material,
   ] = await Promise.all([
     userRepository.countAll(),
     userRepository.countByRole(ROLES.CUSTOMER),
@@ -102,7 +88,6 @@ async function computeAnalytics() {
     Complaint.countDocuments(),
     countLiveStores([STORE_TYPE.SERVICES, STORE_TYPE.BOTH]),
     countLiveStores([STORE_TYPE.MATERIALS, STORE_TYPE.BOTH]),
-    loadMaterialRows(),
   ]);
 
   const paid = paidAgg[0] || { revenue: 0, count: 0 };
@@ -145,16 +130,8 @@ async function computeAnalytics() {
     }
   }
 
-  const materialCompleted = material.completed.length;
-  const materialGmv = material.completed.reduce((sum, row) => sum + roundVnd(row.totalAmount), 0);
-  for (const row of material.completed) {
-    gmvEvents.push({
-      at: row.updatedAt || row.createdAt,
-      amount: roundVnd(row.totalAmount),
-    });
-  }
-
-  const gmv = roundVnd((ledger.acceptedQuoteTotal || 0) + (ledger.materialGmv || materialGmv || 0));
+  const materialCompleted = 0;
+  const gmv = roundVnd(ledger.acceptedQuoteTotal || 0);
   const series = buildAdminSeries(new Date(), {
     orders: allOrders,
     gmvEvents,
@@ -183,7 +160,7 @@ async function computeAnalytics() {
       completed: completedOrders,
       cancelled: cancelledOrders,
       inProgress: Math.max(totalOrders - completedOrders - cancelledOrders, 0),
-      materialTotal: material.all.length,
+      materialTotal: 0,
       materialCompleted,
       byStatus,
     },
@@ -194,7 +171,7 @@ async function computeAnalytics() {
       paidCount: paid.count,
       commission: commission.platform,
       contractorEarning: commission.contractor,
-      materialGmv: ledger.materialGmv,
+      materialGmv: 0,
       materialCompleted,
       materialPlatformRevenue: 0,
       ledger,

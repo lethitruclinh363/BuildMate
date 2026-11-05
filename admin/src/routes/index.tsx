@@ -6,18 +6,16 @@ import { AdminDashboardPage } from '@/pages/dashboard/AdminDashboardPage';
 import { AdminUserManagementPage } from '@/pages/users/AdminUserManagementPage';
 import { UserDetailPage } from '@/users/UserDetailPage';
 import { ContractorsPage, MaterialStoresPage } from '@/contractors/ContractorsPage';
+import { ContractorProfilePage, StoreProfilePage } from '@/partners/PartnerDetailPage';
 import { AdminVerificationPage } from '@/pages/verification/AdminVerificationPage';
 import { OrdersPage } from '@/orders/OrdersPage';
 import { OrderDetailPage } from '@/orders/OrderDetailPage';
-import { AdminMaterialOrdersPage } from '@/pages/orders/AdminMaterialOrdersPage';
-import { AdminMaterialOrderDetailPage } from '@/pages/orders/AdminMaterialOrderDetailPage';
 import { PaymentsPage } from '@/payments/PaymentsPage';
 import { EscrowPage } from '@/finance/EscrowPage';
 import { CommissionPage } from '@/commissions/CommissionPage';
 import { ReviewsPage } from '@/reviews/ReviewsPage';
 import { ComplaintsPage } from '@/complaints/ComplaintsPage';
 import { ComplaintDetailPage } from '@/complaints/ComplaintDetailPage';
-import { AnalyticsPage } from '@/analytics/AnalyticsPage';
 import { AuditPage } from '@/audit/AuditPage';
 import { SettingsPage } from '@/settings/SettingsPage';
 import { PolicyListPage } from '@/policies/PolicyListPage';
@@ -44,14 +42,17 @@ export function AppRouter() {
             <Route path="/users" element={<AdminUserManagementPage />} />
             <Route path="/users/:id" element={<UserDetailPage />} />
             <Route path="/contractors" element={<ContractorsPage />} />
+            <Route path="/contractors/:id/profile" element={<ContractorProfilePage />} />
             <Route path="/material-stores" element={<MaterialStoresPage />} />
+            <Route path="/material-stores/:id/profile" element={<StoreProfilePage />} />
+            <Route path="/stores/:id/profile" element={<StoreProfilePage />} />
             <Route path="/partners/contractors" element={<AdminVerificationPage actor="CONTRACTOR" />} />
             <Route path="/partners/stores" element={<AdminVerificationPage actor="MATERIAL_STORE_OWNER" />} />
             <Route path="/verification" element={<Navigate to="/partners/contractors" replace />} />
             <Route path="/verifications" element={<Navigate to="/partners/contractors" replace />} />
             <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/material-orders" element={<AdminMaterialOrdersPage />} />
-            <Route path="/material-orders/:id" element={<AdminMaterialOrderDetailPage />} />
+            <Route path="/material-orders" element={<Navigate to="/orders" replace />} />
+            <Route path="/material-orders/:id" element={<Navigate to="/orders" replace />} />
             <Route path="/services" element={<ServiceCatalogPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
@@ -60,7 +61,7 @@ export function AppRouter() {
             <Route path="/reviews" element={<ReviewsPage />} />
             <Route path="/complaints" element={<ComplaintsPage />} />
             <Route path="/complaints/:id" element={<ComplaintDetailPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/analytics" element={<Navigate to="/dashboard" replace />} />
             <Route path="/audit" element={<AuditPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/notifications" element={<AdminNotificationsPage />} />

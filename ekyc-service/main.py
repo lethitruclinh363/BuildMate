@@ -1,9 +1,9 @@
 """
 eKYC Service - FastAPI Application
 ====================================
-Dịch vụ xác thực danh tính điện tử (eKYC) với khả năng:
+Dịch vụ xác thực danh tính điện tử (eKYC) cho đối tác BuildMate với khả năng:
   - Đăng ký embedding khuôn mặt từ selfie bằng DeepFace
-  - Xác minh khuôn mặt đã đăng ký khi check-in
+  - Kiểm tra liveness nhiều hướng khi đăng ký đối tác
   - Trích xuất vector khuôn mặt (Face Embedding) 512 chiều
   - Phát hiện vùng thông tin CCCD bằng YOLOv11
   - Đọc tiếng Việt trong từng vùng bằng VietOCR
@@ -40,8 +40,9 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description=(
-        "API eKYC – OCR CCCD, đăng ký khuôn mặt selfie và xác minh FaceID khi check-in.\n\n"
-        "Đăng ký eKYC không so sánh selfie với chân dung trên CCCD."
+        "API eKYC BuildMate – OCR CCCD, liveness 5 hướng và đối chiếu chân dung CCCD "
+        "cho đăng ký Chủ đội thợ / Chủ cửa hàng vật liệu.\n\n"
+        "Dịch vụ này chỉ xử lý AI/CV. Node.js lưu kết quả vào PostgreSQL."
     ),
     version=settings.APP_VERSION,
     docs_url="/docs",

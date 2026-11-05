@@ -14,6 +14,7 @@ import { StatCard } from '@/components/StatCard';
 import { TextArea } from '@/components/Input';
 import { EkycReviewPanel } from '@/pages/verification/EkycReviewPanel';
 import { AdminLocationSection } from '@/pages/verification/AdminLocationSection';
+import { LockedContactValue, OperatingHoursPanel } from '@/partners/OperatingHoursPanel';
 import { getApiErrorMessage } from '@/services/api';
 import { mediaUrl } from '@/lib/utils';
 import type { DocumentType, PartnerApplication, VerificationDocument, VerificationStatus } from '@/types/admin';
@@ -216,6 +217,27 @@ export function AdminVerificationPage({ actor }: { actor: Actor }) {
             <p className="mt-2 text-sm text-[#526477]">
               {selected.address}, {selected.city} · {t('verify.tax')} {selected.taxCode || '—'}
             </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <LockedContactValue label={t('verify.phone')} value={selected.user?.phone} />
+              <LockedContactValue label={t('verify.email')} value={selected.user?.email} />
+            </div>
+            <div className="mt-4">
+              <OperatingHoursPanel
+                title={t('verify.operatingHours')}
+                hours={selected.weeklyHours || selected.publicProfile?.weeklyHours || selected.store?.weeklyHours || null}
+                unsetLabel={t('verify.hoursUnset')}
+                restLabel={t('verify.hoursRest')}
+                dayLabels={{
+                  mon: t('verify.dayMon'),
+                  tue: t('verify.dayTue'),
+                  wed: t('verify.dayWed'),
+                  thu: t('verify.dayThu'),
+                  fri: t('verify.dayFri'),
+                  sat: t('verify.daySat'),
+                  sun: t('verify.daySun'),
+                }}
+              />
+            </div>
             {actor === 'CONTRACTOR' ? (
               <div className="mt-4 space-y-4">
                 <div>

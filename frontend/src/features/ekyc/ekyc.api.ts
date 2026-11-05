@@ -43,6 +43,8 @@ export interface EkycRecord {
   attemptCount: number;
   frontDocumentId?: string | null;
   backDocumentId?: string | null;
+  hasFront?: boolean;
+  hasBack?: boolean;
 }
 
 export interface FaceCheck {
@@ -91,4 +93,9 @@ export const ekycApi = {
     );
   },
   submit: async () => unwrap((await api.post<ApiResponse<EkycRecord>>('/contractor/ekyc/submit', {}, slow)).data),
+  restart: async () => unwrap((await api.post<ApiResponse<EkycRecord>>('/contractor/ekyc/restart', {}, slow)).data),
+  file: async (kind: 'front' | 'back' | 'center' | 'left' | 'right' | 'up' | 'down') => {
+    const response = await api.get<Blob>(`/contractor/ekyc/files/${kind}`, { responseType: 'blob', silent: true });
+    return URL.createObjectURL(response.data);
+  },
 };

@@ -7,6 +7,11 @@ const create = asyncHandler(async (req, res) => {
   return created(res, data, 'Material requirement list created');
 });
 
+const createDirect = asyncHandler(async (req, res) => {
+  const data = await service.createDirectRequest(req.user, req.body);
+  return created(res, data, 'Material requirement list sent');
+});
+
 const mine = asyncHandler(async (req, res) => {
   const data = await service.listMine(req.user, {
     repairRequestId: req.query.repairRequestId,
@@ -86,6 +91,7 @@ const fulfill = asyncHandler(async (req, res) => {
 
 module.exports = {
   create,
+  createDirect,
   mine,
   getOne,
   addItem,

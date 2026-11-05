@@ -162,6 +162,24 @@ def analyze_face_frame(
     }
 
 
+def assert_not_large_selfie(image: np.ndarray, image_name: str) -> None:
+    """Reject a close-up face photo submitted as an ID-card capture."""
+    try:
+        analysis = analyze_face_frame(image, image_name)
+    except ValueError:
+        return
+    x1, y1, x2, y2 = analysis["facial_area"]
+    height, width = image.shape[:2]
+    if width * height <= 0:
+        return
+    coverage = ((x2 - x1) * (y2 - y1)) / float(width * height)
+    if coverage >= 0.22:
+        raise ValueError(
+            "Ảnh này giống ảnh khuôn mặt, không phải mặt CCCD. "
+            "Hãy đặt thẻ vào khung và chụp lại."
+        )
+
+
 def check_face_readiness(
     image: np.ndarray,
     image_name: str = "ảnh kiểm tra",
@@ -426,7 +444,7 @@ def validate_active_liveness(
         and pitch_range_ok
     )
 
-    # Build a human-readable diagnostic message so Spring Boot can surface
+    # Build a human-readable diagnostic message so the Node.js API can surface
     # the exact failure reason to the frontend instead of a generic message.
     if not passed:
         if not center_ok:
@@ -495,7 +513,7 @@ def validate_quick_active_liveness(
     challenge: dict[str, Any],
     challenge_direction: str,
 ) -> dict[str, float | bool]:
-    """Validate a short center-to-side movement for express check-in."""
+    """Validate a short center-to-side head movement."""
     center_yaw = float(center["yaw_score"])
     challenge_yaw = float(challenge["yaw_score"])
     center_max_yaw = float(settings.EXPRESS_LIVENESS_CENTER_MAX_YAW)
@@ -615,7 +633,7 @@ def extract_id_portrait_embedding(
 
 
 def parse_embedding(raw_embedding: str) -> list[float]:
-    """Parse a JSON array sent by Spring Boot through multipart/form-data."""
+    """Parse a JSON array sent by the Node.js API through multipart/form-data."""
     try:
         value = json.loads(raw_embedding)
     except json.JSONDecodeError as exc:

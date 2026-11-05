@@ -14,7 +14,7 @@ import {
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
+import { RequestMaterialsButton } from '@/features/material-request/RequestMaterialsButton';
 import {
   locationApi,
   type MaterialCategoryItem,
@@ -707,10 +707,9 @@ export function MaterialExplorer({ stores = [], initialStoreId }: MaterialExplor
                     )}
                   </div>
 
-                  {/* Action / Add to Cart */}
                   <div className="mt-auto pt-3">
                     {storeTargetId ? (
-                      <AddToMaterialCart
+                      <RequestMaterialsButton
                         material={catalogItem}
                         storeId={String(storeTargetId)}
                         storeName={storeName}

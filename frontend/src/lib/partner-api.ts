@@ -11,7 +11,6 @@ import type {
   WorkspacePayload,
 } from '@/types/partner';
 import type { ContractorDashboardStats } from '@/features/analytics/types/dashboard-stats';
-import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { PublicContractorProfile, PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 import type { ContractorServiceCategory, ContractorServicePick, ServiceNameCheck } from '@/data/contractor-services';
 import type { MaterialCategoryCatalog, MaterialCategoryPick } from '@/data/material-categories';
@@ -173,7 +172,6 @@ export const materialStoreApi = {
         categories: MaterialCategoryPick[];
         materials: CatalogMaterial[];
         reviews: { average: number; count: number; items: PublicStoreReview[] };
-        reputation?: ReputationSnapshot | null;
         verified: {
           businessName: string;
           representativeName: string;

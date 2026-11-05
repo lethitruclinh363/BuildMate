@@ -19,8 +19,6 @@ const paymentService = require('../../src/services/paymentService');
 const progressService = require('../../src/services/progressService');
 const reviewService = require('../../src/services/reviewService');
 const complaintService = require('../../src/services/complaintService');
-const materialOrderService = require('../../src/services/material-order.service');
-const materialDeposit = require('../../src/services/material-deposit.service');
 const policyService = require('../../src/services/policy.service');
 const adminService = require('../../src/services/adminService');
 const analyticsService = require('../../src/services/analyticsService');
@@ -261,39 +259,9 @@ async function main() {
     });
   }
 
-  const material = await prisma.materials.findFirst({
-    where: { is_active: true, stores: { status: 'LIVE', delivery_enabled: true, store_type: { in: ['MATERIALS', 'BOTH'] } } },
-    include: { stores: { select: { legacy_mongo_id: true, minimum_order_amount: true } } },
-  });
-  await step('material order and deposit', async () => {
-    if (!material?.legacy_mongo_id || !material.stores?.legacy_mongo_id) throw new Error('no live material');
-    const order = await materialOrderService.create(customerUser, {
-      storeId: material.stores.legacy_mongo_id,
-      deliveryAddress: '20 Hoa Binh, Can Tho',
-      lat: 10.046,
-      lng: 105.788,
-      locationConfirmed: true,
-      locationSource: 'GPS',
-      providerRefId: `cutover-${stamp}`,
-      customerNote: 'Cutover material order',
-      items: [{
-        materialId: material.legacy_mongo_id,
-        quantity: Math.max(
-          Number(material.min_order_qty) || 1,
-          Math.ceil((Number(material.stores.minimum_order_amount) || 0) / Math.max(Number(material.price), 1))
-        ),
-      }],
-    });
-    const row = await prisma.material_orders.findFirst({ where: { legacy_mongo_id: order.id } });
-    if (!row) throw new Error('material order was not written');
-    const same = Number(row.material_subtotal) + Number(row.shipping_fee) === Number(row.total_amount)
-      && Number(row.deposit_amount) + Number(row.remaining_amount) === Number(row.total_amount);
-    if (!same) throw new Error('material money snapshot is inconsistent');
-    const checkout = await materialDeposit.checkout(customerUser, order.id);
-    const captured = await materialDeposit.capture(customerUser, order.id);
-    const payment = await prisma.material_order_payments.findFirst({ where: { material_orders: { legacy_mongo_id: order.id } } });
-    if (!payment || payment.status !== 'PAID') throw new Error('deposit was not captured');
-    return `${checkout.payment?.status || 'checkout'} ${captured.order?.status || ''}`;
+  await step('historical material order tables remain', async () => {
+    const count = await prisma.material_orders.count();
+    return `historical ${count}`;
   });
 
   await step('location correction memory', async () => {

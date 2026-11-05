@@ -75,20 +75,23 @@ function createEkycClient({
           front_image_url: frontImageUrl,
           back_image_url: backImageUrl,
         }),
+        useToken: true,
       });
     },
 
     verifyEkycUpload(front, back) {
       const form = new FormData();
       form.append('front_image', imagePart(front.buffer, 'front.jpg', front.mime), 'front.jpg');
-      form.append('back_image', imagePart(back.buffer, 'back.jpg', back.mime), 'back.jpg');
+      if (back?.buffer) {
+        form.append('back_image', imagePart(back.buffer, 'back.jpg', back.mime), 'back.jpg');
+      }
       return request('/api/v1/ai/verify-ekyc-upload', { body: form, useToken: true });
     },
 
     checkReadiness(image) {
       const form = new FormData();
       form.append('selfie_image', imagePart(image.buffer, 'preview.jpg', image.mime), 'preview.jpg');
-      return request('/api/v1/face/check-readiness', { body: form });
+      return request('/api/v1/face/check-readiness', { body: form, useToken: true });
     },
 
     validateFrame({ frame, step, reference, opposite }) {
@@ -101,7 +104,7 @@ function createEkycClient({
       if (opposite?.buffer) {
         form.append('opposite_image', imagePart(opposite.buffer, 'opposite.jpg', opposite.mime), 'opposite.jpg');
       }
-      return request('/api/v1/face/validate-frame', { body: form });
+      return request('/api/v1/face/validate-frame', { body: form, useToken: true });
     },
 
     enroll({ selfie, left, right, up, down }) {
@@ -111,7 +114,7 @@ function createEkycClient({
       form.append('right_image', imagePart(right.buffer, 'right.jpg', right.mime), 'right.jpg');
       form.append('up_image', imagePart(up.buffer, 'up.jpg', up.mime), 'up.jpg');
       form.append('down_image', imagePart(down.buffer, 'down.jpg', down.mime), 'down.jpg');
-      return request('/api/v1/face/enroll', { body: form });
+      return request('/api/v1/face/enroll', { body: form, useToken: true });
     },
 
     matchIdPortrait(front, selfie) {

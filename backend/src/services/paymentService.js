@@ -299,43 +299,8 @@ async function refund(paymentId, adminId, reason = '') {
 }
 
 async function listForOrder(orderId, user) {
-  let order = await Order.findById(orderId);
-  if (!order) {
-    const { MaterialOrder } = require('../repositories/materialOrderAccess');
-    const materialOrder = await MaterialOrder.findById(orderId);
-    if (!materialOrder) throw new ApiError(404, 'Order not found');
-    const uid = String(user.id);
-    const allowed =
-      user.role === 'ADMIN' || uid === String(materialOrder.customerId) || uid === String(materialOrder.storeOwnerId);
-    if (!allowed) throw new ApiError(403, 'You cannot view these payments');
-    const isPaid = Boolean(materialOrder.remainingSettledOffline);
-    return {
-      summary: {
-        status: isPaid ? 'PAID' : 'UNPAID',
-        amount: Number(materialOrder.totalAmount),
-        paidAmount: isPaid ? Number(materialOrder.totalAmount) : 0,
-        remainingAmount: isPaid ? 0 : Number(materialOrder.totalAmount),
-        due: isPaid ? 0 : Number(materialOrder.totalAmount),
-        depositAmount: 0,
-        platformFee: 0,
-        contractorHold: 0,
-        escrowStatus: null,
-        mock: false,
-        paymentMethod: 'COD',
-      },
-      items: [
-        {
-          id: `cod-${materialOrder._id}`,
-          orderId: String(materialOrder._id),
-          type: 'COD',
-          amount: Number(materialOrder.totalAmount),
-          status: isPaid ? 'PAID' : 'UNPAID',
-          transactionCode: 'COD-DIRECT',
-          createdAt: materialOrder.createdAt,
-        },
-      ],
-    };
-  }
+  const order = await Order.findById(orderId);
+  if (!order) throw new ApiError(404, 'Order not found');
   const uid = String(user.id);
   const allowed =
     user.role === 'ADMIN' || uid === String(order.customerId) || uid === String(order.contractorId);

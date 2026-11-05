@@ -30,12 +30,6 @@ const reviewListQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(50).optional().default(10),
 });
 
-const materialReviewSchema = z.object({
-  materialOrderId: z.string().min(8),
-  rating: finiteNumber().int().min(1).max(5),
-  comment: z.string().trim().max(1000).optional().or(z.literal('')),
-}).strict();
-
 const reviewSchema = z.object({
   orderId: z.string().min(8),
   targetUserId: z.string().min(8),
@@ -67,7 +61,6 @@ module.exports = {
   checkoutSchema,
   refundSchema,
   reviewSchema,
-  materialReviewSchema,
   reviewReplySchema,
   reviewReportSchema,
   reviewListQuerySchema,

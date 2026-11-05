@@ -5,9 +5,8 @@
  * without requiring reviews or completed jobs.
  *
  * Featured mode renormalizes weights when a signal does not exist yet.
- * TODO: contractor reputation is not a separate model (reviews are ratingScore).
- * TODO: store deliverySuccessRate, store responseRate, and admin warnings
- * are not stored. Those weights are omitted instead of filled with fake data.
+ * Material-store ranking uses independent reviews, published product count,
+ * and profile completeness. It does not use historical material-order GMV.
  */
 
 const COLD_START_BELOW = 5;
@@ -28,8 +27,7 @@ const CONTRACTOR_WEIGHTS = {
 
 const STORE_WEIGHTS = {
   rating: 0.25,
-  completed: 0.2,
-  completion: 0.15,
+  products: 0.2,
   profile: 0.05,
 };
 
@@ -88,8 +86,7 @@ function contractorFeaturedScore(input) {
 function storeFeaturedScore(input) {
   const parts = {
     rating: ratingScore(input.averageRating, input.reviewCount, input.globalAverageRating),
-    completed: saturatingCount(input.completedOrders),
-    completion: completionScore(input.completedOrders, input.acceptedOrders),
+    products: saturatingCount(input.productCount),
     profile: clamp(input.profileCompleteness),
   };
   return clamp(weightedTotal(parts, STORE_WEIGHTS) - penaltyScore(input));

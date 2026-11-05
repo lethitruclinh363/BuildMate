@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/cn';
-import { BadgeCheck, Clock, Mail, MapPin, Phone, Star } from 'lucide-react';
+import { BadgeCheck, Mail, MapPin, Phone, Star } from 'lucide-react';
+import { OperatingHoursDisplay } from '@/features/operating-hours/OperatingHoursDisplay';
+import { normalizeWeeklyHours } from '@/features/operating-hours/weeklyHours';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -9,7 +11,7 @@ import { ImageViewer, MediaFrame, type ViewerSlide } from '@/components/media/Pr
 import { LocationViewer } from '@/features/map/components/LocationViewer';
 import { MapPlaceActions } from '@/features/map/components/MapPlaceActions';
 import { categoryDisplayLabel, foldCategoryName } from '@/data/material-categories';
-import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
+import { RequestMaterialsButton } from '@/features/material-request/RequestMaterialsButton';
 import { publicPriceVisible, saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
 import { productImageUrl, vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
@@ -19,8 +21,6 @@ import { useAuthStore } from '@/store/auth.store';
 import type { CatalogMaterial } from '@/types/partner';
 import type { MaterialCategoryPick } from '@/data/material-categories';
 import { PublicReviewList } from '@/features/reviews/components/PublicReviewList';
-import { PublicTrustPanel } from '@/features/reviews/components/PublicTrustPanel';
-import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 
 export function StoreProfileShowcase({
@@ -28,14 +28,12 @@ export function StoreProfileShowcase({
   categories,
   materials,
   reviews,
-  reputation,
   preview = false,
 }: {
   profile: PublicStoreProfile;
   categories: MaterialCategoryPick[];
   materials: CatalogMaterial[];
   reviews?: { average: number; count: number; items: PublicStoreReview[] } | null;
-  reputation?: ReputationSnapshot | null;
   preview?: boolean;
 }) {
   const { t } = useI18n();
@@ -130,16 +128,6 @@ export function StoreProfileShowcase({
         </div>
       </section>
 
-      <PublicTrustPanel
-        name={profile.displayName}
-        verified={Boolean(profile.verified)}
-        reputation={reputation}
-        reviewAverage={reviewCount > 0 ? rating : null}
-        reviewCount={reviewCount}
-        completionLabel={t('reputation.storeCardCompletion')}
-        onTimeLabel={t('reputation.storeCardOnTime')}
-      />
-
       <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
         <Card hover={false}>
           <h2 className="font-display text-xl text-navy-800">{t('storePublic.about')}</h2>
@@ -147,11 +135,7 @@ export function StoreProfileShowcase({
           {profile.showroomNote ? <p className="mt-4 text-sm leading-6 text-ink-600">{profile.showroomNote}</p> : null}
         </Card>
         <Card hover={false}>
-          <h2 className="font-display text-xl text-navy-800">{t('storePublic.hoursTitle')}</h2>
-          <p className="mt-1 text-sm text-ink-500">{t('storePublic.hoursHint')}</p>
-          <p className="mt-4 inline-flex items-center gap-2 font-display text-2xl text-navy-800">
-            <Clock className="h-5 w-5 text-copper-500" /> {profile.openingHours.trim() || t('storePublic.noHours')}
-          </p>
+          <OperatingHoursDisplay hours={normalizeWeeklyHours(profile.weeklyHours || profile.operatingHours)} />
           {profile.serviceAreas.length ? (
             <ul className="mt-4 flex flex-wrap gap-2">
               {profile.serviceAreas.map((area) => (
@@ -164,34 +148,11 @@ export function StoreProfileShowcase({
 
       <Card hover={false}>
         <h2 className="font-display text-xl text-navy-800">{t('storePublic.deliveryPolicy')}</h2>
-        {profile.deliveryEnabled ? (
-          <dl className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">{t('storePublic.deliveryRange')}</dt>
-              <dd className="mt-1 font-display text-2xl text-navy-800">{t('storePublic.deliveryRangeValue', { km: profile.serviceRadiusKm || 0 })}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">{t('storePublic.deliveryFrom')}</dt>
-              <dd className="mt-1 font-display text-2xl text-navy-800">{t('storePublic.deliveryFromValue', { fee: vnd(profile.baseDeliveryFee || 0) })}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">{t('storePublic.deliveryFree')}</dt>
-              <dd className="mt-1 font-display text-2xl text-navy-800">{t('storePublic.deliveryFreeValue', { km: profile.freeDeliveryRadiusKm || 0 })}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">{t('storePublic.deliveryPerKm')}</dt>
-              <dd className="mt-1 text-sm font-semibold text-navy-800">{vnd(profile.deliveryFeePerKm || 0)}</dd>
-            </div>
-            {(profile.minimumOrderAmount || 0) > 0 ? (
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">{t('storePublic.deliveryMinimum')}</dt>
-                <dd className="mt-1 text-sm font-semibold text-navy-800">{vnd(profile.minimumOrderAmount || 0)}</dd>
-              </div>
-            ) : null}
-          </dl>
-        ) : (
-          <p className="mt-3 text-sm text-ink-500">{t('storePublic.deliveryOff')}</p>
-        )}
+        <p className="mt-3 text-sm leading-6 text-ink-600">
+          {profile.deliveryEnabled
+            ? t('storePublic.deliveryConsultOn', { km: profile.serviceRadiusKm || 0 })
+            : t('storePublic.deliveryOff')}
+        </p>
         {profile.deliveryNote ? <p className="mt-4 text-sm leading-6 text-ink-600">{profile.deliveryNote}</p> : null}
       </Card>
 
@@ -252,7 +213,7 @@ export function StoreProfileShowcase({
                   ) : null}
                   <div className="mt-2"><Badge tone={saleTone(saleState(item))}>{t(saleLabelKey(saleState(item)))}</Badge></div>
                   {preview ? null : (
-                    <AddToMaterialCart material={item} storeId={String(profile.id)} storeName={profile.displayName} />
+                    <RequestMaterialsButton material={item} storeId={String(profile.id)} storeName={profile.displayName} />
                   )}
                 </div>
               </Card>

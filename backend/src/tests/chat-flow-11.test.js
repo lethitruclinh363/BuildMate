@@ -4,7 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { isAllowedFile, isChatMedia } = require('../utils/upload');
 const { sendMessageSchema } = require('../validators/sprint4.validator');
-const { materialStatusNotice } = require('../utils/material-order.rules');
 const { NOTIFICATION_TYPE } = require('../models/Notification');
 const { MESSAGE_TYPE } = require('../models/Message');
 const { testDatabaseReady } = require('./helpers/pg-cleanup');
@@ -48,13 +47,12 @@ describe('Flow 11 chat rooms and membership', () => {
     const storeNav = readFe('pages/store/StoreDashboard.jsx');
     const explore = readFe('features/map/components/ExplorePopup.tsx');
     const chat = readBe('services/chatService.js');
-    const material = readBe('services/material-order.service.js');
     assert.match(app, /path="\/store\/chat\/:roomId"/);
     assert.match(storeNav, /\/store\/chat/);
     assert.match(explore, /kind === 'contractor' \? repairCreatePath/);
     assert.match(chat, /createRoomForStore/);
     assert.match(chat, /MATERIAL_STORE_OWNER/);
-    assert.doesNotMatch(material, /createRoomForRequest|ChatRoom/);
+    assert.equal(fs.existsSync(path.join(BACKEND_ROOT, 'services/material-order.service.js')), false);
   });
 
   it('keeps chat open after request status changes and still gates quotes', () => {
@@ -174,19 +172,10 @@ describe('Flow 11 realtime and notifications', () => {
     assert.equal(NOTIFICATION_TYPE.CONTRACTOR_COMPLETED_JOB, 'CONTRACTOR_COMPLETED_JOB');
   });
 
-  it('notifies material COD for new orders and the four live statuses, not prepare or cancel', () => {
-    const material = readBe('services/material-order.service.js');
-    assert.match(material, /New material order/);
-    assert.match(material, /\/store\/orders\/\$\{order\._id\}/);
-    assert.match(material, /material_order_updated/);
-    assert.equal(materialStatusNotice('CONFIRMED', 'VL-1').audience, 'customer');
-    assert.equal(materialStatusNotice('DELIVERING', 'VL-1').audience, 'customer');
-    assert.equal(materialStatusNotice('DELIVERED', 'VL-1').audience, 'customer');
-    assert.equal(materialStatusNotice('CUSTOMER_RECEIVED', 'VL-1').audience, 'store');
-    assert.equal(materialStatusNotice('PREPARING', 'VL-1'), null);
-    assert.equal(materialStatusNotice('READY_FOR_DELIVERY', 'VL-1'), null);
-    assert.equal(materialStatusNotice('COMPLETED', 'VL-1'), null);
-    assert.equal(materialStatusNotice('CANCELLED', 'VL-1'), null);
+  it('does not emit material-order purchase notifications after commerce removal', () => {
+    assert.equal(fs.existsSync(path.join(BACKEND_ROOT, 'services/material-order.service.js')), false);
+    const notify = readBe('services/notificationService.js');
+    assert.doesNotMatch(notify, /New material order/);
   });
 });
 

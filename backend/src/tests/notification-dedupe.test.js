@@ -89,6 +89,6 @@ describe('notification duplication — one successful action, one toast', () => 
     assert.match(customer, /<OrderRealtimeListener \/>/);
     assert.match(shell, /<OrderRealtimeListener \/>/);
     assert.doesNotMatch(customer, /DashboardShell/);
-    assert.equal((app.match(/<CustomerLayout \/>/g) || []).length, 2);
+    assert.equal((app.match(/<CustomerLayout \/>/g) || []).length, 1);
   });
 });

@@ -51,6 +51,17 @@ function resolvePrivate(relativePath) {
   return full;
 }
 
+function removeEkycImage(relativePath) {
+  if (!relativePath) return false;
+  try {
+    const full = resolvePrivate(relativePath);
+    if (fs.existsSync(full)) fs.unlinkSync(full);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function saveEkycImage(userId, kind, buffer, mime) {
   ensureRoot();
   const ext = MIME_EXT[mime] || 'jpg';
@@ -86,6 +97,7 @@ module.exports = {
   assertEkycImage,
   resolvePrivate,
   saveEkycImage,
+  removeEkycImage,
   readPrivate,
   contentTypeFor,
 };

@@ -12,7 +12,7 @@ function readFe(rel) {
 describe('customer workspace partner profiles', () => {
   it('keeps public /contractors and /stores on the landing layout', () => {
     const app = readFe('App.tsx');
-    const publicBlock = app.slice(app.indexOf('<Route element={<MainLayout />}>'), app.indexOf('<Route path="/cart"'));
+    const publicBlock = app.slice(app.indexOf('<Route element={<MainLayout />}>'), app.indexOf('<Route element={<GuestOnly />}>'));
     assert.match(publicBlock, /path="\/contractors\/:id"/);
     assert.match(publicBlock, /path="\/stores\/:id"/);
     assert.match(publicBlock, /path="\/stores\/:id\/materials\/:materialId"/);
@@ -29,7 +29,7 @@ describe('customer workspace partner profiles', () => {
     assert.match(workspace, /path="\/customer\/stores\/:id\/materials\/:materialId"/);
     assert.match(workspace, /ContractorPublicPage/);
     assert.match(workspace, /StorePublicPage/);
-    assert.equal((app.match(/<CustomerLayout \/>/g) || []).length, 2);
+    assert.equal((app.match(/<CustomerLayout \/>/g) || []).length, 1);
   });
 
   it('mirrors public profile URLs into the customer workspace instead of the landing chrome', () => {

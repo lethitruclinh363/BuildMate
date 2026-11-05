@@ -68,8 +68,36 @@ async function deleteFixtureUsers(legacyIds) {
     select: { id: true, location_id: true },
   });
   const storeIds = stores.map((row) => row.id);
+  const lists = await prisma.material_requirement_lists.findMany({
+    where: {
+      OR: [
+        { customer_user_id: { in: userIds } },
+        { contractor_user_id: { in: userIds } },
+        ...(storeIds.length ? [{ store_id: { in: storeIds } }] : []),
+      ],
+    },
+    select: { id: true },
+  });
+  const listIds = lists.map((row) => row.id);
+  if (listIds.length) {
+    const quotes = await prisma.material_quotes.findMany({
+      where: { list_id: { in: listIds } },
+      select: { id: true },
+    });
+    const quoteIds = quotes.map((row) => row.id);
+    if (quoteIds.length) {
+      await prisma.material_quote_items.deleteMany({ where: { quote_id: { in: quoteIds } } });
+      await prisma.material_quotes.deleteMany({ where: { id: { in: quoteIds } } });
+    }
+    await prisma.material_requirement_items.deleteMany({ where: { list_id: { in: listIds } } });
+    await prisma.material_requirement_lists.deleteMany({ where: { id: { in: listIds } } });
+  }
+  await prisma.notifications.deleteMany({ where: { user_id: { in: userIds } } });
   if (storeIds.length) {
     await prisma.materials.deleteMany({ where: { store_id: { in: storeIds } } });
+    await prisma.material_categories.deleteMany({
+      where: { OR: [{ store_id: { in: storeIds } }, { owner_user_id: { in: userIds } }] },
+    });
     await prisma.services.deleteMany({ where: { store_id: { in: storeIds } } });
     await prisma.stores.deleteMany({ where: { id: { in: storeIds } } });
   }

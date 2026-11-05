@@ -303,40 +303,6 @@ export function ChatPage() {
     }
   };
 
-  const confirmMrlQuote = async (listId?: string) => {
-    const targetId = listId || mrl?.id;
-    if (!targetId || sendingMrl.current) return;
-    sendingMrl.current = true;
-    setMrlBusy(true);
-    try {
-      const res = await materialRequirementApi.confirm(targetId);
-      rememberList(res.data.data);
-      await reloadMessages();
-    } catch (err) {
-      toast({ kind: 'error', title: te(getApiErrorMessage(err)) });
-    } finally {
-      sendingMrl.current = false;
-      setMrlBusy(false);
-    }
-  };
-
-  const rejectMrlQuote = async (listId?: string) => {
-    const targetId = listId || mrl?.id;
-    if (!targetId || sendingMrl.current) return;
-    sendingMrl.current = true;
-    setMrlBusy(true);
-    try {
-      const res = await materialRequirementApi.reject(targetId);
-      rememberList(res.data.data);
-      await reloadMessages();
-    } catch (err) {
-      toast({ kind: 'error', title: te(getApiErrorMessage(err)) });
-    } finally {
-      sendingMrl.current = false;
-      setMrlBusy(false);
-    }
-  };
-
   if (loading) return <DashboardSkeleton />;
   if (error) {
     return <ErrorState body={error} onRetry={() => window.location.reload()} />;
@@ -488,8 +454,6 @@ export function ChatPage() {
                       role={user?.role}
                       listStatus={live?.status || mrlPayload.status || mrl?.status}
                       busy={mrlBusy}
-                      onConfirm={() => void confirmMrlQuote(mrlPayload.listId)}
-                      onReject={() => void rejectMrlQuote(mrlPayload.listId)}
                     />
                   ) : (
                     <div

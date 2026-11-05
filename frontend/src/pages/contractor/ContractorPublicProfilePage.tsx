@@ -1,6 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
+import { LockedAccountFields } from '@/features/operating-hours/LockedAccountFields';
+import { OperatingHoursEditor } from '@/features/operating-hours/OperatingHoursEditor';
+import { OperatingHoursDisplay } from '@/features/operating-hours/OperatingHoursDisplay';
+import { normalizeWeeklyHours, weeklyHoursError } from '@/features/operating-hours/weeklyHours';
 import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { PageHeader } from '@/components/dashboard/PageHeader';
@@ -16,12 +20,11 @@ import { PartnerLocationSection } from '@/features/map/components/PartnerLocatio
 import { storeLocationPatch } from '@/features/map/lib/location';
 import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
 import { locationApi } from '@/features/map/services/location.api';
-import { reviewApi } from '@/features/reviews/services/review.api';
-import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
 import { api, getApiErrorMessage } from '@/lib/api';
 import { contractorApi } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
+import { useAuthStore } from '@/store/auth.store';
 import { useToastStore } from '@/store/toast.store';
 import type { ApiResponse } from '@/types/user';
 import type { CatalogService, ContractorProfile } from '@/types/partner';
@@ -77,6 +80,7 @@ export function ContractorPublicProfilePage() {
   const { hash } = useLocation();
   const pushToast = useToastStore((state) => state.push);
   const workspace = useContractorWorkspace();
+  const account = useAuthStore((state) => state.user);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -90,14 +94,18 @@ export function ContractorPublicProfilePage() {
   const [areas, setAreas] = useState('');
   const [services, setServices] = useState<CatalogService[]>([]);
   const [highlights, setHighlights] = useState<PublicHighlights>({});
-  const [reputation, setReputation] = useState<ReputationSnapshot | null>(null);
   const [viewer, setViewer] = useState<{ slides: ViewerSlide[]; index: number } | null>(null);
 
   useEffect(() => {
     contractorApi
       .getPublicProfile()
       .then((res) => {
-        const next = res.data.data.publicProfile;
+        const next = {
+          ...res.data.data.publicProfile,
+          weeklyHours: normalizeWeeklyHours(
+            res.data.data.publicProfile.weeklyHours || res.data.data.publicProfile.operatingHours
+          ),
+        };
         setProfile(next);
         setSaved(next);
         setAreas(areasText(next));
@@ -122,10 +130,7 @@ export function ContractorPublicProfilePage() {
       .contractor(String(profile.contractorId))
       .then((res) => setHighlights(res.data.data.highlights || {}))
       .catch(() => undefined);
-    reviewApi
-      .dashboard()
-      .then((res) => setReputation(res.data.data.reputation))
-      .catch(() => undefined);
+
   }, [profile.contractorId]);
 
   async function saveLocation(origin: MapOrigin) {
@@ -192,6 +197,12 @@ export function ContractorPublicProfilePage() {
 
   async function onSave(event: FormEvent) {
     event.preventDefault();
+    const hoursError = weeklyHoursError(normalizeWeeklyHours(profile.weeklyHours));
+    if (hoursError) {
+      setError(t(hoursError));
+      setOpen((current) => ({ ...current, activity: true }));
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -202,7 +213,6 @@ export function ContractorPublicProfilePage() {
         slogan: profile.slogan,
         description: profile.description,
         phone: profile.phone,
-        city: profile.city,
         avatar: profile.avatar,
         logo: profile.logo,
         coverImage: profile.coverImage,
@@ -210,14 +220,18 @@ export function ContractorPublicProfilePage() {
         crewPhotos: profile.crewPhotos,
         publicCertificates: profile.publicCertificates,
         achievements: profile.achievements,
-        openingHours: profile.openingHours,
+        weeklyHours: normalizeWeeklyHours(profile.weeklyHours),
         serviceAreas,
         yearsExperience: Number(profile.yearsExperience) || 0,
         workerCount: Number(profile.workerCount) || 0,
       });
-      setProfile(res.data.data);
-      setSaved(res.data.data);
-      setAreas(areasText(res.data.data));
+      const savedProfile = {
+        ...res.data.data,
+        weeklyHours: normalizeWeeklyHours(res.data.data.weeklyHours || res.data.data.operatingHours),
+      };
+      setProfile(savedProfile);
+      setSaved(savedProfile);
+      setAreas(areasText(savedProfile));
       setOpen({});
       const after = await contractorApi.workspace();
       const becameReady = !before.data.data.activation?.ready && after.data.data.activation?.ready;
@@ -264,7 +278,7 @@ export function ContractorPublicProfilePage() {
         <div className="mb-4 flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => setPreview(false)}>{t('publicProfile.backToEdit')}</Button>
         </div>
-        <ContractorProfileShowcase profile={draft} services={services} highlights={highlights} reputation={reputation} preview />
+        <ContractorProfileShowcase profile={draft} services={services} highlights={highlights} preview />
       </PageTransition>
     );
   }
@@ -399,18 +413,24 @@ export function ContractorPublicProfilePage() {
               <div id="service-area" className="section-anchor">
                 <Input label={t('publicProfile.areas')} hint={t('publicProfile.areasHint')} value={areas} onChange={(event) => setAreas(event.target.value)} />
               </div>
-              <div id="working-hours" className="section-anchor">
-                <Input label={t('publicProfile.hours')} value={profile.openingHours} onChange={(event) => setField('openingHours', event.target.value)} />
+              <div id="working-hours" className="section-anchor md:col-span-2">
+                <OperatingHoursEditor
+                  value={normalizeWeeklyHours(profile.weeklyHours)}
+                  onChange={(weeklyHours) => setField('weeklyHours', weeklyHours)}
+                />
               </div>
-              <div id="public-contact" className="section-anchor">
-                <Input label={t('publicProfile.phone')} value={profile.phone} onChange={(event) => setField('phone', event.target.value)} />
+              <div id="public-contact" className="section-anchor md:col-span-2">
+                <LockedAccountFields phone={profile.phone || account?.phone || ''} email={account?.email || ''} />
               </div>
               <Input label={t('publicProfile.city')} value={profile.city} onChange={(event) => setField('city', event.target.value)} />
             </div>
           ) : (
-            <p className="mt-3 text-sm text-ink-600">
-              {[profile.city, profile.openingHours, profile.phone].filter(Boolean).join(' · ') || t('verify.emptyValue')}
-            </p>
+            <div className="mt-3 space-y-4">
+              <p className="text-sm text-ink-600">
+                {[profile.city, profile.phone].filter(Boolean).join(' · ') || t('verify.emptyValue')}
+              </p>
+              <OperatingHoursDisplay hours={normalizeWeeklyHours(profile.weeklyHours)} />
+            </div>
           )}
         </Card>
 

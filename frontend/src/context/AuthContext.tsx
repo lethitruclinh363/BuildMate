@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { AxiosError } from 'axios';
 import { api } from '@/lib/api';
+import { clearPartnerNav } from '@/features/ekyc/ekycNav';
 import { authApi, type GoogleLoginBody, type GoogleLoginResult } from '@/services/auth.api';
 import { useAuthStore } from '@/store/auth.store';
 import { setAppLanguage, t } from '@/locales';
@@ -189,13 +190,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     const saved = localStorage.getItem(TOKEN_KEY);
+    const userId = currentUser?.id;
     try {
       if (saved) await authApi.logout();
     } catch {
       /* vẫn xóa session local */
     }
     applySession(null, null);
-  }, [applySession]);
+    if (userId) clearPartnerNav(userId);
+  }, [applySession, currentUser?.id]);
 
   useEffect(() => {
     let cancelled = false;

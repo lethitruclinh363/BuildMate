@@ -4,8 +4,9 @@
 CREATE TABLE IF NOT EXISTS material_requirement_lists (
   id BIGSERIAL PRIMARY KEY,
   legacy_mongo_id VARCHAR(24) UNIQUE,
-  repair_request_id BIGINT NOT NULL REFERENCES repair_requests(id) ON DELETE CASCADE,
-  contractor_user_id BIGINT NOT NULL REFERENCES users(id),
+  repair_request_id BIGINT REFERENCES repair_requests(id) ON DELETE CASCADE,
+  contractor_user_id BIGINT REFERENCES users(id),
+  customer_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
   store_id BIGINT REFERENCES stores(id),
   status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
   note VARCHAR(1000) NOT NULL DEFAULT '',
@@ -20,6 +21,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_mrl_active_request
 
 CREATE INDEX IF NOT EXISTS idx_mrl_contractor ON material_requirement_lists (contractor_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mrl_store_status ON material_requirement_lists (store_id, status);
+CREATE INDEX IF NOT EXISTS idx_mrl_customer_user ON material_requirement_lists (customer_user_id);
 
 CREATE TABLE IF NOT EXISTS material_requirement_items (
   id BIGSERIAL PRIMARY KEY,

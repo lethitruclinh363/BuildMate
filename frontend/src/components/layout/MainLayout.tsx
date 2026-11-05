@@ -3,7 +3,6 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
-import { CartLink } from '@/features/material-cart/CartLink';
 import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/locales';
 import { getDefaultRouteByRole, useAuth } from '@/context/AuthContext';
@@ -40,7 +39,6 @@ export function MainLayout() {
           <nav className="hidden items-center gap-8 text-sm text-white/75 md:flex">{links}</nav>
           <div className="flex items-center gap-2">
             <LanguageSwitcher variant="dark" placement="main" className="hidden sm:inline-flex" />
-            <CartLink tone="dark" />
             {!user ? (
               <>
                 <Button asChild variant="ghost" size="sm" className="hidden text-white hover:bg-white/10 sm:inline-flex">

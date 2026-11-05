@@ -51,10 +51,7 @@ describe('Flow 10 material order statuses', () => {
     assert.equal(MATERIAL_ORDER_STATUS.PENDING_PAYMENT, 'PENDING_PAYMENT');
     assert.equal(DEPOSIT_RATE, 0);
     assert.equal(PLATFORM_FEE_RATE, 0);
-    const create = readBe('services/material-order.service.js');
-    assert.match(create, /status: MATERIAL_ORDER_STATUS\.PENDING_CONFIRMATION/);
-    assert.match(create, /paymentMethod: 'COD'/);
-    assert.doesNotMatch(create, /DELIVERY_FAILED/);
+    assert.equal(fs.existsSync(path.join(BACKEND_ROOT, 'services/material-order.service.js')), false);
     assert.doesNotMatch(readBe('utils/material-order.rules.js'), /DELIVERY_FAILED/);
   });
 
@@ -106,11 +103,7 @@ describe('Flow 10 material order statuses', () => {
       () => assertMaterialStatusTransition('DELIVERED', 'COMPLETED', MATERIAL_ACTOR.CUSTOMER),
       409
     );
-    const service = readBe('services/material-order.service.js');
-    assert.match(service, /MATERIAL_ORDER_STATUS\.CUSTOMER_RECEIVED/);
-    assert.match(service, /MATERIAL_ACTOR\.SYSTEM[\s\S]*MATERIAL_ORDER_STATUS\.COMPLETED/);
-    assert.match(service, /withOrderLock/);
-    assert.match(service, /if \(order\.status === MATERIAL_ORDER_STATUS\.COMPLETED\) return presentOrder\(order\)/);
+    assert.equal(fs.existsSync(path.join(BACKEND_ROOT, 'services/material-order.service.js')), false);
   });
 });
 
@@ -162,10 +155,7 @@ describe('Flow 10 cancel, COD and notices', () => {
     assert.equal(summary.onlineDeposits, 0);
     assert.equal(summary.orderValue, 2_100_000);
     assert.equal(summary.collectedAmount, 0);
-    const service = readBe('services/material-order.service.js');
-    assert.match(service, /Direct payment can be confirmed after delivery/);
-    assert.match(service, /remainingSettledOffline && order\.paymentStatus === MATERIAL_PAYMENT_STATUS\.PAID/);
-    assert.doesNotMatch(service, /escrowService/);
+    assert.equal(fs.existsSync(path.join(BACKEND_ROOT, 'services/material-order.service.js')), false);
     assert.equal(materialStatusNotice('CONFIRMED', 'VL-1').audience, 'customer');
     assert.equal(materialStatusNotice('DELIVERING', 'VL-1').audience, 'customer');
     assert.equal(materialStatusNotice('DELIVERED', 'VL-1').audience, 'customer');
@@ -177,33 +167,15 @@ describe('Flow 10 cancel, COD and notices', () => {
 });
 
 describe('Flow 10 frontend store and customer surfaces', () => {
-  it('lets the store advance one fulfillment step and collect COD after DELIVERED', () => {
-    const api = readFe('lib/material-order-api.ts');
-    const page = readFe('pages/store/StoreOrderDetailPage.tsx');
-    assert.match(api, /PENDING_CONFIRMATION: 'CONFIRMED'/);
-    assert.match(api, /DELIVERING: 'DELIVERED'/);
-    assert.doesNotMatch(api, /DELIVERED: 'CUSTOMER_RECEIVED'/);
-    assert.match(page, /if \(!next \|\| busy\) return/);
-    assert.match(page, /materialStoreOrderApi\.updateStatus/);
-    assert.match(page, /collectPayment/);
-    assert.match(page, /\['DELIVERED', 'CUSTOMER_RECEIVED', 'COMPLETED'\]/);
-    assert.match(page, /priceSnapshot/);
-    assert.match(page, /SiteLocationCard/);
-    assert.doesNotMatch(page, /watchPosition|geolocation/);
-  });
-
-  it('lets the customer receive only at DELIVERED and review after receipt', () => {
-    const page = readFe('pages/customer/MaterialOrderDetailPage.tsx');
-    const live = readFe('features/material-orders/material-order-live.ts');
-    assert.match(page, /if \(busy\) return/);
-    assert.match(page, /order\.status === 'DELIVERED'/);
-    assert.match(page, /materialOrderApi\.receive/);
-    assert.match(page, /status === 'PENDING_PAYMENT' \|\| order\.status === 'PENDING_CONFIRMATION'/);
-    assert.match(page, /order\.status === 'COMPLETED' \|\| order\.status === 'CUSTOMER_RECEIVED'/);
-    assert.match(page, /reviewApi\.createMaterial/);
-    assert.match(live, /material_order_updated/);
-    const review = readBe('services/reviewService.js');
-    assert.match(review, /Reviews are allowed only after the material order is received/);
+  it('removes material order fulfillment UI and keeps material requests', () => {
+    const app = readFe('App.tsx');
+    const storeNav = readFe('pages/store/StoreDashboard.jsx');
+    assert.equal(fs.existsSync(path.join(FRONTEND_ROOT, 'lib/material-order-api.ts')), false);
+    assert.equal(fs.existsSync(path.join(FRONTEND_ROOT, 'pages/store/StoreOrderDetailPage.tsx')), false);
+    assert.equal(fs.existsSync(path.join(FRONTEND_ROOT, 'pages/customer/MaterialOrderDetailPage.tsx')), false);
+    assert.match(app, /store\/material-requests/);
+    assert.match(storeNav, /store\/material-requests/);
+    assert.doesNotMatch(storeNav, /store\/orders|store\/delivery|store\/earnings/);
   });
 });
 
@@ -228,9 +200,9 @@ describe('Flow 10 HTTP auth when API is up', () => {
     });
     const receive = await fetch(`${origin}/api/material-orders/${id}/receive`, { method: 'POST' });
     const collect = await fetch(`${origin}/api/material-store/orders/${id}/collected`, { method: 'POST' });
-    assert.equal(patch.status, 401);
-    assert.equal(receive.status, 401);
-    assert.equal(collect.status, 401);
+    assert.equal(patch.status, 404);
+    assert.equal(receive.status, 404);
+    assert.equal(collect.status, 404);
   });
 });
 
