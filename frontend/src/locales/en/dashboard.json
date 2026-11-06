@@ -759,9 +759,9 @@
     "closedNow": "Closed now",
     "unset": "Operating hours not updated yet",
     "today": "Today ({day})",
-    "copy": "Copy",
-    "copyHint": "Copy this time range to other open days",
     "timeRequired": "Open days must have opening and closing times.",
+    "invalidTime": "Enter time in HH:mm format, for example 07:30.",
+    "openBeforeClose": "Opening time must be before closing time.",
     "closeAfterOpen": "Closing time must be after opening time.",
     "accountLockedHint": "Phone number and email are taken from the registered account and cannot be edited here.",
     "days": {

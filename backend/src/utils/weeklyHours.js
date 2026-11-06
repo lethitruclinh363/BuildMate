@@ -1,7 +1,7 @@
 const { ApiError } = require('./ApiError');
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
-const TIME_RE = /^([01]\d|2[0-3]):(00|15|30|45)$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const WEEKDAY_SHORT = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
 const DAY_LABELS = { 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 7: 'CN' };
@@ -47,7 +47,7 @@ function parseDay(raw, fallbackWeekday) {
   const open = String(raw?.open || raw?.openTime || '').trim();
   const close = String(raw?.close || raw?.closeTime || '').trim();
   if (!TIME_RE.test(open) || !TIME_RE.test(close)) {
-    throw invalid('Choose opening and closing times in 15-minute steps');
+    throw invalid('Choose valid opening and closing times');
   }
   if (minutesOf(close) <= minutesOf(open)) {
     throw invalid('Closing time must be after opening time');

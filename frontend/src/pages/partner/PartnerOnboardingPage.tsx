@@ -771,9 +771,9 @@ export default function PartnerOnboardingPage() {
   const hint = unmetMessage();
 
   return (
-    <div className="min-h-screen bg-paper-100">
-      <header className="sticky top-0 z-20 border-b border-navy-800/8 bg-paper-100/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-paper-100">
+      <header className="z-20 shrink-0 border-b border-navy-800/8 bg-paper-100/90 backdrop-blur">
+        <div className="flex w-full items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-10 2xl:px-14">
           <Logo to={getDefaultRouteByRole(currentUser)} />
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher variant="light" placement="auth-form" />
@@ -784,12 +784,12 @@ export default function PartnerOnboardingPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 py-6 sm:px-6 sm:py-8 lg:px-10 2xl:px-14">
         <p className="text-xs uppercase tracking-[0.24em] text-copper-500">{t('auth.onboardEyebrow')}</p>
         <h1 className="mt-2 font-display text-3xl text-navy-800 sm:text-4xl">{t('auth.onboardTitle')}</h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-400">{t('auth.onboardLead')}</p>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <div className="mt-6 grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:grid-rows-1">
             <nav aria-label={t('auth.onboardEyebrow')} className="lg:sticky lg:top-24 lg:self-start">
               <p className="mb-3 text-sm font-semibold text-navy-800 lg:hidden">
                 {t('auth.onboardProgress', { current: step + 1, total: steps.length })}
@@ -837,7 +837,7 @@ export default function PartnerOnboardingPage() {
               </div>
             </nav>
 
-            <section className="rounded-[28px] border border-navy-800/8 bg-white p-5 shadow-card sm:p-8">
+            <section className="min-h-0 overflow-y-auto overscroll-contain rounded-[28px] border border-navy-800/8 bg-white p-5 shadow-card sm:p-8">
               {profile?.verificationStatus === 'REJECTED' && profile.rejectionReason ? (
                 <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
                   {t('auth.onboardRejected')}: {profile.rejectionReason}
@@ -999,7 +999,7 @@ export default function PartnerOnboardingPage() {
               ) : null}
 
               {step === 1 && storeOwner ? (
-                <div className={cn('mt-5', touched.services && !serviceOk && 'rounded-xl ring-1 ring-red-400')}>
+                <div className="mt-5">
                   <p className="mb-3">
                     <FormLabel required>{steps[1].label}</FormLabel>
                   </p>
