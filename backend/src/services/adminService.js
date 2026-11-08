@@ -259,7 +259,7 @@ async function openDocumentFile(profileId, documentId, actor) {
   }
   return verificationStorage.openFromUrl(doc.url, doc.mimeType);
 }
-
+//function approve
 async function approve(id, adminId) {
   const profile = await ContractorProfile.findById(id);
   if (!profile) throw new ApiError(404, 'Partner application not found');
