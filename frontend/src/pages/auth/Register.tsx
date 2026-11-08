@@ -80,10 +80,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
-<<<<<<< HEAD
-=======
   const [submitAttempted, setSubmitAttempted] = useState(false);
->>>>>>> origin/main
   const [touched, setTouched] = useState<Record<FieldKey, boolean>>({
     name: false,
     email: false,
@@ -151,9 +148,6 @@ export default function Register() {
     e.preventDefault();
     setError('');
     setTouched({ name: true, email: true, phone: true, password: true, confirm: true });
-<<<<<<< HEAD
-    if (!acceptedPolicy || !formValid) return;
-=======
     setSubmitAttempted(true);
     if (!formValid) {
       const firstInvalidId = [
@@ -170,8 +164,7 @@ export default function Register() {
       return;
     }
 
-    const submitRole = parseRegisterRole(params.get('role'));
->>>>>>> origin/main
+
 
     const submitRole = parseRegisterRole(params.get('role'));
 
@@ -321,10 +314,7 @@ export default function Register() {
           id="register-password"
           label={t('auth.password')}
           className="h-9 rounded-xl"
-<<<<<<< HEAD
-=======
           placeholder={t('auth.registerPasswordPlaceholder')}
->>>>>>> origin/main
           autoComplete="new-password"
           disabled={loading}
           value={password}
@@ -341,10 +331,7 @@ export default function Register() {
           id="register-confirm"
           label={t('auth.confirmPassword')}
           className="h-9 rounded-xl"
-<<<<<<< HEAD
-=======
           placeholder={t('auth.registerConfirmPlaceholder')}
->>>>>>> origin/main
           autoComplete="new-password"
           disabled={loading}
           value={confirm}
@@ -369,10 +356,6 @@ export default function Register() {
         ) : null}
         <button
           type="submit"
-<<<<<<< HEAD
-          disabled={loading || !formValid}
-          className="flex h-10 w-full items-center justify-center rounded-full bg-navy-800 text-sm font-semibold text-paper-50 shadow-card transition hover:bg-navy-700 disabled:cursor-not-allowed disabled:opacity-60"
-=======
           disabled={loading}
           aria-disabled={!formValid || undefined}
           aria-describedby={!formValid ? 'register-form-hint' : undefined}
@@ -380,7 +363,6 @@ export default function Register() {
             'flex h-10 w-full items-center justify-center rounded-full bg-navy-800 text-sm font-semibold text-paper-50 shadow-card transition hover:bg-navy-700 disabled:cursor-not-allowed disabled:opacity-60',
             !formValid && 'opacity-70'
           )}
->>>>>>> origin/main
         >
           {loading ? t('auth.registerLoading') : t('common.register')}
         </button>

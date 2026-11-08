@@ -1,17 +1,9 @@
-<<<<<<< HEAD
-import { Copy } from 'lucide-react';
-=======
->>>>>>> origin/main
 import { FormLabel } from '@/components/ui/FormLabel';
 import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
 import {
-<<<<<<< HEAD
-  TIME_SLOTS,
-=======
   isValidTime,
   minutesOf,
->>>>>>> origin/main
   weeklyHoursError,
   type WeeklyDay,
   type WeeklyHours,
@@ -42,14 +34,6 @@ export function OperatingHoursEditor({
       : { closed: true, open: null, close: null });
   }
 
-<<<<<<< HEAD
-  function copyToOpenDays(source: WeeklyDay) {
-    if (source.closed || !source.open || !source.close) return;
-    onChange({
-      configured: true,
-      days: value.days.map((day) => (day.closed ? day : { ...day, open: source.open, close: source.close })),
-    });
-=======
   function shiftTime(time: string, minutes: number) {
     const total = minutesOf(time);
     if (total === null) return undefined;
@@ -70,7 +54,6 @@ export function OperatingHoursEditor({
     const openMinutes = minutesOf(currentOpen);
     if (!isValidTime(nextClose) || nextMinutes === null || openMinutes === null || nextMinutes <= openMinutes) return;
     patchDay(day.weekday, { close: nextClose });
->>>>>>> origin/main
   }
 
   return (
@@ -78,40 +61,15 @@ export function OperatingHoursEditor({
       <FormLabel>{t('hours.title')}</FormLabel>
       <p className="mt-1 text-xs leading-5 text-ink-500">{t('hours.hint')}</p>
       <div className="mt-3 overflow-hidden rounded-2xl border border-navy-800/10 bg-white">
-<<<<<<< HEAD
-        <div className="hidden grid-cols-[1.2fr_0.8fr_1fr_1fr_auto] gap-2 border-b border-navy-800/8 bg-mist-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-400 sm:grid">
-=======
         <div className="hidden grid-cols-[1.2fr_0.8fr_1fr_1fr] gap-2 border-b border-navy-800/8 bg-mist-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-400 sm:grid">
->>>>>>> origin/main
           <span>{t('hours.day')}</span>
           <span>{t('hours.active')}</span>
           <span>{t('hours.open')}</span>
           <span>{t('hours.close')}</span>
-<<<<<<< HEAD
-          <span className="sr-only">{t('hours.copy')}</span>
-=======
->>>>>>> origin/main
         </div>
         <ul>
           {value.days.map((day) => {
             const label = t(`hours.days.${DAY_KEYS[day.weekday - 1]}`);
-<<<<<<< HEAD
-            return (
-              <li
-                key={day.weekday}
-                className="grid grid-cols-1 items-center gap-2 border-t border-navy-800/6 px-3 py-3 first:border-t-0 sm:grid-cols-[1.2fr_0.8fr_1fr_1fr_auto] sm:gap-2 sm:py-2"
-              >
-                <p className="text-sm font-semibold text-navy-800">{label}</p>
-                <label className="inline-flex items-center gap-2 text-sm text-ink-600">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-navy-800/20 text-navy-800 focus:ring-navy-800/20"
-                    checked={!day.closed}
-                    onChange={(event) => toggleDay(day, event.target.checked)}
-                  />
-                  {day.closed ? t('hours.closed') : t('hours.openDay')}
-                </label>
-=======
             const openTime = day.open && isValidTime(day.open) ? day.open : '07:00';
             const closeTime =
               day.close && isValidTime(day.close)
@@ -134,45 +92,10 @@ export function OperatingHoursEditor({
                   <option value="open">{t('hours.openDay')}</option>
                   <option value="closed">{t('hours.closed')}</option>
                 </select>
->>>>>>> origin/main
                 {day.closed ? (
                   <p className="text-sm font-medium text-ink-400 sm:col-span-2">{t('hours.rest')}</p>
                 ) : (
                   <>
-<<<<<<< HEAD
-                    <select
-                      aria-label={t('hours.open')}
-                      className="h-10 w-full rounded-xl border border-navy-800/10 bg-white px-3 text-sm text-navy-800 outline-none focus:border-navy-500"
-                      value={day.open || '07:00'}
-                      onChange={(event) => patchDay(day.weekday, { open: event.target.value })}
-                    >
-                      {TIME_SLOTS.map((slot) => (
-                        <option key={`open-${day.weekday}-${slot}`} value={slot}>{slot}</option>
-                      ))}
-                    </select>
-                    <select
-                      aria-label={t('hours.close')}
-                      className="h-10 w-full rounded-xl border border-navy-800/10 bg-white px-3 text-sm text-navy-800 outline-none focus:border-navy-500"
-                      value={day.close || '18:00'}
-                      onChange={(event) => patchDay(day.weekday, { close: event.target.value })}
-                    >
-                      {TIME_SLOTS.map((slot) => (
-                        <option key={`close-${day.weekday}-${slot}`} value={slot}>{slot}</option>
-                      ))}
-                    </select>
-                  </>
-                )}
-                <button
-                  type="button"
-                  disabled={day.closed}
-                  onClick={() => copyToOpenDays(day)}
-                  className="inline-flex h-10 items-center justify-center gap-1 rounded-xl px-2 text-xs font-semibold text-navy-800 disabled:cursor-not-allowed disabled:text-ink-300"
-                  title={t('hours.copyHint')}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  <span className="sm:sr-only">{t('hours.copy')}</span>
-                </button>
-=======
                     <div className="space-y-1">
                       <label htmlFor={`hours-open-${day.weekday}`} className="block text-xs text-ink-500 sm:sr-only">
                         {t('hours.open')}
@@ -205,7 +128,6 @@ export function OperatingHoursEditor({
                     </div>
                   </>
                 )}
->>>>>>> origin/main
               </li>
             );
           })}
