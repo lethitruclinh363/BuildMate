@@ -38,7 +38,6 @@ tf-keras==2.17.0
 
 # Logging & Utilities
 python-dotenv==1.0.1
-setuptools<82
 
 onnx>=1.16.0,<1.17.0
 ml-dtypes>=0.3.1,<0.5.0
