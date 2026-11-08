@@ -80,6 +80,10 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
+<<<<<<< HEAD
+=======
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+>>>>>>> origin/main
   const [touched, setTouched] = useState<Record<FieldKey, boolean>>({
     name: false,
     email: false,
@@ -147,7 +151,27 @@ export default function Register() {
     e.preventDefault();
     setError('');
     setTouched({ name: true, email: true, phone: true, password: true, confirm: true });
+<<<<<<< HEAD
     if (!acceptedPolicy || !formValid) return;
+=======
+    setSubmitAttempted(true);
+    if (!formValid) {
+      const firstInvalidId = [
+        [nameMessage, 'register-name'],
+        [emailMessage, 'register-email'],
+        [phoneMessage, 'register-phone'],
+        [passwordMessage, 'register-password'],
+        [confirmMessage, 'register-confirm'],
+        [!acceptedPolicy, 'register-policy-consent'],
+      ].find(([invalid]) => Boolean(invalid))?.[1];
+      if (typeof firstInvalidId === 'string') {
+        document.getElementById(firstInvalidId)?.focus();
+      }
+      return;
+    }
+
+    const submitRole = parseRegisterRole(params.get('role'));
+>>>>>>> origin/main
 
     const submitRole = parseRegisterRole(params.get('role'));
 
@@ -213,6 +237,7 @@ export default function Register() {
             id="register-name"
             className={controlClass(nameStatus)}
             autoComplete="name"
+            placeholder={t('auth.registerNamePlaceholder')}
             aria-invalid={nameStatus === 'error' || undefined}
             aria-describedby={nameStatus === 'error' ? 'register-name-error' : undefined}
             value={fullName}
@@ -240,6 +265,7 @@ export default function Register() {
             className={controlClass(emailStatus)}
             type="email"
             autoComplete="email"
+            placeholder={t('auth.registerEmailPlaceholder')}
             aria-invalid={emailStatus === 'error' || undefined}
             aria-describedby={emailStatus === 'error' ? 'register-email-error' : undefined}
             value={email}
@@ -295,6 +321,10 @@ export default function Register() {
           id="register-password"
           label={t('auth.password')}
           className="h-9 rounded-xl"
+<<<<<<< HEAD
+=======
+          placeholder={t('auth.registerPasswordPlaceholder')}
+>>>>>>> origin/main
           autoComplete="new-password"
           disabled={loading}
           value={password}
@@ -311,6 +341,10 @@ export default function Register() {
           id="register-confirm"
           label={t('auth.confirmPassword')}
           className="h-9 rounded-xl"
+<<<<<<< HEAD
+=======
+          placeholder={t('auth.registerConfirmPlaceholder')}
+>>>>>>> origin/main
           autoComplete="new-password"
           disabled={loading}
           value={confirm}
@@ -323,11 +357,30 @@ export default function Register() {
             markTouched('confirm');
           }}
         />
-        <PolicyConsent accepted={acceptedPolicy} onAcceptedChange={setAcceptedPolicy} />
+        <PolicyConsent
+          accepted={acceptedPolicy}
+          onAcceptedChange={setAcceptedPolicy}
+          error={submitAttempted && !acceptedPolicy ? t('auth.consentRequired') : undefined}
+        />
+        {!formValid ? (
+          <p id="register-form-hint" className="text-[11px] leading-4 text-ink-400">
+            {t('auth.registerCompleteFields')}
+          </p>
+        ) : null}
         <button
           type="submit"
+<<<<<<< HEAD
           disabled={loading || !formValid}
           className="flex h-10 w-full items-center justify-center rounded-full bg-navy-800 text-sm font-semibold text-paper-50 shadow-card transition hover:bg-navy-700 disabled:cursor-not-allowed disabled:opacity-60"
+=======
+          disabled={loading}
+          aria-disabled={!formValid || undefined}
+          aria-describedby={!formValid ? 'register-form-hint' : undefined}
+          className={cn(
+            'flex h-10 w-full items-center justify-center rounded-full bg-navy-800 text-sm font-semibold text-paper-50 shadow-card transition hover:bg-navy-700 disabled:cursor-not-allowed disabled:opacity-60',
+            !formValid && 'opacity-70'
+          )}
+>>>>>>> origin/main
         >
           {loading ? t('auth.registerLoading') : t('common.register')}
         </button>

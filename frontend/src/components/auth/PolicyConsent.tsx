@@ -16,9 +16,11 @@ type PolicyKind = 'TERMS_OF_SERVICE' | 'PRIVACY_POLICY';
 export function PolicyConsent({
   accepted,
   onAcceptedChange,
+  error,
 }: {
   accepted: boolean;
   onAcceptedChange: (value: boolean) => void;
+  error?: string;
 }) {
   const { t, locale } = useI18n();
   const [open, setOpen] = useState<PolicyKind | null>(null);
@@ -48,9 +50,12 @@ export function PolicyConsent({
     <>
       <label className="flex items-start gap-3 text-sm text-navy-800">
         <input
+          id="register-policy-consent"
           type="checkbox"
           className="mt-1 h-4 w-4 accent-navy-800"
           checked={accepted}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? 'register-policy-consent-error' : undefined}
           onChange={(event) => onAcceptedChange(event.target.checked)}
         />
         <span>
@@ -65,6 +70,11 @@ export function PolicyConsent({
           {t('auth.agreeTail') ? ` ${t('auth.agreeTail')}` : null}
         </span>
       </label>
+      {error ? (
+        <p id="register-policy-consent-error" className="mt-1 pl-7 text-xs text-red-600">
+          {error}
+        </p>
+      ) : null}
 
       {open ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy-950/50 p-4 sm:items-center" role="dialog" aria-modal="true">
