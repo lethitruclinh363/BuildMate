@@ -9,12 +9,9 @@ import {
   Layers,
   LayoutDashboard,
   Package,
-  Truck,
-  BadgeCheck,
   Star,
   Store,
   UserRound,
-  Wallet,
 } from 'lucide-react';
 import { ActivationPanel } from '@/components/partner/ActivationPanel';
 import { materialStoreApi } from '@/lib/partner-api';
@@ -25,7 +22,7 @@ export function StoreLayout() {
 
   const profileGroup = t('nav.store.profileGroup');
   const materialsGroup = t('nav.store.materialsGroup');
-  const reputationGroup = t('nav.store.reputationGroup');
+  const reviewsGroup = t('nav.store.reviewsGroup');
   const accountGroup = t('nav.store.accountGroup');
   const items = [
     { to: '/store/dashboard', label: t('nav.store.overview'), icon: LayoutDashboard, end: true },
@@ -33,13 +30,9 @@ export function StoreLayout() {
     { to: '/store/verification', label: t('nav.store.verification'), icon: FileText, section: profileGroup },
     { to: '/store/materials', label: t('nav.store.catalog'), icon: Layers, section: materialsGroup, end: true },
     { to: '/store/products', label: t('nav.store.products'), icon: Package, section: materialsGroup },
-    { to: '/store/delivery', label: t('nav.store.delivery'), icon: Truck, section: materialsGroup },
-    { to: '/store/orders', label: t('nav.store.orders'), icon: ClipboardList, section: materialsGroup },
     { to: '/store/material-requests', label: t('nav.store.materialRequests'), icon: ClipboardList, section: materialsGroup },
     { to: '/store/chat', label: t('nav.store.messages'), icon: MessageSquare, section: materialsGroup },
-    { to: '/store/reviews', label: t('nav.store.reviews'), icon: Star, section: reputationGroup },
-    { to: '/store/reputation', label: t('nav.store.reputation'), icon: BadgeCheck, section: reputationGroup },
-    { to: '/store/earnings', label: t('nav.store.earnings'), icon: Wallet, section: accountGroup },
+    { to: '/store/reviews', label: t('nav.store.reviews'), icon: Star, section: reviewsGroup },
     { to: '/store/notifications', label: t('nav.store.alerts'), icon: Bell, section: accountGroup },
     { to: '/store/profile', label: t('nav.store.account'), icon: UserRound, section: accountGroup },
   ];

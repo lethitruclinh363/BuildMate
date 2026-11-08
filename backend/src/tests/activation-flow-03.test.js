@@ -180,11 +180,12 @@ describe('Flow 03 order and request gates', () => {
     assert.match(src, /not accepting new requests/);
   });
 
-  it('lets material checkout refuse stores that are not publicly visible', () => {
-    const src = fs.readFileSync(path.resolve(__dirname, '../services/material-checkout.service.js'), 'utf8');
-    assert.match(src, /getActivationReadiness/);
-    assert.match(src, /readiness\.visible/);
-    assert.match(src, /not open for orders/);
+  it('keeps material requests on approved live stores without a checkout path', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, '../services/material-requirement.service.js'), 'utf8');
+    const routes = fs.readFileSync(path.resolve(__dirname, '../routes/index.js'), 'utf8');
+    assert.match(src, /assertApprovedLiveStore/);
+    assert.match(src, /Only customers can send a direct material request/);
+    assert.doesNotMatch(routes, /material-checkout/);
   });
 
   it('activates without inventing a new status and stays LIVE on a repeat call', () => {

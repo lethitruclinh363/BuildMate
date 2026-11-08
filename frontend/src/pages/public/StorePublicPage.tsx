@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useReturnState } from '@/lib/navigation';
 import { explorePathFromLocation, usePartnerPaths } from '@/lib/partner-paths';
-import { Clock, MapPin, Star } from 'lucide-react';
+import { MapPin, Star } from 'lucide-react';
+import { OperatingHoursDisplay } from '@/features/operating-hours/OperatingHoursDisplay';
+import { normalizeWeeklyHours } from '@/features/operating-hours/weeklyHours';
 import { BackButton } from '@/components/navigation/BackButton';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
@@ -13,28 +15,15 @@ import { Card } from '@/components/ui/Card';
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
 import { StoreProfileShowcase } from '@/pages/public/StoreProfileShowcase';
 import type { MaterialCategoryPick } from '@/data/material-categories';
-import type { ReputationSnapshot } from '@/features/reviews/types/reputation.types';
 import type { PublicStoreProfile, PublicStoreReview } from '@/types/marketplace';
 import { locationApi } from '@/features/map/services/location.api';
 import { ChatStoreButton } from '@/features/chat/components/ChatStoreButton';
 import { RequestRepairButton } from '@/features/repair-request/components/RequestRepairButton';
-import { AddToMaterialCart } from '@/features/material-cart/AddToMaterialCart';
+import { RequestMaterialsButton } from '@/features/material-request/RequestMaterialsButton';
 import { publicPriceVisible, saleLabelKey, saleState, saleTone } from '@/lib/material-sale';
 import { mediaUrl, vnd } from '@/lib/partner-api';
 import { labeled, useI18n } from '@/locales';
 import type { CatalogMaterial, CatalogService, Storefront } from '@/types/partner';
-
-function openingStatus(hours: string | undefined, t: (path: string, vars?: Record<string, string | number>) => string) {
-  const raw = hours || '';
-  const match = raw.match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})/);
-  if (!match) return { open: null as boolean | null, label: hours || t('forms.hoursUnknown') };
-  const start = Number(match[1]) * 60 + Number(match[2]);
-  const end = Number(match[3]) * 60 + Number(match[4]);
-  const now = new Date();
-  const current = now.getHours() * 60 + now.getMinutes();
-  const open = current >= start && current < end;
-  return { open, label: open ? t('forms.openNow', { hours: hours || '' }) : t('forms.closed', { hours: hours || '' }) };
-}
 
 export function StorePublicPage() {
   const { t } = useI18n();
@@ -51,7 +40,6 @@ export function StorePublicPage() {
     categories?: MaterialCategoryPick[];
     visibility?: 'LIVE' | 'INACTIVE' | 'PAUSED';
     reviews?: { average: number; count: number; items: PublicStoreReview[] } | null;
-    reputation?: ReputationSnapshot | null;
     services: CatalogService[];
     materials: CatalogMaterial[];
   } | null>(null);
@@ -110,13 +98,14 @@ export function StorePublicPage() {
           categories={payload.categories || []}
           materials={materials}
           reviews={payload.reviews}
-          reputation={payload.reputation}
         />
       </PageTransition>
     );
   }
-  const hours = openingStatus(store.openingHours, t);
   const sellsMaterials = store.storeType === 'MATERIALS';
+  const weeklyHours = normalizeWeeklyHours(
+    payload.publicProfile?.weeklyHours || payload.publicProfile?.operatingHours || store.weeklyHours
+  );
 
   return (
     <PageTransition>
@@ -139,11 +128,7 @@ export function StorePublicPage() {
               <p className="inline-flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-copper-500" /> {store.address}, {store.city}
               </p>
-              <p className="inline-flex items-center gap-2">
-                <Clock className="h-4 w-4 text-copper-500" />
-                <Badge tone={hours.open === true ? 'success' : 'mist'}>{hours.label}</Badge>
-                · {t('public.delivery', { km: store.serviceRadiusKm })}
-              </p>
+              <p className="text-sm text-ink-500">{t('public.delivery', { km: store.serviceRadiusKm })}</p>
               <p className="inline-flex items-center gap-1 font-semibold text-navy-800">
                 <Star className="h-4 w-4 fill-copper-400 text-copper-400" /> {(store.rating ?? 0).toFixed(1)} ({store.reviewCount ?? 0})
               </p>
@@ -153,7 +138,7 @@ export function StorePublicPage() {
                 <>
                   <ChatStoreButton storeId={store.id} />
                   <Button asChild variant="copper">
-                    <Link to="#materials">{t('explore.buy')}</Link>
+                    <Link to="#materials">{t('explore.viewProducts')}</Link>
                   </Button>
                 </>
               ) : (
@@ -169,6 +154,10 @@ export function StorePublicPage() {
         </div>
 
         <p className="mt-6 max-w-3xl text-sm leading-6 text-ink-600">{store.description}</p>
+
+        <Card hover={false} className="mt-8">
+          <OperatingHoursDisplay hours={weeklyHours} />
+        </Card>
 
         {sellsMaterials ? null : (
           <>
@@ -200,7 +189,7 @@ export function StorePublicPage() {
                       {vnd(m.price)} <span className="text-sm font-sans font-normal text-ink-400">/{m.unit}</span>
                     </p>
                   ) : null}
-                  <AddToMaterialCart material={m} storeId={String(store.id)} storeName={store.name} />
+                  <RequestMaterialsButton material={m} storeId={String(store.id)} storeName={store.name} />
                 </Card>
               ))}
             </div>

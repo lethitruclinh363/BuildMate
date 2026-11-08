@@ -1,6 +1,6 @@
 const { STORE_TYPE } = require('../models/Store');
 const { VERIFICATION_STATUS } = require('../models/ContractorProfile');
-const { ContractorProfile, Store } = require('../repositories/partnerAccess');
+const { ContractorProfile, Store, loadUser } = require('../repositories/partnerAccess');
 const { Service } = require('../repositories/offeringAccess');
 const { ORDER_STATUS } = require('../models/Order');
 const { Order } = require('../repositories/commerceAccess');
@@ -10,10 +10,20 @@ const { ApiError } = require('../utils/ApiError');
 const { publicPricedServiceMatch } = require('../constants/contractorServices');
 const { assertDeliveryPolicy } = require('../utils/delivery-policy');
 const { hasValidLocation } = require('./activation.service');
-const { assertLocationNotDirectlyModifiable } = require('../utils/locationGuard');
+const { withoutLocationFields, assertLocationNotDirectlyModifiable } = require('../utils/locationGuard');
 const reviewService = require('./reviewService');
+const {
+  normalizeWeeklyHours,
+  summarizeWeeklyHours,
+  hoursStatus,
+  toOperatingHours,
+  resolveWeeklyHoursUpdate,
+  accountContact,
+} = require('../utils/weeklyHours');
 
-function presentPublicProfile(store) {
+function presentPublicProfile(store, weeklyHours) {
+  const hours = normalizeWeeklyHours(weeklyHours || store.weeklyHours);
+  const summary = hours.configured ? summarizeWeeklyHours(hours) : '';
   return {
     id: store._id || store.id,
     contractorId: store.contractorId,
@@ -39,7 +49,10 @@ function presentPublicProfile(store) {
     freeDeliveryRadiusKm: store.freeDeliveryRadiusKm || 0,
     deliveryFeePerKm: store.deliveryFeePerKm || 0,
     minimumOrderAmount: store.minimumOrderAmount || 0,
-    openingHours: store.openingHours || '',
+    openingHours: summary,
+    weeklyHours: hours,
+    operatingHours: toOperatingHours(hours),
+    hoursStatus: hoursStatus(hours),
     serviceAreas: store.serviceAreas || [],
     yearsExperience: store.displayYears ?? 0,
     workerCount: store.displayWorkerCount ?? 0,
@@ -147,63 +160,87 @@ async function loadApprovedStore(userId) {
 }
 
 async function getPublicProfile(userId) {
-  const { store } = await loadApprovedStore(userId);
+  const { profile, store } = await loadApprovedStore(userId);
   const services = await Service.find({ storeId: store._id, ...publicPricedServiceMatch() }).sort({ category: 1 });
   return {
-    publicProfile: presentPublicProfile(store),
+    publicProfile: presentPublicProfile(store, profile.weeklyHours),
     services: services.map((item) => item.toPublic()),
   };
 }
 
 const PUBLIC_FIELDS = new Set([
   'displayName', 'slogan', 'description', 'phone', 'address', 'city',
-  'coverImage', 'avatar', 'logo', 'openingHours', 'achievements',
+  'coverImage', 'avatar', 'logo', 'openingHours', 'weeklyHours', 'operatingHours', 'achievements',
   'gallery', 'crewPhotos', 'publicCertificates', 'serviceAreas',
   'yearsExperience', 'workerCount',
 ]);
 
+function hoursPayload(body) {
+  if (!body) return undefined;
+  if (body.weeklyHours !== undefined) return body.weeklyHours;
+  if (body.operatingHours !== undefined) return body.operatingHours;
+  return undefined;
+}
+
+async function applyLockedContact(store, userId) {
+  const user = await loadUser(userId);
+  const contact = accountContact(user);
+  store.phone = contact.contactPhone;
+  store.contactEmail = contact.contactEmail;
+  return contact;
+}
+
+async function saveWeeklyHours(profile, store, raw) {
+  const resolved = resolveWeeklyHoursUpdate(profile.weeklyHours, raw);
+  if (resolved.persist) {
+    profile.weeklyHours = resolved.hours;
+    await profile.save();
+  }
+  store.openingHours = summarizeWeeklyHours(profile.weeklyHours);
+  return normalizeWeeklyHours(profile.weeklyHours);
+}
+
 async function updatePublicProfile(userId, body) {
-  const extra = Object.keys(body).filter((key) => !PUBLIC_FIELDS.has(key));
+  const payload = withoutLocationFields(body);
+  const extra = Object.keys(payload).filter((key) => !PUBLIC_FIELDS.has(key));
   if (extra.length) {
     throw new ApiError(422, 'Verified details cannot be changed from the public profile');
   }
-  const { store } = await loadApprovedStore(userId);
-  assertLocationNotDirectlyModifiable(true, body);
+  const { profile, store } = await loadApprovedStore(userId);
+  assertLocationNotDirectlyModifiable(true, payload);
   const map = {
     displayName: 'name',
     slogan: 'slogan',
     description: 'description',
-    phone: 'phone',
-    address: 'address',
-    city: 'city',
     coverImage: 'coverImage',
     avatar: 'avatar',
     logo: 'logo',
-    openingHours: 'openingHours',
     achievements: 'achievements',
   };
   for (const [incoming, key] of Object.entries(map)) {
-    if (body[incoming] !== undefined) store[key] = body[incoming];
+    if (payload[incoming] !== undefined) store[key] = payload[incoming];
   }
   for (const key of ['gallery', 'crewPhotos', 'publicCertificates', 'serviceAreas']) {
-    if (Array.isArray(body[key])) store[key] = body[key].filter(Boolean).slice(0, 8);
+    if (Array.isArray(payload[key])) store[key] = payload[key].filter(Boolean).slice(0, 8);
   }
-  if (body.yearsExperience !== undefined) store.displayYears = body.yearsExperience;
-  if (body.workerCount !== undefined) store.displayWorkerCount = body.workerCount;
+  if (payload.yearsExperience !== undefined) store.displayYears = payload.yearsExperience;
+  if (payload.workerCount !== undefined) store.displayWorkerCount = payload.workerCount;
+  const hours = await saveWeeklyHours(profile, store, hoursPayload(payload));
+  await applyLockedContact(store, userId);
   store.publicSeeded = true;
   await store.save();
-  return presentPublicProfile(store);
+  return presentPublicProfile(store, hours);
 }
 
 const STORE_PUBLIC_FIELDS = new Set([
   'displayName', 'slogan', 'description', 'phone', 'contactName', 'contactEmail', 'address', 'city',
-  'coverImage', 'avatar', 'logo', 'openingHours', 'showroomNote', 'deliveryNote',
+  'coverImage', 'avatar', 'logo', 'openingHours', 'weeklyHours', 'operatingHours', 'showroomNote', 'deliveryNote',
   'gallery', 'serviceAreas', 'serviceRadiusKm',
 ]);
 
-function presentMaterialPublic(store) {
+function presentMaterialPublic(store, weeklyHours) {
   return {
-    ...presentPublicProfile(store),
+    ...presentPublicProfile(store, weeklyHours),
     profileType: 'STORE',
     showroomNote: store.showroomNote || '',
     deliveryNote: store.deliveryNote || '',
@@ -250,14 +287,12 @@ async function registeredCategories(profile) {
 async function getMaterialPublicProfile(userId) {
   const { profile, store } = await loadApprovedMaterialStore(userId);
   const { Material } = require('../repositories/offeringAccess');
-  const reputationService = require('./reputationService');
-  const [materials, reviews, reputation] = await Promise.all([
+  const [materials, reviews] = await Promise.all([
     Material.find({ storeId: store._id }).sort({ name: 1 }),
     reviewService.listForUser(userId, 'MATERIAL_STORE'),
-    reputationService.forMaterialStore(userId),
   ]);
   return {
-    publicProfile: presentMaterialPublic(store),
+    publicProfile: presentMaterialPublic(store, profile.weeklyHours),
     categories: await registeredCategories(profile),
     materials: materials.map((item) => item.toPublic()),
     reviews: {
@@ -266,7 +301,6 @@ async function getMaterialPublicProfile(userId) {
       distribution: reviews.distribution,
       items: reviews.items.slice(0, 8),
     },
-    reputation,
     verified: {
       businessName: profile.businessName || '',
       representativeName: profile.representativeName || '',
@@ -283,38 +317,36 @@ async function getMaterialPublicProfile(userId) {
 }
 
 async function updateMaterialPublicProfile(userId, body) {
-  const extra = Object.keys(body).filter((key) => !STORE_PUBLIC_FIELDS.has(key));
+  const payload = withoutLocationFields(body);
+  const extra = Object.keys(payload).filter((key) => !STORE_PUBLIC_FIELDS.has(key));
   if (extra.length) {
     throw new ApiError(422, 'Verified details cannot be changed from the public profile');
   }
-  const { store } = await loadApprovedMaterialStore(userId);
-  assertLocationNotDirectlyModifiable(true, body);
+  const { profile, store } = await loadApprovedMaterialStore(userId);
+  assertLocationNotDirectlyModifiable(true, payload);
   const map = {
     displayName: 'name',
     slogan: 'slogan',
     description: 'description',
-    phone: 'phone',
     contactName: 'contactName',
-    contactEmail: 'contactEmail',
-    address: 'address',
-    city: 'city',
     coverImage: 'coverImage',
     avatar: 'avatar',
     logo: 'logo',
-    openingHours: 'openingHours',
     showroomNote: 'showroomNote',
     deliveryNote: 'deliveryNote',
     serviceRadiusKm: 'serviceRadiusKm',
   };
   for (const [incoming, key] of Object.entries(map)) {
-    if (body[incoming] !== undefined) store[key] = body[incoming];
+    if (payload[incoming] !== undefined) store[key] = payload[incoming];
   }
-  if (Array.isArray(body.gallery)) store.gallery = body.gallery.filter(Boolean).slice(0, 12);
-  if (Array.isArray(body.serviceAreas)) store.serviceAreas = body.serviceAreas.filter(Boolean).slice(0, 8);
+  if (Array.isArray(payload.gallery)) store.gallery = payload.gallery.filter(Boolean).slice(0, 12);
+  if (Array.isArray(payload.serviceAreas)) store.serviceAreas = payload.serviceAreas.filter(Boolean).slice(0, 8);
+  const hours = await saveWeeklyHours(profile, store, hoursPayload(payload));
+  await applyLockedContact(store, userId);
   assertDeliveryPolicy(store, {});
   store.publicSeeded = true;
   await store.save();
-  return presentMaterialPublic(store);
+  return presentMaterialPublic(store, hours);
 }
 
 async function publicSnapshots(userIds, preloadedStores) {
@@ -324,10 +356,12 @@ async function publicSnapshots(userIds, preloadedStores) {
   const stores = preloadedStores
     ? preloadedStores.filter((store) => wanted.has(String(store.contractorId)))
     : await Store.find({ contractorId: { $in: ids } });
+  const profiles = await ContractorProfile.find({ userId: { $in: ids } });
+  const hoursByUser = new Map((profiles || []).map((row) => [String(row.userId), row.weeklyHours]));
   const map = new Map();
   for (const store of stores) {
     map.set(String(store.contractorId), {
-      ...presentPublicProfile(store),
+      ...presentPublicProfile(store, hoursByUser.get(String(store.contractorId))),
       profileType: store.storeType === STORE_TYPE.MATERIALS ? 'STORE' : 'CONTRACTOR',
     });
   }

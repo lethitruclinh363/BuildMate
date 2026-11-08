@@ -151,10 +151,10 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
     assert.equal(earnings.json.data.netEarning, 0);
     assert.equal(earnings.json.data.totalCommission, 0);
 
-    const reputation = await api(origin, { path: `/api/reviews/user/${party.contractor._id}` });
-    assert.equal(reputation.status, 200);
-    assert.equal(reputation.json.data.average, 5);
-    assert.equal(reputation.json.data.count, 1);
+    const reviewSummary = await api(origin, { path: `/api/reviews/user/${party.contractor._id}` });
+    assert.equal(reviewSummary.status, 200);
+    assert.equal(reviewSummary.json.data.average, 5);
+    assert.equal(reviewSummary.json.data.count, 1);
 
     invalidateAnalyticsCache();
     const analytics = await api(origin, { path: '/api/admin/analytics', token: adminToken });

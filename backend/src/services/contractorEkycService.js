@@ -12,14 +12,17 @@ const {
   emptyOcr,
   toPublic,
   archiveAttempt,
+  ocrRequiredComplete,
 } = require('./ekycStatus');
 const {
   assertEkycImage,
   saveEkycImage,
+  removeEkycImage,
   readPrivate,
   resolvePrivate,
   contentTypeFor,
 } = require('./ekycStorage');
+const { livenessSession } = require('./ekycLivenessSession');
 const { notify } = require('./notificationService');
 const { NOTIFICATION_TYPE } = require('../models/Notification');
 const { setProfileStatus, PROFILE_STATUS } = require('./profileStatusService');
@@ -88,6 +91,31 @@ async function publicByUserIds(userIds) {
   return map;
 }
 
+function collectedImagePaths(record) {
+  return [
+    record?.cardImages?.front,
+    record?.cardImages?.back,
+    record?.liveness?.centerImage,
+    record?.liveness?.leftImage,
+    record?.liveness?.rightImage,
+    record?.liveness?.upImage,
+    record?.liveness?.downImage,
+  ].filter(Boolean);
+}
+
+async function saveIfCurrent(record, userId, frontAtStart) {
+  const latest = await ContractorEkycVerification.findOne({ userId });
+  if (!latest) throw new ApiError(409, 'Verification was restarted');
+  if (String(latest.cardImages?.front || '') !== String(frontAtStart || '')) {
+    throw new ApiError(409, 'Verification was restarted');
+  }
+  if (latest.status === EKYC_STATUS.NOT_STARTED) {
+    throw new ApiError(409, 'Verification was restarted');
+  }
+  await record.save();
+  return record.toPublic();
+}
+
 async function saveCard(userId, profile, type, file) {
   assertEditable(profile);
   if (type !== DOCUMENT_TYPE.CCCD_FRONT && type !== DOCUMENT_TYPE.CCCD_BACK) {
@@ -98,11 +126,14 @@ async function saveCard(userId, profile, type, file) {
   const relative = saveEkycImage(userId, kind, image.buffer, image.mime);
   const record = await ensureRecord(userId, profile._id);
   if (!record.cardImages) record.cardImages = {};
+  const previous = record.cardImages[kind];
   record.cardImages[kind] = relative;
   record.status = EKYC_STATUS.IN_PROGRESS;
   resetAiFields(record);
+  livenessSession.clear(userId);
   record.markModified('cardImages');
   await record.save();
+  if (previous && previous !== relative) removeEkycImage(previous);
 
   profile.documents = (profile.documents || []).filter((doc) => doc.type !== type);
   profile.documents.push({
@@ -119,8 +150,9 @@ async function saveCard(userId, profile, type, file) {
   }
   await profile.save();
   const saved = profile.documents.find((doc) => doc.type === type);
-  if (kind === 'front') record.frontDocumentId = saved?._id || null;
-  else record.backDocumentId = saved?._id || null;
+  const savedId = saved?._id || saved?.id || relative;
+  if (kind === 'front') record.frontDocumentId = savedId || 'front';
+  else record.backDocumentId = savedId || 'back';
   await record.save();
   return record.toPublic();
 }
@@ -139,7 +171,10 @@ async function validateFrame(userId, profile, files, step) {
   const frame = imageFromUpload(files.frame);
   const reference = files.reference ? imageFromUpload(files.reference) : null;
   const opposite = files.opposite ? imageFromUpload(files.opposite) : null;
-  return ekycAiClient.validateFrame({ frame, step: pose, reference, opposite });
+  const ticket = livenessSession.assertStep(userId, pose, frame.buffer);
+  const result = await ekycAiClient.validateFrame({ frame, step: pose, reference, opposite });
+  if (result?.passed) livenessSession.markPassed(userId, ticket.digest);
+  return result;
 }
 
 function storedImage(relativePath) {
@@ -147,12 +182,12 @@ function storedImage(relativePath) {
   return { buffer: file.buffer, mime: file.mime };
 }
 
-async function markFailed(record, patch) {
+async function markFailed(record, patch = {}, userId, frontAtStart) {
   record.status = EKYC_STATUS.AI_FAILED;
   record.processedAt = new Date();
   Object.assign(record, patch);
-  await record.save();
-  return record.toPublic();
+  if (userId) livenessSession.clear(userId);
+  return saveIfCurrent(record, userId, frontAtStart);
 }
 
 async function processVerification(userId, profile, files) {
@@ -164,6 +199,8 @@ async function processVerification(userId, profile, files) {
   if (!record.cardImages?.front || !record.cardImages?.back) {
     throw new ApiError(400, 'Upload both sides of the ID card first');
   }
+  livenessSession.assertCompleted(userId);
+  const frontAtStart = record.cardImages.front;
 
   const selfie = imageFromUpload(files.selfie);
   const left = imageFromUpload(files.left);
@@ -174,7 +211,7 @@ async function processVerification(userId, profile, files) {
   record.status = EKYC_STATUS.AI_CHECKING;
   record.faceMatch = undefined;
   record.faceTemplate = undefined;
-  await record.save();
+  await saveIfCurrent(record, userId, frontAtStart);
 
   const poses = { center: selfie, left, right, up, down };
   const savedPaths = {};
@@ -191,7 +228,7 @@ async function processVerification(userId, profile, files) {
   } catch (err) {
     if (err.statusCode >= 500) {
       record.status = EKYC_STATUS.IN_PROGRESS;
-      await record.save();
+      await saveIfCurrent(record, userId, frontAtStart);
       throw err;
     }
     record.ocr = { ...emptyOcr(), issues: [err.message || 'OCR failed'] };
@@ -205,7 +242,7 @@ async function processVerification(userId, profile, files) {
     };
     record.markModified('ocr');
     record.markModified('liveness');
-    return markFailed(record);
+    return markFailed(record, {}, userId, frontAtStart);
   }
 
   let enroll;
@@ -218,7 +255,11 @@ async function processVerification(userId, profile, files) {
       dateOfBirth: ocr.date_of_birth || '',
       gender: ocr.gender || '',
       hometown: ocr.hometown || '',
-      passed: Boolean(ocr.validation_passed),
+      passed: ocrRequiredComplete({
+        idNumber: ocr.id_card_number,
+        fullName: ocr.full_name,
+        dateOfBirth: ocr.date_of_birth,
+      }) && Boolean(ocr.validation_passed),
       issues: ocr.validation_errors || [],
     };
     record.liveness = {
@@ -233,10 +274,10 @@ async function processVerification(userId, profile, files) {
     record.markModified('liveness');
     if (err.statusCode >= 500) {
       record.status = EKYC_STATUS.IN_PROGRESS;
-      await record.save();
+      await saveIfCurrent(record, userId, frontAtStart);
       throw err;
     }
-    return markFailed(record);
+    return markFailed(record, {}, userId, frontAtStart);
   }
 
   let match;
@@ -245,7 +286,7 @@ async function processVerification(userId, profile, files) {
   } catch (err) {
     if (err.statusCode >= 500) {
       record.status = EKYC_STATUS.IN_PROGRESS;
-      await record.save();
+      await saveIfCurrent(record, userId, frontAtStart);
       throw err;
     }
     record.ocr = {
@@ -254,7 +295,11 @@ async function processVerification(userId, profile, files) {
       dateOfBirth: ocr.date_of_birth || '',
       gender: ocr.gender || '',
       hometown: ocr.hometown || '',
-      passed: Boolean(ocr.validation_passed && ocr.id_card_number && ocr.full_name),
+      passed: ocrRequiredComplete({
+        idNumber: ocr.id_card_number,
+        fullName: ocr.full_name,
+        dateOfBirth: ocr.date_of_birth,
+      }) && Boolean(ocr.validation_passed),
       issues: Array.isArray(ocr.validation_errors) ? ocr.validation_errors : [err.message || 'Face match failed'],
     };
     record.liveness = {
@@ -267,10 +312,14 @@ async function processVerification(userId, profile, files) {
     };
     record.markModified('ocr');
     record.markModified('liveness');
-    return markFailed(record);
+    return markFailed(record, {}, userId, frontAtStart);
   }
 
-  const ocrPassed = Boolean(ocr.validation_passed && ocr.id_card_number && ocr.full_name && ocr.date_of_birth);
+  const ocrPassed = Boolean(ocr.validation_passed) && ocrRequiredComplete({
+    idNumber: ocr.id_card_number,
+    fullName: ocr.full_name,
+    dateOfBirth: ocr.date_of_birth,
+  });
   const livenessPassed = Boolean(enroll?.enrolled && enroll?.liveness_passed && enroll?.active_liveness_passed);
   const status = resolveAiStatus({
     ocrPassed,
@@ -307,9 +356,47 @@ async function processVerification(userId, profile, files) {
   record.markModified('ocr');
   record.markModified('liveness');
   record.markModified('faceMatch');
+  const published = await saveIfCurrent(record, userId, frontAtStart);
+
+  livenessSession.clear(userId);
+  console.info(`[ekyc] processed status=${status} decision=${match.decision || ''} ocr=${ocrPassed} live=${livenessPassed}`);
+  return published;
+}
+
+async function restartAttempt(userId, profile) {
+  assertEditable(profile);
+  const record = await ContractorEkycVerification.findOne({ userId });
+  if (!record) return toPublic({ userId, status: EKYC_STATUS.NOT_STARTED });
+  if (record.status === EKYC_STATUS.SUBMITTED) {
+    throw new ApiError(409, 'Submitted identity verification cannot be restarted');
+  }
+  const hadWork = Boolean(
+    record.cardImages?.front
+    || record.cardImages?.back
+    || record.ocr?.idNumber
+    || record.status !== EKYC_STATUS.NOT_STARTED
+  );
+  const paths = collectedImagePaths(record);
+  if (hadWork) {
+    record.attempts = record.attempts || [];
+    record.attempts.push(archiveAttempt(record));
+    record.markModified('attempts');
+  }
+  paths.forEach((relative) => removeEkycImage(relative));
+  record.cardImages = { front: '', back: '' };
+  record.frontDocumentId = null;
+  record.backDocumentId = null;
+  record.status = EKYC_STATUS.NOT_STARTED;
+  resetAiFields(record);
+  livenessSession.clear(userId);
+  record.markModified('cardImages');
   await record.save();
 
-  console.info(`[ekyc] processed status=${status} decision=${match.decision || ''}`);
+  profile.documents = (profile.documents || []).filter(
+    (doc) => doc.type !== DOCUMENT_TYPE.CCCD_FRONT && doc.type !== DOCUMENT_TYPE.CCCD_BACK
+  );
+  profile.markModified('documents');
+  await profile.save();
   return record.toPublic();
 }
 
@@ -319,11 +406,21 @@ async function submit(userId, profile) {
   if (!record || !canSubmitEkyc(record.status)) {
     throw new ApiError(400, 'Identity checks must pass before submission');
   }
-  if (!record.cardImages?.front || !record.cardImages?.back || !record.liveness?.passed || !record.faceMatch?.decision) {
+  if (
+    !record.cardImages?.front
+    || !record.cardImages?.back
+    || !record.ocr?.passed
+    || !ocrRequiredComplete(record.ocr)
+    || !record.liveness?.passed
+    || !record.faceMatch?.decision
+  ) {
     throw new ApiError(400, 'Identity checks must pass before submission');
   }
   record.status = EKYC_STATUS.SUBMITTED;
   record.submittedAt = new Date();
+  record.faceTemplate = null;
+  record.set('faceTemplate', null);
+  livenessSession.clear(userId);
   await record.save();
   return record.toPublic();
 }
@@ -370,6 +467,7 @@ async function requestRetake(profileId, adminId, reason) {
     note,
   };
   resetAiFields(record);
+  livenessSession.clear(profile.userId);
   await record.save();
 
   if (profile.verificationStatus === VERIFICATION_STATUS.SUBMITTED) {
@@ -410,6 +508,7 @@ module.exports = {
   checkReadiness,
   validateFrame,
   processVerification,
+  restartAttempt,
   submit,
   openForOwner,
   openForAdmin,

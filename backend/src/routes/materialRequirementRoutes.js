@@ -7,6 +7,7 @@ const {
   createListSchema,
   itemBody,
   sendListSchema,
+  directRequestSchema,
   updateListSchema,
   createQuoteSchema,
   fulfillmentSchema,
@@ -21,6 +22,14 @@ router.post(
   authorize(ROLES.CONTRACTOR),
   validate(createListSchema),
   controller.create
+);
+
+router.post(
+  '/direct',
+  authenticate,
+  authorize(ROLES.CUSTOMER),
+  validate(directRequestSchema),
+  controller.createDirect
 );
 
 router.get(

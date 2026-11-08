@@ -10,7 +10,7 @@ const chatService = require('./chatService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { ROOM_KIND } = require('../utils/chat-room.rules');
 const { emitToUser } = require('./socketService');
-const { encodeMrlChat, requestPayload, quotePayload, confirmedPayload, progressPayload, rejectedPayload } = require('../utils/mrl-chat');
+const { encodeMrlChat, requestPayload, quotePayload, confirmedPayload, rejectedPayload } = require('../utils/mrl-chat');
 const { roundVnd } = require('../utils/contractor-finance');
 const repo = require('../repositories/materialRequirement.postgres');
 const {
@@ -20,7 +20,6 @@ const {
   canCancel,
   canQuote,
   canConfirmQuote,
-  canAdvanceFulfillment,
   isFulfillmentStatus,
   assertItem,
   quoteTotal,
@@ -45,6 +44,24 @@ async function ensureTables() {
   }
   await repo.ensureFulfillmentConstraint().catch(() => false);
   await repo.ensureCustomerSaveSchema().catch(() => false);
+  await repo.ensureDirectRequestSchema().catch(() => false);
+}
+
+function storeOwnerPublicId(store, storeRow) {
+  return String(store?.contractorId || storeRow?.owner_legacy_id || '');
+}
+
+async function notifyStoreOfRequest(store, storeRow, list) {
+  const userId = storeOwnerPublicId(store, storeRow);
+  if (!userId || !list?.id) return;
+  await notify({
+    userId,
+    title: 'Material requirement list',
+    message: 'A customer sent a material requirement list',
+    type: NOTIFICATION_TYPE.STATUS_UPDATE,
+    link: `/store/material-requests/${list.id}`,
+    meta: { materialRequirementId: list.id, dedupeKey: `mrl-request:${list.id}` },
+  });
 }
 
 async function emitMrlUpdate(list) {
@@ -53,7 +70,8 @@ async function emitMrlUpdate(list) {
   if (list.storeId) {
     try {
       const store = await Store.findById(list.storeId);
-      if (store?.contractorId) emitToUser(String(store.contractorId), 'mrl:update', list);
+      const ownerId = storeOwnerPublicId(store);
+      if (ownerId) emitToUser(ownerId, 'mrl:update', list);
     } catch {
       /* ignore lookup failure during socket emission */
     }
@@ -64,11 +82,6 @@ async function listPkOrThrow(publicId) {
   const pk = await repo.listPkByPublicId(publicId);
   if (!pk) throw new ApiError(404, 'Material requirement list not found');
   return pk;
-}
-
-function isStatusCheckError(err) {
-  const code = err?.code || err?.meta?.code;
-  return code === '23514' || /chk_mrl_status/i.test(String(err?.message || ''));
 }
 
 async function postStoreChat(list, senderId, payload, preview) {
@@ -152,6 +165,7 @@ async function createList(user, payload) {
     const created = await repo.insertList({
       requestPk: request.id,
       contractorPk,
+      customerPk: request.customer_user_id,
       note: payload.note || '',
     });
     const items = payload.items || [];
@@ -187,6 +201,49 @@ async function listMine(user, filters = {}) {
 
 async function getOne(user, id) {
   return loadOwnedList(id, user);
+}
+
+async function createDirectRequest(user, payload) {
+  if (user.role !== ROLES.CUSTOMER) {
+    throw new ApiError(403, 'Only customers can send a direct material request');
+  }
+  await ensureTables();
+  const items = (payload.items || []).map((row) => assertItem(row));
+  if (!items.length) throw new ApiError(422, 'Add at least one item before sending this list');
+  if (items.length > 40) throw new ApiError(422, 'Too many items on this list');
+  const store = await marketplaceService.assertApprovedLiveStore(payload.storeId);
+  if (!store) throw new ApiError(409, 'This store is not available on the marketplace');
+  if (store.storeType !== STORE_TYPE.MATERIALS && store.storeType !== STORE_TYPE.BOTH) {
+    throw new ApiError(409, 'Only a material store can receive this list');
+  }
+  const customerPk = await repo.userPk(user.id);
+  if (!customerPk) throw new ApiError(404, 'Customer not found');
+  const storeRow = await repo.storeRow(String(store._id));
+  if (!storeRow) throw new ApiError(404, 'Store not found');
+  return withLock(`direct:${user.id}:${store._id}:${items[0].name}`, async () => {
+    const created = await repo.insertList({
+      requestPk: null,
+      contractorPk: null,
+      customerPk,
+      note: payload.note || '',
+      title: payload.title || items[0].name,
+      status: MRL_STATUS.SENT,
+      storePk: storeRow.id,
+    });
+    for (let i = 0; i < items.length; i += 1) {
+      await repo.insertItem(created.id, items[i], i);
+    }
+    const latest = await repo.findByPublicId(created.legacy_mongo_id);
+    await notifyStoreOfRequest(store, storeRow, latest).catch(() => null);
+    try {
+      await chatService.createRoomForStore(user, String(store._id));
+      await postStoreChat(latest, user.id, requestPayload(latest), 'Material quote request');
+    } catch {
+      /* List is already assigned if chat cannot send. */
+    }
+    await emitMrlUpdate(latest);
+    return latest;
+  });
 }
 
 async function addItem(user, id, payload) {
@@ -299,12 +356,14 @@ async function sendToStore(user, id, storeId) {
   if (user.role !== ROLES.CUSTOMER) throw new ApiError(403, 'Only the customer can send a material list to a store');
   return withLock(`send:${id}:${storeId}`, async () => {
     const list = await loadOwnedList(id, user);
-    const acceptedQuote = await Quotation.findOne({
-      requestId: list.requestId,
-      status: QUOTATION_STATUS.ACCEPTED,
-    }).select('_id');
-    if (!acceptedQuote) {
-      throw new ApiError(409, 'Accept the construction quotation before sending this list to a store');
+    if (list.requestId) {
+      const acceptedQuote = await Quotation.findOne({
+        requestId: list.requestId,
+        status: QUOTATION_STATUS.ACCEPTED,
+      }).select('_id');
+      if (!acceptedQuote) {
+        throw new ApiError(409, 'Accept the construction quotation before sending this list to a store');
+      }
     }
     const store = await marketplaceService.assertApprovedLiveStore(storeId);
     if (!store) throw new ApiError(409, 'This store is not available on the marketplace');
@@ -348,14 +407,7 @@ async function sendToStore(user, id, storeId) {
       throw err;
     }
     const latest = await repo.findByPublicId(snapshot.legacy_mongo_id);
-    await notify({
-      userId: String(store.contractorId),
-      title: 'Material requirement list',
-      message: 'A customer sent a material requirement list',
-      type: NOTIFICATION_TYPE.STATUS_UPDATE,
-      link: `/store/material-requests/${latest.id}`,
-      meta: { materialRequirementId: latest.id },
-    }).catch(() => null);
+    await notifyStoreOfRequest(store, storeRow, latest).catch(() => null);
     try {
       await chatService.createRoomForStore(user, String(store._id));
       await postStoreChat(latest, user.id, requestPayload(latest), 'Material quote request');
@@ -626,64 +678,13 @@ async function rejectQuote(user, id) {
   });
 }
 
-const FULFILLMENT_NOTICE = {
-  [MRL_STATUS.PREPARING]: 'The store is preparing your materials',
-  [MRL_STATUS.DELIVERING]: 'The store is delivering materials to the job site',
-  [MRL_STATUS.DELIVERED]: 'Materials were delivered to the job site',
-};
-
-async function advanceFulfillment(user, id, status) {
-  if (user.role !== ROLES.MATERIAL_STORE_OWNER) {
-    throw new ApiError(403, 'Only the material store can update delivery status');
-  }
-  return withLock(`fulfill:${id}`, async () => {
-    const list = await loadOwnedList(id, user);
-    if (list.status === status && isFulfillmentStatus(status)) return list;
-    if (!canAdvanceFulfillment(list.status, status)) {
-      throw new ApiError(409, 'This delivery status cannot be applied yet');
-    }
-    const internal = await require('../config/prisma').prisma.$queryRaw`
-      SELECT id FROM material_requirement_lists WHERE legacy_mongo_id = ${list.id} LIMIT 1
-    `;
-    await repo.ensureFulfillmentConstraint().catch(() => false);
-    try {
-      await repo.updateList(internal[0].id, { status });
-    } catch (err) {
-      if (!isStatusCheckError(err)) throw err;
-      await repo.ensureFulfillmentConstraint().catch(() => false);
-      try {
-        await repo.updateList(internal[0].id, { status });
-      } catch {
-        throw new ApiError(409, 'Delivery status is not enabled on this database');
-      }
-    }
-    await notify({
-      userId: String(list.customerId),
-      title: 'Material delivery update',
-      message: FULFILLMENT_NOTICE[status] || status,
-      type: NOTIFICATION_TYPE.STATUS_UPDATE,
-      link: `/customer/material-lists/${list.id}`,
-      meta: { materialRequirementId: list.id, status },
-    }).catch(() => null);
-    const latest = await repo.findByPublicId(id);
-    await postStoreChat(latest, user.id, progressPayload(latest), `Material ${String(status).toLowerCase()}`).catch(() => null);
-    await emitMrlUpdate(latest);
-    if (status === MRL_STATUS.DELIVERED && list.contractorId) {
-      await notify({
-        userId: String(list.contractorId),
-        title: 'Materials delivered',
-        message: 'Materials arrived at the job site. You can schedule construction.',
-        type: NOTIFICATION_TYPE.STATUS_UPDATE,
-        link: `/contractor/material-requirements/${list.id}`,
-        meta: { materialRequirementId: list.id, status },
-      }).catch(() => null);
-    }
-    return latest;
-  });
+async function advanceFulfillment(_user, _id, _status) {
+  throw new ApiError(410, 'Material delivery tracking is no longer available');
 }
 
 module.exports = {
   createList,
+  createDirectRequest,
   listMine,
   getOne,
   addItem,

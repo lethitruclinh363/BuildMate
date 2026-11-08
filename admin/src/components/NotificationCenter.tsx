@@ -28,7 +28,6 @@ const ADMIN_ROOTS = [
   '/commission',
   '/reviews',
   '/complaints',
-  '/analytics',
   '/audit',
   '/settings',
   '/policies',
@@ -43,6 +42,7 @@ function noticeTitle(item: AdminNotification, translate: (key: string) => string
 export function adminNotificationHref(link?: string) {
   if (!link || !link.startsWith('/') || link.startsWith('//')) return null;
   const path = link.split(/[?#]/)[0];
+  if (path === '/analytics' || path.startsWith('/analytics/')) return '/dashboard';
   const allowed = ADMIN_ROOTS.some((root) => path === root || path.startsWith(`${root}/`));
   return allowed ? link : null;
 }

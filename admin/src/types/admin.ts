@@ -37,6 +37,7 @@ export interface PartnerApplication {
   id: string;
   userId: string;
   businessName: string;
+  representativeName?: string;
   taxCode: string;
   address: string;
   city: string;
@@ -52,6 +53,10 @@ export interface PartnerApplication {
   location?: { type?: string; coordinates?: number[] } | null;
   description: string;
   yearsExperience: number;
+  weeklyHours?: {
+    configured: boolean;
+    days: { weekday: number; closed: boolean; open: string | null; close: string | null }[];
+  } | null;
   serviceAreas: string[];
   materialCategories?: {
     name: string;
@@ -123,12 +128,61 @@ export interface PartnerApplication {
     city?: string;
     address?: string;
     openingHours?: string;
+    weeklyHours?: {
+      configured: boolean;
+      days: { weekday: number; closed: boolean; open: string | null; close: string | null }[];
+    } | null;
     serviceAreas?: string[];
     showroomNote?: string;
     deliveryNote?: string;
     profileType?: 'STORE' | 'CONTRACTOR';
     verified?: boolean;
   } | null;
+  store?: AdminPartnerStore | null;
+  materials?: AdminPartnerMaterial[];
+}
+
+export interface AdminPartnerStore {
+  id: string;
+  name: string;
+  description?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  storeType?: string;
+  coverImage?: string;
+  avatar?: string;
+  logo?: string;
+  gallery?: string[];
+  crewPhotos?: string[];
+  showroomNote?: string;
+  deliveryNote?: string;
+  deliveryEnabled?: boolean;
+  serviceAreas?: string[];
+  serviceRadiusKm?: number;
+  openingHours?: string;
+  weeklyHours?: {
+    configured: boolean;
+    days: { weekday: number; closed: boolean; open: string | null; close: string | null }[];
+  } | null;
+  status?: string;
+  rating?: number;
+  reviewCount?: number;
+  materialRating?: number;
+  materialReviewCount?: number;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+export interface AdminPartnerMaterial {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  price: number;
+  image?: string;
+  isActive?: boolean;
+  saleState?: string;
 }
 
 export interface AdminStats {

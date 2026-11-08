@@ -98,6 +98,12 @@ type Envelope<T> = { data: T; message?: string };
 export const materialRequirementApi = {
   create: (body: { requestId: string; note?: string; items?: Partial<MaterialRequirementItem>[] }) =>
     api.post<Envelope<MaterialRequirementList>>('/material-requirements', body),
+  createDirect: (body: {
+    storeId: string;
+    title?: string;
+    note?: string;
+    items: Array<{ name: string; specification?: string; unit?: string; quantity: number; notes?: string }>;
+  }) => api.post<Envelope<MaterialRequirementList>>('/material-requirements/direct', body),
   mine: (params?: { repairRequestId?: string }) =>
     api.get<Envelope<MaterialRequirementList[]>>('/material-requirements', {
       silent: true,

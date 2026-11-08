@@ -11,6 +11,7 @@ const {
 const {
   assertLocationNotDirectlyModifiable,
   isLocationPayloadPresent,
+  withoutLocationFields,
   LOCATION_LOCKED_MESSAGE,
 } = require('../utils/locationGuard');
 const {
@@ -77,6 +78,18 @@ describe('Location Change Request & Locking (Prompt 05)', () => {
         () => assertLocationNotDirectlyModifiable(isApproved, { locationConfirmed: true }),
         (err) => err.statusCode === 409 || err.status === 409
       );
+    });
+
+    it('strips city/address from public-profile payloads so hours can still be saved', () => {
+      const stripped = withoutLocationFields({
+        displayName: 'Cửa hàng VLXD',
+        city: 'Cần Thơ',
+        address: '12 Trần Hưng Đạo',
+        weeklyHours: { configured: true },
+      });
+      assert.equal(isLocationPayloadPresent(stripped), false);
+      assert.doesNotThrow(() => assertLocationNotDirectlyModifiable(true, stripped));
+      assert.equal(stripped.weeklyHours.configured, true);
     });
 
     it('TC32: allows non-location updates for approved partners without error', () => {

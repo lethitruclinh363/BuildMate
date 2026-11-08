@@ -229,6 +229,22 @@ const KNOWN_API_ERRORS: Record<string, { vi: string; en: string }> = {
     vi: 'Không tìm thấy dịch vụ.',
     en: 'Service not found.',
   },
+  'Closing time must be after opening time': {
+    vi: 'Giờ đóng cửa phải sau giờ mở cửa.',
+    en: 'Closing time must be after opening time.',
+  },
+  'Choose valid opening and closing times': {
+    vi: 'Hãy chọn giờ mở cửa và đóng cửa hợp lệ.',
+    en: 'Choose valid opening and closing times.',
+  },
+  'Operating hours must include all 7 days': {
+    vi: 'Giờ hoạt động phải gồm đủ 7 ngày trong tuần.',
+    en: 'Operating hours must include all 7 days.',
+  },
+  'Invalid operating hours': {
+    vi: 'Giờ hoạt động không hợp lệ.',
+    en: 'Invalid operating hours.',
+  },
 };
 
 export function translateApiError(message: string | undefined, locale: Locale = currentLocale()): string {

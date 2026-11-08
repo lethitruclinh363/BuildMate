@@ -8,7 +8,6 @@ const { MATERIAL_CATEGORIES, MATERIAL_CATEGORY_LABELS, categoryAliases } = requi
 const { saleStateOf } = require('../utils/material-sale');
 const { presentPublicProfile, seedPublicProfile, seedMaterialPublicProfile, loadPublicHighlights } = require('./publicProfileService');
 const reviewService = require('./reviewService');
-const reputationService = require('./reputationService');
 const { LIVE_CATALOG_STATUSES } = require('../models/CatalogService');
 const activationService = require('./activation.service');
 const { USER_STATUS } = require('../models/User');
@@ -72,8 +71,15 @@ function approvedLiveLookups(limit = 48) {
   ];
 }
 
-function publicStoreView(store) {
+function publicStoreView(store, weeklyHours) {
   const view = store.toPublic();
+  if (weeklyHours !== undefined) {
+    const { normalizeWeeklyHours, toOperatingHours, hoursStatus } = require('../utils/weeklyHours');
+    const hours = normalizeWeeklyHours(weeklyHours);
+    view.weeklyHours = hours;
+    view.operatingHours = toOperatingHours(hours);
+    view.hoursStatus = hoursStatus(hours);
+  }
   if (store.status !== STORE_STATUS.LIVE || !activationService.hasValidLocation(store)) {
     view.location = null;
     view.locationConfirmed = false;
@@ -116,14 +122,11 @@ async function getPublicStore(id) {
       ? await seedMaterialPublicProfile(store, profile)
       : await seedPublicProfile(store, profile)
     : store;
-  const [services, materials, reviews, reputation] = await Promise.all([
+  const [services, materials, reviews] = await Promise.all([
     Service.find({ storeId: published._id, ...publicPricedServiceMatch() }).sort({ category: 1 }),
     Material.find({ storeId: published._id }).sort({ category: 1 }),
     published.storeType === 'MATERIALS'
       ? reviewService.listForUser(published.contractorId, 'MATERIAL_STORE')
-      : Promise.resolve(null),
-    published.storeType === 'MATERIALS'
-      ? reputationService.forMaterialStore(published.contractorId)
       : Promise.resolve(null),
   ]);
   const categories = published.storeType === 'MATERIALS' && profile
@@ -132,8 +135,8 @@ async function getPublicStore(id) {
 
   return {
     visibility: 'LIVE',
-    store: publicStoreView(published),
-    publicProfile: presentPublicProfile(published),
+    store: publicStoreView(published, profile?.weeklyHours),
+    publicProfile: presentPublicProfile(published, profile?.weeklyHours),
     categories,
     reviews: reviews
       ? {
@@ -150,7 +153,6 @@ async function getPublicStore(id) {
           })),
         }
       : null,
-    reputation,
     services: services.map((s) => s.toPublic()),
     materials: materials.map((m) => {
       const pub = m.toPublic();
@@ -186,23 +188,19 @@ async function getPublicContractor(id) {
   const services = store
     ? await Service.find({ storeId: store._id, ...publicPricedServiceMatch() })
     : [];
-  const publicProfile = store ? presentPublicProfile(store) : null;
+  const publicProfile = store ? presentPublicProfile(store, profile.weeklyHours) : null;
   const reviewSummary = await reviewService.listForUser(profile.userId, 'CONTRACTOR');
   if (publicProfile) {
     publicProfile.address = '';
     publicProfile.rating = reviewSummary.average;
     publicProfile.reviewCount = reviewSummary.count;
   }
-  const [highlights, reputation] = await Promise.all([
-    loadPublicHighlights(profile.userId),
-    reputationService.forContractor(profile.userId),
-  ]);
+  const highlights = await loadPublicHighlights(profile.userId);
 
   return {
     visibility: 'LIVE',
     publicProfile,
     highlights,
-    reputation,
     contractor: publicProfile
       ? {
           id: profile.userId,
@@ -216,7 +214,7 @@ async function getPublicContractor(id) {
           yearsExperience: publicProfile.yearsExperience,
         }
       : null,
-    store: store ? publicStoreView(store) : null,
+    store: store ? publicStoreView(store, profile.weeklyHours) : null,
     services: services.map((s) => s.toPublic()),
   };
 }

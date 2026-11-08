@@ -24,6 +24,13 @@ const sendListSchema = z.object({
   storeId: z.string().min(8).max(40),
 });
 
+const directRequestSchema = z.object({
+  storeId: z.string().min(8).max(40),
+  title: z.string().trim().max(140).optional().or(z.literal('')),
+  note: z.string().trim().max(1000).optional().or(z.literal('')),
+  items: z.array(itemBody).min(1).max(40),
+});
+
 const quoteItemSchema = z.object({
   itemId: z.string().min(1).max(40),
   unitPrice: finiteNumber().min(0).max(1000000000),
@@ -46,6 +53,7 @@ module.exports = {
   createListSchema,
   updateListSchema,
   sendListSchema,
+  directRequestSchema,
   createQuoteSchema,
   fulfillmentSchema,
 };

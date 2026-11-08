@@ -77,7 +77,6 @@ export function EscrowPage() {
         <StatCard label={t('pages.ledgerG')} value={vnd(ledger.payoutPendingAmount)} />
         <StatCard label={t('pages.ledgerH')} value={vnd(ledger.paidOutAmount)} />
         <StatCard label={t('pages.ledgerI')} value={vnd(ledger.platformFeePosted)} />
-        <StatCard label={t('pages.ledgerJ')} value={vnd(ledger.materialGmv)} />
       </div>
       <DataTable
         columns={[

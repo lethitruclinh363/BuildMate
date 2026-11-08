@@ -16,6 +16,12 @@ const { writeAudit, AUDIT_ACTION } = require('./auditService');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { assertCanReadVerificationDoc } = require('../utils/verification-docs');
 const { isLocationPayloadPresent, LOCATION_LOCKED_MESSAGE } = require('../utils/locationGuard');
+const {
+  parseWeeklyHours,
+  persistableWeeklyHours,
+  summarizeWeeklyHours,
+  applyAccountContact,
+} = require('../utils/weeklyHours');
 const verificationStorage = require('./verificationStorage');
 const {
   MAX_PROJECTS,
@@ -61,18 +67,42 @@ function assertVerificationEditable(profile, payload) {
   }
 }
 
+function hoursOnlyPayload(payload) {
+  if (!payload || payload.weeklyHours === undefined) return false;
+  return Object.keys(payload).every((key) =>
+    ['weeklyHours', 'contactPhone', 'contactEmail', 'openingHours'].includes(key)
+  );
+}
+
+async function syncStoreHoursSummary(userId, weeklyHours) {
+  const store = await Store.findOne({ contractorId: userId });
+  if (!store) return;
+  store.openingHours = summarizeWeeklyHours(weeklyHours);
+  await store.save();
+}
+
 async function getProfile(userId) {
   const profile = await ensureContractorProfile(userId);
+  const user = await loadUser(userId);
+  applyAccountContact(profile, user);
   await catalogService.syncCustomStatuses(profile);
   return profile.toPublic();
 }
 
 async function updateProfile(userId, payload) {
   const profile = await ensureContractorProfile(userId);
+  const user = await loadUser(userId);
+
+  if (profile.verificationStatus === VERIFICATION_STATUS.APPROVED && hoursOnlyPayload(payload)) {
+    profile.weeklyHours = persistableWeeklyHours(parseWeeklyHours(payload.weeklyHours));
+    applyAccountContact(profile, user);
+    await profile.save();
+    await syncStoreHoursSummary(userId, profile.weeklyHours);
+    return profile.toPublic();
+  }
 
   assertVerificationEditable(profile, payload);
 
-  const user = await loadUser(userId);
   const rest = { ...payload };
   delete rest.services;
   delete rest.completedSteps;
@@ -84,6 +114,10 @@ async function updateProfile(userId, payload) {
   delete rest.locationConfirmed;
   delete rest.locationSource;
   delete rest.providerRefId;
+  delete rest.contactPhone;
+  delete rest.contactEmail;
+  delete rest.weeklyHours;
+  delete rest.openingHours;
 
   if (payload.lat !== undefined || payload.latitude !== undefined) {
     const rawLat = payload.lat !== undefined ? payload.lat : payload.latitude;
@@ -123,6 +157,10 @@ async function updateProfile(userId, payload) {
     delete rest.serviceAreas;
   }
   Object.assign(profile, rest);
+  applyAccountContact(profile, user);
+  if (payload.weeklyHours !== undefined) {
+    profile.weeklyHours = persistableWeeklyHours(parseWeeklyHours(payload.weeklyHours));
+  }
   if (Array.isArray(payload.completedSteps)) {
     const steps = payload.completedSteps.map((flag) => flag === true);
     if (steps[4] === true) {
@@ -168,6 +206,9 @@ async function updateProfile(userId, payload) {
       city: profile.city,
       description: profile.description,
     });
+  }
+  if (payload.weeklyHours !== undefined) {
+    await syncStoreHoursSummary(userId, profile.weeklyHours);
   }
   return profile.toPublic();
 }
@@ -506,7 +547,7 @@ async function submitVerification(userId, payload) {
     throw new ApiError(400, 'Complete every onboarding step before submitting');
   }
 
-  if (user?.role === 'CONTRACTOR') {
+  if (user?.role === 'CONTRACTOR' || user?.role === 'MATERIAL_STORE_OWNER') {
     const submitted = await identitySubmitted(userId);
     if (!submitted) {
       throw new ApiError(400, 'Complete identity verification before submitting');

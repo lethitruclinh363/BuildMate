@@ -575,13 +575,22 @@ def _validate_cccd_logic(extracted: dict[str, Optional[str]]) -> dict[str, Any]:
     ):
         errors.append("Mã giới tính trong số CCCD không khớp với trường giới tính.")
 
-    if dob is not None:
+    full_name = (extracted.get("full_name") or "").strip()
+    if len(full_name) < 2:
+        errors.append("Họ tên không đọc được.")
+
+    if not dob:
+        errors.append("Ngày sinh không đọc được.")
+    else:
         try:
-            dob_year = datetime.strptime(dob, "%d/%m/%Y").year
-            if logic_year != dob_year:
+            parsed = datetime.strptime(dob, "%d/%m/%Y")
+            today = datetime.now().date()
+            if parsed.date() > today or parsed.year < 1900:
+                errors.append("Ngày sinh không hợp lệ.")
+            elif logic_year != parsed.year:
                 errors.append("Năm sinh mã hóa trong số CCCD không khớp với ngày sinh.")
         except ValueError:
-            errors.append("Ngày sinh không đúng định dạng dd/mm/yyyy.")
+            errors.append("Ngày sinh không hợp lệ.")
 
     # Quê quán không được kiểm tra trong luồng eKYC.
 

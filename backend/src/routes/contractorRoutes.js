@@ -39,13 +39,17 @@ const locationChangeController = require('../controllers/locationChange.controll
 
 const router = express.Router();
 const contractorOnly = [authenticate, authorize(ROLES.CONTRACTOR), loadContractorProfile];
+const partnerEkyc = [
+  authenticate,
+  authorize(ROLES.CONTRACTOR, ROLES.MATERIAL_STORE_OWNER),
+  loadContractorProfile,
+];
 const storeWrite = [...contractorOnly, requireApprovedContractor];
 const catalogWrite = [...storeWrite, requireStore];
 
 router.get('/earnings', authenticate, authorize(ROLES.CONTRACTOR), paymentController.earnings);
 
 router.get('/dashboard-stats', ...contractorOnly, contractorController.getDashboardStats);
-router.get('/reputation', ...contractorOnly, contractorController.getReputation);
 router.get('/reviews', ...contractorOnly, validate(reviewListQuerySchema, 'query'), contractorController.getReviews);
 router.get('/workspace', ...contractorOnly, contractorController.getWorkspace);
 router.post('/activation', ...contractorOnly, contractorController.activatePartner);
@@ -112,22 +116,22 @@ router.post(
   locationChangeController.createRequest
 );
 
-router.get('/ekyc', ...contractorOnly, contractorEkycController.current);
+router.get('/ekyc', ...partnerEkyc, contractorEkycController.current);
 router.post(
   '/ekyc/documents',
-  ...contractorOnly,
+  ...partnerEkyc,
   ekycMemoryUpload.single('file'),
   contractorEkycController.saveDocument
 );
 router.post(
   '/ekyc/face/readiness',
-  ...contractorOnly,
+  ...partnerEkyc,
   ekycMemoryUpload.single('selfie_image'),
   contractorEkycController.readiness
 );
 router.post(
   '/ekyc/face/validate-frame',
-  ...contractorOnly,
+  ...partnerEkyc,
   ekycMemoryUpload.fields([
     { name: 'frame_image', maxCount: 1 },
     { name: 'reference_image', maxCount: 1 },
@@ -137,7 +141,7 @@ router.post(
 );
 router.post(
   '/ekyc/process',
-  ...contractorOnly,
+  ...partnerEkyc,
   ekycMemoryUpload.fields([
     { name: 'selfie_image', maxCount: 1 },
     { name: 'left_image', maxCount: 1 },
@@ -147,8 +151,9 @@ router.post(
   ]),
   contractorEkycController.processVerification
 );
-router.post('/ekyc/submit', ...contractorOnly, contractorEkycController.submit);
-router.get('/ekyc/files/:kind', ...contractorOnly, contractorEkycController.file);
+router.post('/ekyc/restart', ...partnerEkyc, contractorEkycController.restart);
+router.post('/ekyc/submit', ...partnerEkyc, contractorEkycController.submit);
+router.get('/ekyc/files/:kind', ...partnerEkyc, contractorEkycController.file);
 
 router.get('/store', ...storeWrite, loadStore, storeController.getStore);
 router.post('/store', ...storeWrite, validate(storeSchema), storeController.createStore);

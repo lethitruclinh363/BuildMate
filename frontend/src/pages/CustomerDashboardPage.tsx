@@ -11,7 +11,7 @@ import { readExplore } from '@/features/map/lib/explore-memory';
 import { orderApi } from '@/features/orders/services/order.api';
 import { useOrderLiveStore } from '@/features/orders/store/order-live.store';
 import { orderStatusTone } from '@/features/orders/types/orderStatus';
-import { materialOrderApi } from '@/lib/material-order-api';
+import { materialRequirementApi } from '@/lib/material-requirement-api';
 import { useReturnState } from '@/lib/navigation';
 import { useI18n } from '@/locales';
 import { useAuthStore } from '@/store/auth.store';
@@ -49,14 +49,14 @@ export function CustomerDashboardPage() {
         setOrderCount(0);
         setRecentOrders([]);
       });
-    materialOrderApi
+    materialRequirementApi
       .mine()
       .then((res) => {
         const rows = res.data.data || [];
         setRecentMaterials(
           rows.slice(0, 5).map((row) => ({
             id: row.id,
-            title: row.orderCode || row.items?.[0]?.nameSnapshot || row.id,
+            title: row.title || row.requestTitle || row.requestCode || row.items?.[0]?.name || row.id,
             status: row.status,
           }))
         );
@@ -160,7 +160,7 @@ export function CustomerDashboardPage() {
                   {recentMaterials.map((row) => (
                     <li key={row.id}>
                       <Link
-                        to={`/customer/material-orders/${row.id}`}
+                        to={`/customer/material-lists/${row.id}`}
                         state={back}
                         className="group flex items-center justify-between gap-4 rounded-xl border border-navy-800/10 bg-white px-5 py-3.5 transition hover:border-copper-300 hover:bg-paper-50"
                       >
@@ -168,7 +168,7 @@ export function CustomerDashboardPage() {
                           {row.title}
                         </span>
                         <Badge tone="mist" className="shrink-0 whitespace-nowrap">
-                          {t(`materialOrder.status.${row.status}`)}
+                          {t(`mrl.status.${row.status}`)}
                         </Badge>
                       </Link>
                     </li>

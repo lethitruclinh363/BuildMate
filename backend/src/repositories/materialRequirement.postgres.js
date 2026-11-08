@@ -125,15 +125,19 @@ const listSelect = `
   st.name AS store_name
 `;
 
+const listFromSql = `
+     FROM material_requirement_lists mrl
+     LEFT JOIN repair_requests rr ON rr.id = mrl.repair_request_id
+     LEFT JOIN users cu ON cu.id = mrl.contractor_user_id
+     JOIN users cust ON cust.id = COALESCE(mrl.customer_user_id, rr.customer_user_id)
+     LEFT JOIN locations loc ON loc.id = rr.location_id
+     LEFT JOIN stores st ON st.id = mrl.store_id
+`;
+
 async function loadList(whereSql, params) {
   const rows = await prisma.$queryRawUnsafe(
     `SELECT ${listSelect}
-     FROM material_requirement_lists mrl
-     JOIN repair_requests rr ON rr.id = mrl.repair_request_id
-     JOIN users cu ON cu.id = mrl.contractor_user_id
-     JOIN users cust ON cust.id = rr.customer_user_id
-     LEFT JOIN locations loc ON loc.id = rr.location_id
-     LEFT JOIN stores st ON st.id = mrl.store_id
+     ${listFromSql}
      WHERE ${whereSql}
      LIMIT 1`,
     ...params
@@ -238,9 +242,9 @@ async function listByContractor(contractorPk) {
            loc.formatted_address AS site_address, loc.latitude AS site_lat, loc.longitude AS site_lng,
            st.legacy_mongo_id AS store_legacy_id, st.name AS store_name
     FROM material_requirement_lists mrl
-    JOIN repair_requests rr ON rr.id = mrl.repair_request_id
-    JOIN users cu ON cu.id = mrl.contractor_user_id
-    JOIN users cust ON cust.id = rr.customer_user_id
+    LEFT JOIN repair_requests rr ON rr.id = mrl.repair_request_id
+    LEFT JOIN users cu ON cu.id = mrl.contractor_user_id
+    JOIN users cust ON cust.id = COALESCE(mrl.customer_user_id, rr.customer_user_id)
     LEFT JOIN locations loc ON loc.id = rr.location_id
     LEFT JOIN stores st ON st.id = mrl.store_id
     WHERE mrl.contractor_user_id = ${pk} AND mrl.parent_list_id IS NULL
@@ -260,12 +264,12 @@ async function listByCustomer(customerPk) {
            loc.formatted_address AS site_address, loc.latitude AS site_lat, loc.longitude AS site_lng,
            st.legacy_mongo_id AS store_legacy_id, st.name AS store_name
     FROM material_requirement_lists mrl
-    JOIN repair_requests rr ON rr.id = mrl.repair_request_id
-    JOIN users cu ON cu.id = mrl.contractor_user_id
-    JOIN users cust ON cust.id = rr.customer_user_id
+    LEFT JOIN repair_requests rr ON rr.id = mrl.repair_request_id
+    LEFT JOIN users cu ON cu.id = mrl.contractor_user_id
+    JOIN users cust ON cust.id = COALESCE(mrl.customer_user_id, rr.customer_user_id)
     LEFT JOIN locations loc ON loc.id = rr.location_id
     LEFT JOIN stores st ON st.id = mrl.store_id
-    WHERE rr.customer_user_id = ${pk} AND mrl.status <> 'CANCELLED'
+    WHERE (mrl.customer_user_id = ${pk} OR rr.customer_user_id = ${pk}) AND mrl.status <> 'CANCELLED'
     ORDER BY mrl.created_at DESC
   `;
   const out = [];
@@ -282,9 +286,9 @@ async function listByStore(storePk) {
            loc.formatted_address AS site_address, loc.latitude AS site_lat, loc.longitude AS site_lng,
            st.legacy_mongo_id AS store_legacy_id, st.name AS store_name
     FROM material_requirement_lists mrl
-    JOIN repair_requests rr ON rr.id = mrl.repair_request_id
-    JOIN users cu ON cu.id = mrl.contractor_user_id
-    JOIN users cust ON cust.id = rr.customer_user_id
+    LEFT JOIN repair_requests rr ON rr.id = mrl.repair_request_id
+    LEFT JOIN users cu ON cu.id = mrl.contractor_user_id
+    JOIN users cust ON cust.id = COALESCE(mrl.customer_user_id, rr.customer_user_id)
     LEFT JOIN locations loc ON loc.id = rr.location_id
     LEFT JOIN stores st ON st.id = mrl.store_id
     WHERE mrl.store_id = ${pk} AND mrl.status IN ('SENT','QUOTED','CONFIRMED','PREPARING','DELIVERING','DELIVERED','CANCELLED')
@@ -295,22 +299,24 @@ async function listByStore(storePk) {
   return out;
 }
 
-async function insertList({ requestPk, contractorPk, note, title, parentPk, status, storePk }) {
+async function insertList({ requestPk, contractorPk, customerPk, note, title, parentPk, status, storePk }) {
   const legacy = newId();
   const reqPk = toBigInt(requestPk);
   const conPk = toBigInt(contractorPk);
+  const custPk = toBigInt(customerPk);
   const parent = parentPk ? toBigInt(parentPk) : null;
   const store = storePk ? toBigInt(storePk) : null;
   const rows = await prisma.$queryRawUnsafe(
     `INSERT INTO material_requirement_lists (
-      legacy_mongo_id, repair_request_id, contractor_user_id, store_id, note, status, parent_list_id, title
+      legacy_mongo_id, repair_request_id, contractor_user_id, customer_user_id, store_id, note, status, parent_list_id, title
     ) VALUES (
-      $1, $2::bigint, $3::bigint, $4::bigint, $5, $6, $7::bigint, $8
+      $1, $2::bigint, $3::bigint, $4::bigint, $5::bigint, $6, $7, $8::bigint, $9
     )
     RETURNING *`,
     legacy,
     reqPk,
     conPk,
+    custPk,
     store,
     text(note, 1000),
     status || 'DRAFT',
@@ -329,6 +335,7 @@ async function cloneList({ sourcePk, parentPk, status, storePk, title, note }) {
   const created = await insertList({
     requestPk: row.repair_request_id,
     contractorPk: row.contractor_user_id,
+    customerPk: row.customer_user_id,
     note: note == null ? row.note : note,
     title: title == null ? row.title : title,
     parentPk: parentPk || row.id,
@@ -627,6 +634,37 @@ async function ensureCustomerSaveSchema() {
   return true;
 }
 
+let directRequestSchemaReady = false;
+
+async function ensureDirectRequestSchema() {
+  if (directRequestSchemaReady) return true;
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE material_requirement_lists
+      ALTER COLUMN repair_request_id DROP NOT NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE material_requirement_lists
+      ALTER COLUMN contractor_user_id DROP NOT NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE material_requirement_lists
+      ADD COLUMN IF NOT EXISTS customer_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS idx_mrl_customer_user
+      ON material_requirement_lists (customer_user_id)
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE material_requirement_lists mrl
+    SET customer_user_id = rr.customer_user_id
+    FROM repair_requests rr
+    WHERE mrl.repair_request_id = rr.id
+      AND mrl.customer_user_id IS NULL
+  `);
+  directRequestSchemaReady = true;
+  return true;
+}
+
 module.exports = {
   newId,
   findByPublicId,
@@ -654,6 +692,7 @@ module.exports = {
   tablesReady,
   ensureFulfillmentConstraint,
   ensureCustomerSaveSchema,
+  ensureDirectRequestSchema,
   loadItems,
   hydrate,
 };

@@ -5,7 +5,6 @@ const adminService = require('../services/adminService');
 const adminUserService = require('../services/adminUserService');
 const catalogService = require('../services/catalogService');
 const materialCategoryService = require('../services/material-category.service');
-const materialOrderService = require('../services/material-order.service');
 const { CATALOG_STATUS } = require('../models/CatalogService');
 
 const stats = asyncHandler(async (_req, res) => {
@@ -23,16 +22,6 @@ const listRepairOrders = asyncHandler(async (_req, res) => {
   return success(res, data, 'Repair orders retrieved');
 });
 
-const listMaterialOrders = asyncHandler(async (req, res) => {
-  const data = await materialOrderService.listAllForAdmin(req.query);
-  return success(res, data, 'Material orders retrieved');
-});
-
-const getMaterialOrder = asyncHandler(async (req, res) => {
-  const data = await materialOrderService.getForAdmin(req.params.id);
-  return success(res, data, 'Material order retrieved');
-});
-
 const getCustomer = asyncHandler(async (req, res) => {
   const data = await adminService.getCustomer(req.params.id);
   return success(res, data, 'Customer retrieved');
@@ -47,12 +36,12 @@ const getOne = asyncHandler(async (req, res) => {
   const data = await adminService.getVerification(req.params.id);
   return success(res, data, 'Application retrieved');
 });
-
+// duyệt hồ sơ
 const approve = asyncHandler(async (req, res) => {
   const data = await adminService.approve(req.params.id, req.user.id);
   return success(res, data, 'Partner approved');
 });
-
+//từ chối hồ sơ 
 const reject = asyncHandler(async (req, res) => {
   const data = await adminService.reject(req.params.id, req.user.id, req.body.reason);
   return success(res, data, 'Partner rejected');
@@ -185,8 +174,6 @@ module.exports = {
   stats,
   listCustomers,
   listRepairOrders,
-  listMaterialOrders,
-  getMaterialOrder,
   getCustomer,
   list,
   getOne,

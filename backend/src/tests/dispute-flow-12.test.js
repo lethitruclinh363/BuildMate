@@ -17,10 +17,8 @@ const {
 } = require('../utils/contractor-finance');
 const { COMPLAINT_STATUS } = require('../models/Complaint');
 const { REVIEW_TARGET } = require('../models/Review');
-const { reviewSchema, materialReviewSchema, complaintSchema } = require('../validators/finance.validator');
+const { reviewSchema, complaintSchema } = require('../validators/finance.validator');
 const { COMPLAINT_TRANSITIONS, otherPartyId } = require('../services/complaintService');
-const { assertMaterialStoreReview } = require('../services/reviewService');
-const { ApiError } = require('../utils/ApiError');
 const { testDatabaseReady } = require('./helpers/pg-cleanup');
 
 const FRONTEND_ROOT = path.resolve(__dirname, '../../../frontend/src');
@@ -68,39 +66,24 @@ describe('Flow 12 contractor review rules', () => {
 });
 
 describe('Flow 12 material store review rules', () => {
-  it('allows a store review only after CUSTOMER_RECEIVED or COMPLETED', () => {
-    const ok = { _id: 'a', customerId: 'c1', storeOwnerId: 's1', status: 'COMPLETED' };
-    assert.doesNotThrow(() => assertMaterialStoreReview(ok, 'c1'));
-    assert.doesNotThrow(() => assertMaterialStoreReview({ ...ok, status: 'CUSTOMER_RECEIVED' }, 'c1'));
-    assert.throws(
-      () => assertMaterialStoreReview({ ...ok, status: 'DELIVERING' }, 'c1'),
-      (err) => err instanceof ApiError && err.statusCode === 409
-    );
-    assert.throws(
-      () => assertMaterialStoreReview({ ...ok, customerId: 'c2' }, 'c1'),
-      (err) => err instanceof ApiError && err.statusCode === 403
-    );
+  it('unmounts new material-order review creation and keeps historical review rows', () => {
+    const service = readBe('services/reviewService.js');
+    const routes = readBe('routes/reviewRoutes.js');
     const schema = fs.readFileSync(path.resolve(__dirname, '../../prisma/schema.prisma'), 'utf8');
+    assert.doesNotMatch(service, /createMaterialStoreReview|assertMaterialStoreReview/);
+    assert.doesNotMatch(routes, /material-orders/);
+    assert.match(service, /listStoreReviews/);
     assert.match(schema, /uq_reviews_material_order/);
-    assert.equal(
-      materialReviewSchema.safeParse({ materialOrderId: '64b0000000000000000000aa', rating: 4 }).success,
-      true
-    );
-    assert.equal(
-      materialReviewSchema.safeParse({ materialOrderId: '64b0000000000000000000aa', rating: 4, materialId: 'x' }).success,
-      false
-    );
+    assert.match(schema, /material_order_id/);
   });
 
-  it('keeps material reviews on a separate API from repair-job reviews', () => {
+  it('keeps independent store reviews without a material-order purchase page', () => {
     const service = readBe('services/reviewService.js');
-    const page = readFe('pages/customer/MaterialOrderDetailPage.tsx');
-    assert.match(service, /createMaterialStoreReview/);
-    assert.match(service, /materialOrderId: order\._id/);
-    assert.match(service, /targetType: REVIEW_TARGET\.MATERIAL_STORE/);
-    assert.match(page, /reviewApi\.createMaterial/);
-    assert.doesNotMatch(page, /complaintApi|\/complaint/);
-    assert.match(service, /link: '\/store\/reviews'/);
+    assert.match(service, /REVIEW_TARGET\.MATERIAL_STORE/);
+    assert.match(service, /listStoreReviews/);
+    assert.match(service, /link: targetType === REVIEW_TARGET\.MATERIAL_STORE \? '\/store\/reviews'/);
+    assert.equal(fs.existsSync(path.join(FRONTEND_ROOT, 'pages/customer/MaterialOrderDetailPage.tsx')), false);
+    assert.equal(fs.existsSync(path.join(FRONTEND_ROOT, 'features/reviews/pages/CreateMaterialReviewPage.tsx')), false);
   });
 });
 
@@ -151,11 +134,9 @@ describe('Flow 12 repair complaints', () => {
   it('does not implement a material-order complaint path', () => {
     const service = readBe('services/complaintService.js');
     const routes = readBe('routes/complaintRoutes.js');
-    const materialPage = readFe('pages/customer/MaterialOrderDetailPage.tsx');
     const schema = fs.readFileSync(path.resolve(__dirname, '../../prisma/schema.prisma'), 'utf8');
     assert.doesNotMatch(service, /materialOrderId|MaterialOrder/);
     assert.doesNotMatch(routes, /material/);
-    assert.doesNotMatch(materialPage, /complaint/);
     assert.doesNotMatch(schema, /model material_complaints/);
   });
 });
@@ -268,7 +249,7 @@ describe('Flow 12 HTTP auth when API is up', () => {
     });
     const admin = await fetch(`${origin}/api/admin/complaints`);
     assert.equal(review.status, 401);
-    assert.equal(material.status, 401);
+    assert.equal(material.status, 404);
     assert.equal(complaint.status, 401);
     assert.equal(admin.status, 401);
   });

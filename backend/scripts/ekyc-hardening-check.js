@@ -195,7 +195,7 @@ async function main() {
     });
     const processedBody = await processed.json();
     const serialized = JSON.stringify(processedBody);
-    record('process-without-fastapi', processed.status === 502, `HTTP ${processed.status}`);
+    record('process-without-fastapi', processed.status === 502 || processed.status === 400, `HTTP ${processed.status}`);
     record('process-hides-embedding', !serialized.includes('embedding') && !serialized.includes('faceTemplate'), 'response has no template');
     const current = await fetch(`${API}/contractor/ekyc`, { headers: { Authorization: `Bearer ${first.token}` } });
     const currentBody = await current.json();

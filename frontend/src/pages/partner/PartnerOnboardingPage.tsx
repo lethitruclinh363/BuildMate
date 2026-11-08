@@ -2,6 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { goBackOrFallback } from '@/lib/navigation';
 import { Check } from 'lucide-react';
+import { LockedAccountFields } from '@/features/operating-hours/LockedAccountFields';
+import { OperatingHoursEditor } from '@/features/operating-hours/OperatingHoursEditor';
+import {
+  normalizeWeeklyHours,
+  unsetHours,
+  weeklyHoursError,
+  type WeeklyHours,
+} from '@/features/operating-hours/weeklyHours';
 import { Logo } from '@/components/brand/Logo';
 import { FormLabel } from '@/components/ui/FormLabel';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
@@ -19,8 +27,11 @@ import {
 import { getDefaultRouteByRole, homeForUser, useAuth } from '@/context/AuthContext';
 import {
   maxReachableStep,
+  mergeCompleted,
   normalizeCompleted,
   pruneCompleted,
+  recoverCompleted,
+  restoreOnboardingStep,
   sameCompleted,
   stepStatus,
 } from '@/pages/partner/onboarding-steps';
@@ -29,6 +40,7 @@ import { cn } from '@/lib/cn';
 import { contractorApi, materialStoreApi, mediaUrl } from '@/lib/partner-api';
 import { ContractorEkycWizard } from '@/features/ekyc/ContractorEkycWizard';
 import { ekycApi, type EkycRecord } from '@/features/ekyc/ekyc.api';
+import { readPartnerNav, writePartnerNav } from '@/features/ekyc/ekycNav';
 import { PartnerOnboardingLocationStep } from '@/features/map/components/PartnerOnboardingLocationStep';
 import { hasCoordinates } from '@/features/map/lib/location';
 import type { LocationSource } from '@/features/map/types';
@@ -37,8 +49,6 @@ import { useToastStore } from '@/store/toast.store';
 import type { ContractorProfile, DocumentType, VerificationDocument } from '@/types/partner';
 import type { ApiResponse } from '@/types/user';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^(03|05|07|08|09)\d{8}$/;
 const DOC_BYTES = 8 * 1024 * 1024;
 const DOC_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 
@@ -58,6 +68,7 @@ type Draft = {
   locationSource?: LocationSource;
   providerRefId?: string | null;
   description: string;
+  weeklyHours: WeeklyHours;
 };
 
 type StoredDraft = Draft & {
@@ -88,6 +99,7 @@ const emptyDraft: Draft = {
   locationSource: undefined,
   providerRefId: undefined,
   description: '',
+  weeklyHours: unsetHours(),
 };
 
 function storageKey(userId: string) {
@@ -138,7 +150,6 @@ export default function PartnerOnboardingPage() {
   const [policyLoading, setPolicyLoading] = useState(false);
   const [policyFailed, setPolicyFailed] = useState(false);
   const [policyNonce, setPolicyNonce] = useState(0);
-  const [phoneRejected, setPhoneRejected] = useState(false);
   const [autoState, setAutoState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [ekyc, setEkyc] = useState<EkycRecord | null>(null);
   const [ekycNonce, setEkycNonce] = useState(0);
@@ -171,17 +182,17 @@ export default function PartnerOnboardingPage() {
       .then((res) => {
         if (cancelled) return;
         const next = res.data.data.profile;
+        setProfile(next);
         const nextLat = next?.lat !== undefined && next?.lat !== null && Number.isFinite(Number(next.lat)) ? Number(next.lat) : null;
         const nextLng = next?.lng !== undefined && next?.lng !== null && Number.isFinite(Number(next.lng)) ? Number(next.lng) : null;
         const base: StoredDraft = {
           businessName: next?.businessName || '',
           representativeName: next?.representativeName || '',
           contactPhone:
-            next?.contactPhone ||
             (typeof currentUser.phoneNumber === 'string' ? currentUser.phoneNumber : '') ||
             currentUser.phone ||
             '',
-          contactEmail: next?.contactEmail || currentUser.email || '',
+          contactEmail: currentUser.email || '',
           workerCount: next?.workerCount ? String(next.workerCount) : '',
           taxCode: next?.taxCode || '',
           yearsExperience: next?.yearsExperience ? String(next.yearsExperience) : '',
@@ -193,6 +204,7 @@ export default function PartnerOnboardingPage() {
           locationSource: next?.locationSource as LocationSource | undefined,
           providerRefId: next?.providerRefId || undefined,
           description: next?.description || '',
+          weeklyHours: normalizeWeeklyHours(next?.weeklyHours),
           services: next?.serviceAreas || [],
           materialCategories: (next?.materialCategories || []).filter(isMaterialCategoryPick),
           crewServices: (next?.services || []).filter(isContractorService),
@@ -205,8 +217,8 @@ export default function PartnerOnboardingPage() {
               ...base,
               ...local,
               representativeName: 'representativeName' in local ? local.representativeName : base.representativeName,
-              contactPhone: 'contactPhone' in local ? local.contactPhone : base.contactPhone,
-              contactEmail: 'contactEmail' in local ? local.contactEmail : base.contactEmail,
+              contactPhone: base.contactPhone,
+              contactEmail: base.contactEmail,
               workerCount: 'workerCount' in local ? local.workerCount : base.workerCount,
               yearsExperience: local.yearsExperience || base.yearsExperience,
               lat: localLat !== undefined ? localLat : base.lat,
@@ -240,21 +252,23 @@ export default function PartnerOnboardingPage() {
           locationSource: source.locationSource,
           providerRefId: source.providerRefId,
           description: source.description,
+          weeklyHours: source.weeklyHours?.configured ? normalizeWeeklyHours(source.weeklyHours) : base.weeklyHours,
         });
         const restoredCategories = source.materialCategories?.length
           ? source.materialCategories
           : picksFromStoredNames(Array.isArray(source.services) ? source.services : []);
         setStoreCategories(restoredCategories);
         setCrewServices(source.crewServices);
-        const initialCompleted = normalizeCompleted(
-          local && Array.isArray(local.completed) ? local.completed : next?.completedSteps
-        );
+        const backendCompleted = normalizeCompleted(next?.completedSteps);
+        const localCompleted = normalizeCompleted(local && Array.isArray(local.completed) ? local.completed : null);
+        const initialCompleted = mergeCompleted(backendCompleted, localCompleted);
         setCompleted(initialCompleted);
         setAgreed(local ? Boolean(source.agreed) : Boolean(initialCompleted[5]));
         setAccurate(local ? Boolean(local.accurate) : Boolean(initialCompleted[5]));
-        const reachable = maxReachableStep(initialCompleted);
-        const wanted = typeof local?.step === 'number' ? local.step : reachable;
-        setStep(Math.max(0, Math.min(wanted, reachable)));
+        const nav = readPartnerNav(currentUser.id);
+        const restored = restoreOnboardingStep(nav?.onboardingStep, local?.step, initialCompleted);
+        setStep(restored);
+        setWizardOpen(nav?.wizardOpen === true && restored === 4);
       })
       .catch((err) => {
         if (!cancelled) setError(getApiErrorMessage(err));
@@ -332,18 +346,10 @@ export default function PartnerOnboardingPage() {
   const yearsOk = draft.yearsExperience !== '' && Number.isInteger(yearsValue) && yearsValue >= 0 && yearsValue <= 80;
   const workersValue = Number(draft.workerCount);
   const workersOk = /^\d+$/.test(draft.workerCount) && workersValue >= 1 && workersValue <= 500;
-  const phoneMessage = phoneRejected
-    ? t('auth.phoneInvalid')
-    : !draft.contactPhone || draft.contactPhone.length !== 10
-      ? t('auth.phoneLength')
-      : PHONE_RE.test(draft.contactPhone)
-        ? ''
-        : t('auth.phoneInvalid');
-  const emailTrim = draft.contactEmail.trim();
-  const emailMessage = !emailTrim ? t('auth.emailRequired') : EMAIL_RE.test(emailTrim) ? '' : t('auth.invalidEmail');
-  const phoneOk = phoneMessage === '';
-  const emailOk = emailMessage === '';
-  const crewOk = nameOk && repOk && phoneOk && emailOk && descriptionOk && yearsOk && workersOk;
+  const phoneOk = Boolean(draft.contactPhone);
+  const emailOk = Boolean(draft.contactEmail);
+  const hoursOk = !weeklyHoursError(draft.weeklyHours);
+  const crewOk = nameOk && repOk && phoneOk && emailOk && descriptionOk && yearsOk && workersOk && hoursOk;
   const rejectedCrewService = !storeOwner && crewServices.some((item) => item.status === 'REJECTED');
   const serviceOk = storeOwner ? storeCategories.length >= 1 && storeCategories.length <= 12 : crewServices.length >= 1 && !rejectedCrewService;
   const avatarOk = Boolean(profile?.portfolio?.avatar);
@@ -361,28 +367,26 @@ export default function PartnerOnboardingPage() {
   const coordsOk = hasCoordinates(draft.lat, draft.lng);
   const locationConfirmedOk = draft.locationConfirmed === true;
   const locationStepOk = addressOk && cityOk && coordsOk && locationConfirmedOk;
-  const verifyOk = storeOwner
-    ? requiredDocs.every((type) => documents.some((doc) => doc.type === type))
-    : requiredDocs.every((type) => documents.some((doc) => doc.type === type)) && ekyc?.status === 'SUBMITTED';
+  const verifyOk = requiredDocs.every((type) => documents.some((doc) => doc.type === type)) && ekyc?.status === 'SUBMITTED';
   const dataValid = useMemo(
     () => [
-      storeOwner ? nameOk && aboutOk : crewOk,
+      storeOwner ? nameOk && aboutOk && hoursOk : crewOk,
       serviceOk,
       imagesOk,
       locationStepOk,
       verifyOk,
       agreed && accurate,
     ],
-    [storeOwner, nameOk, aboutOk, crewOk, serviceOk, imagesOk, locationStepOk, verifyOk, agreed, accurate]
+    [storeOwner, nameOk, aboutOk, hoursOk, crewOk, serviceOk, imagesOk, locationStepOk, verifyOk, agreed, accurate]
   );
-  const settled = useMemo(() => pruneCompleted(completed, dataValid), [completed, dataValid]);
+  const settled = useMemo(() => recoverCompleted(completed, dataValid, step), [completed, dataValid, step]);
 
   useEffect(() => {
     if (!sameCompleted(completed, settled)) setCompleted(settled);
   }, [completed, settled]);
 
   useEffect(() => {
-    if (storeOwner || !currentUser?.id) return undefined;
+    if (!currentUser?.id) return undefined;
     let cancelled = false;
     ekycApi.current()
       .then((row) => {
@@ -394,7 +398,7 @@ export default function PartnerOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [storeOwner, currentUser?.id, ekycNonce]);
+  }, [currentUser?.id, ekycNonce]);
 
   useEffect(() => {
     if (!ready || !profile) return;
@@ -408,10 +412,21 @@ export default function PartnerOnboardingPage() {
   }, [ready, profile, settled, draft.businessName]);
 
   useEffect(() => {
-    if (!ready) return;
-    const max = maxReachableStep(settled);
+    if (!ready || !profile) return;
+    const nav = currentUser?.id ? readPartnerNav(currentUser.id) : null;
+    const max = Math.max(maxReachableStep(settled), nav?.onboardingStep ?? 0);
     if (step > max) setStep(max);
-  }, [ready, settled, step]);
+  }, [ready, profile, settled, step, currentUser?.id]);
+
+  useEffect(() => {
+    if (!ready || !currentUser?.id) return;
+    const current = readPartnerNav(currentUser.id);
+    writePartnerNav(currentUser.id, {
+      onboardingStep: step,
+      wizardOpen,
+      ekycStep: current?.ekycStep || 1,
+    });
+  }, [ready, currentUser?.id, step, wizardOpen]);
 
   const persistPartialRef = useRef<() => Promise<boolean>>(async () => false);
   const projectSync = useRef<(() => Promise<void>) | null>(null);
@@ -459,8 +474,9 @@ export default function PartnerOnboardingPage() {
     if (step === 0 && storeOwner && !aboutOk) return t('auth.onboardAboutRequired');
     if (step === 0 && !storeOwner && !nameOk) return t('auth.onboardTeamRequired');
     if (step === 0 && !storeOwner && !repOk) return t('auth.onboardRepresentativeRequired');
-    if (step === 0 && !storeOwner && phoneMessage) return phoneMessage;
-    if (step === 0 && !storeOwner && emailMessage) return emailMessage;
+    if (step === 0 && !storeOwner && !phoneOk) return t('auth.phoneLength');
+    if (step === 0 && !storeOwner && !emailOk) return t('auth.emailRequired');
+    if (step === 0 && weeklyHoursError(draft.weeklyHours)) return t(weeklyHoursError(draft.weeklyHours));
     if (step === 0 && !storeOwner && !descriptionOk) return t('auth.onboardDescriptionRequired');
     if (step === 0 && !storeOwner && !yearsOk) return t('auth.onboardYearsRequired');
     if (step === 0 && !storeOwner && !workersOk) return t('auth.onboardWorkersRequired');
@@ -482,6 +498,7 @@ export default function PartnerOnboardingPage() {
     if (step === 3 && !cityOk) return t('auth.onboardCityRequired');
     if (step === 3 && !coordsOk) return t('auth.onboardCoordsRequired');
     if (step === 3 && !locationConfirmedOk) return t('auth.onboardLocationConfirmRequired');
+    if (step === 4 && ekyc?.status !== 'SUBMITTED') return t('ekyc.needSubmit');
     if (step === 4 && !cccdFrontOk) return t('auth.onboardCccdFrontRequired');
     if (step === 4 && !cccdBackOk) return t('auth.onboardCccdBackRequired');
     if (step === 4 && !licenseOk) return t('auth.onboardLicenseRequired');
@@ -528,10 +545,12 @@ export default function PartnerOnboardingPage() {
             : !repOk
               ? 'onboard-representativeName'
               : !phoneOk
-                ? 'onboard-contactPhone'
+                ? 'account-phone'
                 : !emailOk
-                  ? 'onboard-contactEmail'
-                  : !descriptionOk
+                  ? 'account-email'
+                  : !hoursOk
+                    ? 'hours-editor'
+                    : !descriptionOk
                     ? 'onboard-description'
                     : !yearsOk
                       ? 'onboard-years'
@@ -557,13 +576,11 @@ export default function PartnerOnboardingPage() {
                     ? 'onboard-city'
                     : 'onboard-confirm-location'
                 : index === 4
-                  ? !cccdFrontOk
-                    ? 'onboard-cccd-front'
-                    : !cccdBackOk
-                      ? 'onboard-cccd-back'
-                      : !licenseOk
-                        ? 'onboard-license'
-                        : 'onboard-certificate'
+                  ? ekyc?.status !== 'SUBMITTED'
+                    ? 'onboard-ekyc'
+                    : !licenseOk
+                      ? 'onboard-license'
+                      : 'onboard-certificate'
                   : !agreed
                     ? 'onboard-terms'
                     : 'onboard-accurate';
@@ -581,8 +598,7 @@ export default function PartnerOnboardingPage() {
       completedSteps: steps,
     };
     if (draft.yearsExperience !== '' && yearsOk) body.yearsExperience = yearsValue;
-    if (phoneOk) body.contactPhone = draft.contactPhone;
-    if (emailOk) body.contactEmail = emailTrim.toLowerCase();
+    body.weeklyHours = draft.weeklyHours;
     if (workersOk) body.workerCount = workersValue;
     if (storeOwner) {
       if (storeCategories.length || full) {
@@ -612,6 +628,7 @@ export default function PartnerOnboardingPage() {
 
   async function persistPartial(steps: boolean[] = settled) {
     if (draft.businessName.trim().length < 2) return false;
+    if (weeklyHoursError(draft.weeklyHours)) return false;
     if (statusRef.current === 'SUBMITTED' || statusRef.current === 'APPROVED') return true;
     setAutoState('saving');
     try {
@@ -754,9 +771,9 @@ export default function PartnerOnboardingPage() {
   const hint = unmetMessage();
 
   return (
-    <div className="min-h-screen bg-paper-100">
-      <header className="sticky top-0 z-20 border-b border-navy-800/8 bg-paper-100/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-paper-100">
+      <header className="z-20 shrink-0 border-b border-navy-800/8 bg-paper-100/90 backdrop-blur">
+        <div className="flex w-full items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-10 2xl:px-14">
           <Logo to={getDefaultRouteByRole(currentUser)} />
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher variant="light" placement="auth-form" />
@@ -767,12 +784,12 @@ export default function PartnerOnboardingPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 py-6 sm:px-6 sm:py-8 lg:px-10 2xl:px-14">
         <p className="text-xs uppercase tracking-[0.24em] text-copper-500">{t('auth.onboardEyebrow')}</p>
         <h1 className="mt-2 font-display text-3xl text-navy-800 sm:text-4xl">{t('auth.onboardTitle')}</h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-400">{t('auth.onboardLead')}</p>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <div className="mt-6 grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:grid-rows-1">
             <nav aria-label={t('auth.onboardEyebrow')} className="lg:sticky lg:top-24 lg:self-start">
               <p className="mb-3 text-sm font-semibold text-navy-800 lg:hidden">
                 {t('auth.onboardProgress', { current: step + 1, total: steps.length })}
@@ -820,7 +837,7 @@ export default function PartnerOnboardingPage() {
               </div>
             </nav>
 
-            <section className="rounded-[28px] border border-navy-800/8 bg-white p-5 shadow-card sm:p-8">
+            <section className="min-h-0 overflow-y-auto overscroll-contain rounded-[28px] border border-navy-800/8 bg-white p-5 shadow-card sm:p-8">
               {profile?.verificationStatus === 'REJECTED' && profile.rejectionReason ? (
                 <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
                   {t('auth.onboardRejected')}: {profile.rejectionReason}
@@ -863,39 +880,9 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.representativeName && !repOk ? <span className="mt-1 block text-xs font-normal text-red-600">{t('auth.onboardRepresentativeRequired')}</span> : null}
                   </label>
-                  <label className="block">
-                    <FormLabel required>{t('auth.phone')}</FormLabel>
-                    <input
-                      id="onboard-contactPhone"
-                      className={inputClass(phoneOk, Boolean(touched.contactPhone))}
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="tel"
-                      maxLength={16}
-                      placeholder={t('auth.phonePlaceholder')}
-                      value={draft.contactPhone}
-                      onChange={(event) => {
-                        const raw = event.target.value;
-                        const digits = raw.replace(/\D/g, '').slice(0, 10);
-                        setPhoneRejected(/\D/.test(raw) && !PHONE_RE.test(digits));
-                        patch('contactPhone', digits);
-                      }}
-                    />
-                    {touched.contactPhone && !phoneOk ? <span className="mt-1 block text-xs font-normal text-red-600">{phoneMessage}</span> : null}
-                  </label>
-                  <label className="block">
-                    <FormLabel required>{t('auth.email')}</FormLabel>
-                    <input
-                      id="onboard-contactEmail"
-                      className={inputClass(emailOk, Boolean(touched.contactEmail))}
-                      type="email"
-                      autoComplete="email"
-                      maxLength={120}
-                      value={draft.contactEmail}
-                      onChange={(event) => patch('contactEmail', event.target.value)}
-                    />
-                    {touched.contactEmail && !emailOk ? <span className="mt-1 block text-xs font-normal text-red-600">{emailMessage}</span> : null}
-                  </label>
+                  <div className="sm:col-span-2">
+                    <LockedAccountFields phone={draft.contactPhone} email={draft.contactEmail} />
+                  </div>
                   <label className="block sm:col-span-2">
                     <FormLabel required>{t('auth.onboardDescription')}</FormLabel>
                     <textarea
@@ -942,6 +929,10 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.workerCount && !workersOk ? <span className="mt-1 block text-xs font-normal text-red-600">{t('auth.onboardWorkersRequired')}</span> : null}
                   </label>
+                  <OperatingHoursEditor
+                    value={draft.weeklyHours}
+                    onChange={(weeklyHours) => patch('weeklyHours', weeklyHours)}
+                  />
                   {autoState !== 'idle' ? (
                     <p className="text-xs font-semibold text-ink-400 sm:col-span-2">
                       {autoState === 'saving' ? t('auth.onboardSaving') : t('auth.onboardAutoSaved')}
@@ -979,6 +970,11 @@ export default function PartnerOnboardingPage() {
                     />
                     {touched.description && !aboutOk ? <span className="mt-1 block text-xs text-red-600">{t('auth.onboardAboutRequired')}</span> : null}
                   </label>
+                  <LockedAccountFields phone={draft.contactPhone} email={draft.contactEmail} />
+                  <OperatingHoursEditor
+                    value={draft.weeklyHours}
+                    onChange={(weeklyHours) => patch('weeklyHours', weeklyHours)}
+                  />
                 </div>
               ) : null}
 
@@ -1003,7 +999,7 @@ export default function PartnerOnboardingPage() {
               ) : null}
 
               {step === 1 && storeOwner ? (
-                <div className={cn('mt-5', touched.services && !serviceOk && 'rounded-xl ring-1 ring-red-400')}>
+                <div className="mt-5">
                   <p className="mb-3">
                     <FormLabel required>{steps[1].label}</FormLabel>
                   </p>
@@ -1102,52 +1098,17 @@ export default function PartnerOnboardingPage() {
                 <div id="onboard-docs" tabIndex={-1} className="mt-5 space-y-6">
                   <section className="space-y-3">
                     <h3 className="text-sm font-semibold text-navy-800">{t('docType.ID_CARD')}</h3>
-                    {storeOwner ? (
-                      <>
-                    <VerifySlot
-                      id="onboard-cccd-front"
-                      kind="store"
-                      required
-                      error={touched.documents && !cccdFrontOk ? t('auth.onboardCccdFrontRequired') : ''}
-                      title={t('docType.CCCD_FRONT')}
-                      doc={docByType('CCCD_FRONT')}
-                      busy={busy}
-                      uploadLabel={t('auth.onboardDoc')}
-                      uploadedLabel={t('auth.onboardDocUploaded')}
-                      missingLabel={t('auth.onboardDocMissing')}
-                      removeLabel={t('common.remove')}
-                      onUpload={(list) => void uploadFiles(list, 'CCCD_FRONT', false)}
-                      onRemove={(id) => void removeDoc(id)}
-                    />
-                    <VerifySlot
-                      id="onboard-cccd-back"
-                      kind="store"
-                      required
-                      error={touched.documents && !cccdBackOk ? t('auth.onboardCccdBackRequired') : ''}
-                      title={t('docType.CCCD_BACK')}
-                      doc={docByType('CCCD_BACK')}
-                      busy={busy}
-                      uploadLabel={t('auth.onboardDoc')}
-                      uploadedLabel={t('auth.onboardDocUploaded')}
-                      missingLabel={t('auth.onboardDocMissing')}
-                      removeLabel={t('common.remove')}
-                      onUpload={(list) => void uploadFiles(list, 'CCCD_BACK', false)}
-                      onRemove={(id) => void removeDoc(id)}
-                    />
-                      </>
-                    ) : (
-                      <div className="space-y-3 rounded-2xl border border-navy-800/10 p-4">
-                        <p className="text-sm text-ink-500">{t('ekyc.intro')}</p>
-                        <p className="text-sm font-semibold text-navy-800">
-                          {t('ekyc.statusLabel')}: {ekyc?.status || 'NOT_STARTED'}
-                        </p>
-                        {ekyc?.retakeReason ? <p className="text-sm text-navy-800">{ekyc.retakeReason}</p> : null}
-                        {touched.documents && ekyc?.status !== 'SUBMITTED' ? <p className="text-xs text-red-600">{t('ekyc.needSubmit')}</p> : null}
-                        <button type="button" className="rounded-full bg-navy-800 px-4 py-2 text-sm font-semibold text-white" onClick={() => setWizardOpen(true)}>
-                          {t('ekyc.open')}
-                        </button>
-                      </div>
-                    )}
+                    <div id="onboard-ekyc" tabIndex={-1} className="space-y-3 rounded-2xl border border-navy-800/10 p-4">
+                      <p className="text-sm text-ink-500">{t('ekyc.intro')}</p>
+                      <p className="text-sm font-semibold text-navy-800">
+                        {t('ekyc.statusLabel')}: {t(`ekyc.aiStatus.${ekyc?.status || 'NOT_STARTED'}`)}
+                      </p>
+                      {ekyc?.retakeReason ? <p className="text-sm text-navy-800">{ekyc.retakeReason}</p> : null}
+                      {touched.documents && ekyc?.status !== 'SUBMITTED' ? <p className="text-xs text-red-600">{t('ekyc.needSubmit')}</p> : null}
+                      <button type="button" className="rounded-full bg-navy-800 px-4 py-2 text-sm font-semibold text-white" onClick={() => setWizardOpen(true)}>
+                        {t('ekyc.open')}
+                      </button>
+                    </div>
                   </section>
                   <section className="space-y-3">
                     <h3 className="text-sm font-semibold text-navy-800">{t('docType.BUSINESS_LICENSE')}</h3>
@@ -1299,17 +1260,30 @@ export default function PartnerOnboardingPage() {
             </section>
           </div>
       </main>
-      {wizardOpen && !storeOwner ? (
+      {wizardOpen ? (
         <ContractorEkycWizard
           t={t}
+          userId={currentUser?.id || ''}
+          onboardingStep={step}
           onClose={() => {
             setWizardOpen(false);
+            if (currentUser?.id) {
+              writePartnerNav(currentUser.id, {
+                onboardingStep: step,
+                wizardOpen: false,
+                ekycStep: readPartnerNav(currentUser.id)?.ekycStep || 1,
+              });
+            }
             setEkycNonce((value) => value + 1);
           }}
-          onFinished={async () => {
+          onFinished={async (record) => {
             setWizardOpen(false);
+            if (currentUser?.id) {
+              writePartnerNav(currentUser.id, { onboardingStep: step, wizardOpen: false, ekycStep: 6 });
+            }
+            setEkyc(record);
             setEkycNonce((value) => value + 1);
-            const res = await contractorApi.getProfile();
+            const res = await partnerApi.getProfile();
             setProfile(res.data.data);
           }}
         />

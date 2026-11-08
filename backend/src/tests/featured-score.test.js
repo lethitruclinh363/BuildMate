@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const {
   ratingScore,
   contractorFeaturedScore,
+  storeFeaturedScore,
   isEligibleProvider,
   selectFeatured,
 } = require('../services/featuredScore');
@@ -95,5 +96,28 @@ describe('featured provider ranking', () => {
     const picked = selectFeatured([...quiet, proven], contractorFeaturedScore);
     assert.equal(picked.mode, 'featured');
     assert.equal(picked.items[0].name, 'Proven');
+  });
+
+  it('ranks material stores by reviews and catalog size, not material-order history', () => {
+    const catalog = {
+      verificationStatus: 'APPROVED',
+      storeStatus: 'LIVE',
+      accountStatus: 'ACTIVE',
+      profileCompleteness: 80,
+      averageRating: 4.6,
+      reviewCount: 12,
+      globalAverageRating: 4,
+      productCount: 18,
+      completedOrders: 99,
+      acceptedOrders: 99,
+      cancelled: 0,
+      complaints: 0,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+    const withOrders = storeFeaturedScore(catalog);
+    const withoutOrders = storeFeaturedScore({ ...catalog, completedOrders: 0, acceptedOrders: 0 });
+    assert.equal(withOrders, withoutOrders);
+    const emptyCatalog = storeFeaturedScore({ ...catalog, productCount: 0, reviewCount: 0, averageRating: 0 });
+    assert.ok(withOrders > emptyCatalog);
   });
 });

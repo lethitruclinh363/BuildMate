@@ -18,6 +18,7 @@ const activationService = require('./activation.service');
 const contractorEkycService = require('./contractorEkycService');
 const { assertCanReadVerificationDoc } = require('../utils/verification-docs');
 const verificationStorage = require('./verificationStorage');
+const { normalizeWeeklyHours, summarizeWeeklyHours, hoursStatus, toOperatingHours } = require('../utils/weeklyHours');
 
 function customerPublic(user, city = '') {
   return {
@@ -139,13 +140,63 @@ async function listVerifications(status) {
   });
 }
 
+function publicStoreSummary(store, weeklyHours) {
+  if (!store) return null;
+  const pub = store.toPublic();
+  const hours = normalizeWeeklyHours(weeklyHours);
+  return {
+    id: pub.id,
+    name: pub.name,
+    description: pub.description,
+    phone: pub.phone,
+    address: pub.address,
+    city: pub.city,
+    storeType: pub.storeType,
+    coverImage: pub.coverImage,
+    avatar: pub.avatar,
+    logo: pub.logo,
+    gallery: pub.gallery || [],
+    crewPhotos: pub.crewPhotos || [],
+    showroomNote: pub.showroomNote,
+    deliveryNote: pub.deliveryNote,
+    deliveryEnabled: Boolean(pub.deliveryEnabled),
+    serviceAreas: pub.serviceAreas || [],
+    serviceRadiusKm: pub.serviceRadiusKm,
+    openingHours: hours.configured ? summarizeWeeklyHours(hours) : '',
+    weeklyHours: hours,
+    operatingHours: toOperatingHours(hours),
+    hoursStatus: hoursStatus(hours),
+    status: pub.status,
+    rating: pub.rating,
+    reviewCount: pub.reviewCount,
+    materialRating: pub.materialRating,
+    materialReviewCount: pub.materialReviewCount,
+    lat: pub.lat,
+    lng: pub.lng,
+  };
+}
+
+function publicMaterialSummary(row) {
+  const pub = row.toPublic();
+  return {
+    id: pub.id,
+    name: pub.name,
+    category: pub.category,
+    unit: pub.unit,
+    price: pub.price,
+    image: pub.image,
+    isActive: pub.isActive,
+    saleState: pub.saleState,
+  };
+}
+
 async function getVerification(id) {
   const profile = await ContractorProfile.findById(id).populate(
     'userId',
     'name email phone avatar status role'
   );
   if (!profile) throw new ApiError(404, 'Partner application not found');
-  const { Service } = require('../repositories/offeringAccess');
+  const { Service, Material } = require('../repositories/offeringAccess');
   const userId = profile.userId?._id || profile.userId;
   const offerings = userId ? await Service.find({ contractorId: userId }).select('catalogKey name completionStatus') : [];
   const completionByKey = new Map();
@@ -162,6 +213,11 @@ async function getVerification(id) {
   if (snapshot) published.publicProfile = snapshot;
   const activation = userId ? await activationService.getActivationReadiness(userId) : null;
   const ekycMap = userId ? await contractorEkycService.publicByUserIds([userId]) : new Map();
+  const store = userId ? await Store.findOne({ contractorId: userId }) : null;
+  const isMaterialOwner =
+    profile.userId?.role === ROLES.MATERIAL_STORE_OWNER || store?.storeType === STORE_TYPE.MATERIALS;
+  const materialRows =
+    store && isMaterialOwner ? await Material.find({ storeId: store._id }).sort({ createdAt: -1 }).limit(40) : [];
 
   return {
     activation,
@@ -171,6 +227,8 @@ async function getVerification(id) {
       ...item,
       completionStatus: completionByKey.get(String(item.serviceId || '')) || completionByKey.get(String(item.name || '')) || null,
     })),
+    store: publicStoreSummary(store, profile.weeklyHours),
+    materials: materialRows.map(publicMaterialSummary),
     user: profile.userId
       ? {
           id: profile.userId._id,
@@ -201,7 +259,7 @@ async function openDocumentFile(profileId, documentId, actor) {
   }
   return verificationStorage.openFromUrl(doc.url, doc.mimeType);
 }
-
+//function approve
 async function approve(id, adminId) {
   const profile = await ContractorProfile.findById(id);
   if (!profile) throw new ApiError(404, 'Partner application not found');
