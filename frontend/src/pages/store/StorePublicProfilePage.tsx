@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { BadgeCheck, MapPin, Star } from 'lucide-react';
 import { LockedAccountFields } from '@/features/operating-hours/LockedAccountFields';
@@ -22,7 +22,6 @@ import { useHashFocus } from '@/components/partner/useHashFocus';
 import { PartnerLocationSection } from '@/features/map/components/PartnerLocationSection';
 import { storeLocationPatch } from '@/features/map/lib/location';
 import type { MapOrigin } from '@/features/map/hooks/useCurrentLocation';
-import { ServiceAreaMap } from '@/pages/public/ServiceAreaMap';
 import { StoreProfileShowcase } from '@/pages/public/StoreProfileShowcase';
 import {
   categoryDisplayLabel,
@@ -105,6 +104,7 @@ export function StorePublicProfilePage() {
   const [categoryError, setCategoryError] = useState('');
   const [categoryBusy, setCategoryBusy] = useState(false);
   const [viewer, setViewer] = useState<{ slides: ViewerSlide[]; index: number } | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const id = hash.replace(/^#/, '');
@@ -365,14 +365,28 @@ export function StorePublicProfilePage() {
               frameClassName="aspect-[2/1] sm:aspect-[21/8]"
               onOpen={profile.coverImage ? () => openSlides([{ src: profile.coverImage, alt: t('storePublic.cover') }], 0) : undefined}
               empty={
-                <div className="absolute inset-0 grid place-items-center bg-navy-800 text-sm font-semibold text-white/80">
+                <button
+                  type="button"
+                  className="absolute inset-0 grid place-items-center bg-navy-800 text-sm font-semibold text-white/80 hover:bg-navy-800/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white"
+                  onClick={() => coverInputRef.current?.click()}
+                  aria-label={t('storePublic.addCover')}
+                >
                   {t('storePublic.addCover')}
-                </div>
+                </button>
               }
             />
             <label className="absolute bottom-3 right-3 z-[3] cursor-pointer rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy-800 shadow-card">
               {t('storePublic.changeCover')}
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => void pickImage('coverImage', event.target.files?.[0])} />
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(event) => {
+                  void pickImage('coverImage', event.currentTarget.files?.[0]);
+                  event.currentTarget.value = '';
+                }}
+              />
             </label>
           </div>
           <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -485,11 +499,12 @@ export function StorePublicProfilePage() {
           )}
         </Block>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid items-stretch gap-4 lg:grid-cols-2 xl:grid-cols-3">
           <Block
             id="public-contact"
             title={t('storePublic.contactTitle')}
             hint={t('storePublic.contactHint')}
+            className="h-full"
             action={<TextButton onClick={() => setEditing(editing === 'contact' ? null : 'contact')}>{editing === 'contact' ? t('publicProfile.doneSection') : t('storePublic.edit')}</TextButton>}
           >
             {editing === 'contact' ? (
@@ -510,6 +525,7 @@ export function StorePublicProfilePage() {
             id="address"
             title={t('storePublic.addressTitle')}
             hint={t('storePublic.addressHint')}
+            className="h-full"
             action={<TextButton onClick={() => setEditing(editing === 'address' ? null : 'address')}>{editing === 'address' ? t('publicProfile.doneSection') : t('storePublic.edit')}</TextButton>}
           >
             {editing === 'address' ? (
@@ -529,34 +545,14 @@ export function StorePublicProfilePage() {
                     {t('storePublic.map')}
                   </a>
                 ) : null}
-                {profile.areaCenter ? (
-                  <div className="mt-4 overflow-hidden rounded-2xl">
-                    <ServiceAreaMap lat={profile.areaCenter.lat} lng={profile.areaCenter.lng} radiusKm={profile.serviceRadiusKm || 5} />
-                  </div>
-                ) : null}
               </div>
-            )}
-          </Block>
-
-          <Block
-            id="working-hours"
-            title={t('storePublic.hoursTitle')}
-            hint={t('storePublic.hoursHint')}
-            action={<TextButton onClick={() => setEditing(editing === 'hours' ? null : 'hours')}>{editing === 'hours' ? t('publicProfile.doneSection') : t('storePublic.edit')}</TextButton>}
-          >
-            {editing === 'hours' ? (
-              <OperatingHoursEditor
-                value={normalizeWeeklyHours(profile.weeklyHours)}
-                onChange={(weeklyHours) => setField('weeklyHours', weeklyHours)}
-              />
-            ) : (
-              <OperatingHoursDisplay hours={normalizeWeeklyHours(profile.weeklyHours)} />
             )}
           </Block>
 
           <Block
             title={t('storePublic.areasTitle')}
             hint={t('storePublic.areasHint')}
+            className="h-full"
             action={<TextButton onClick={() => setEditing(editing === 'areas' ? null : 'areas')}>{editing === 'areas' ? t('publicProfile.doneSection') : t('storePublic.edit')}</TextButton>}
           >
             {editing === 'areas' ? (
@@ -571,6 +567,24 @@ export function StorePublicProfilePage() {
               <p className="text-sm text-ink-500">{t('storePublic.noArea')}</p>
             )}
           </Block>
+
+          <div className="xl:col-span-3">
+            <Block
+              id="working-hours"
+              title={t('storePublic.hoursTitle')}
+              hint={t('storePublic.hoursHint')}
+              action={<TextButton onClick={() => setEditing(editing === 'hours' ? null : 'hours')}>{editing === 'hours' ? t('publicProfile.doneSection') : t('storePublic.edit')}</TextButton>}
+            >
+              {editing === 'hours' ? (
+                <OperatingHoursEditor
+                  value={normalizeWeeklyHours(profile.weeklyHours)}
+                  onChange={(weeklyHours) => setField('weeklyHours', weeklyHours)}
+                />
+              ) : (
+                <OperatingHoursDisplay hours={normalizeWeeklyHours(profile.weeklyHours)} />
+              )}
+            </Block>
+          </div>
         </div>
 
         <Card hover={false}>
@@ -761,10 +775,10 @@ export function StorePublicProfilePage() {
   );
 }
 
-function Block({ id, title, hint, action, children }: { id?: string; title: string; hint?: string; action?: ReactNode; children: ReactNode }) {
+function Block({ id, title, hint, action, children, className }: { id?: string; title: string; hint?: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <div id={id} className={id ? 'section-anchor' : undefined}>
-    <Card hover={false}>
+    <Card hover={false} className={className}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-display text-xl text-navy-800">{title}</h2>
@@ -816,6 +830,8 @@ function PhotoSlot({
   onPick: (file: File | undefined) => void;
   onClear?: () => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
   return (
     <Card hover={false} className="min-w-0">
       <p className="text-sm font-semibold text-navy-800">{label}</p>
@@ -826,13 +842,31 @@ function PhotoSlot({
           fit={fit}
           frameClassName="aspect-[4/3] rounded-2xl"
           onOpen={onOpen}
-          empty={<span className="absolute inset-0 grid place-items-center px-4 text-center text-sm text-ink-400">{empty}</span>}
+          empty={
+            <button
+              type="button"
+              className="absolute inset-0 grid place-items-center px-4 text-center text-sm text-ink-500 transition hover:bg-navy-800/5 hover:text-navy-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-navy-800"
+              onClick={() => inputRef.current?.click()}
+              aria-label={changeLabel}
+            >
+              {empty}
+            </button>
+          }
         />
       </div>
       <div className="mt-3 flex flex-wrap gap-3">
         <label className="cursor-pointer text-sm font-semibold text-navy-800 underline">
           {changeLabel}
-          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => onPick(event.target.files?.[0])} />
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(event) => {
+              onPick(event.currentTarget.files?.[0]);
+              event.currentTarget.value = '';
+            }}
+          />
         </label>
         {onClear ? (
           <button type="button" className="text-sm font-semibold text-red-600" onClick={onClear}>{removeLabel}</button>
