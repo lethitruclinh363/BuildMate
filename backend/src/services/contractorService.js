@@ -224,6 +224,9 @@ async function addDocument(userId, file, type) {
   if (!file?.url) throw new ApiError(400, 'Choose a file to upload');
 
   const mime = resolvedMime(file);
+  if (type === DOCUMENT_TYPE.STORE_IMAGE && (file.size > 8 * 1024 * 1024 || !IMAGE_MIME.has(mime))) {
+    throw new ApiError(400, 'The file format or size is not valid.');
+  }
   if (VERIFY_SINGLETONS.has(type)) {
     if (file.size > 8 * 1024 * 1024 || !VERIFY_MIME.has(mime)) {
       throw new ApiError(400, 'The file format or size is not valid.');
