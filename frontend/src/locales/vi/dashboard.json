@@ -759,9 +759,15 @@
     "closedNow": "Đã đóng cửa",
     "unset": "Chưa cập nhật giờ hoạt động",
     "today": "Hôm nay ({day})",
+<<<<<<< HEAD
     "copy": "Sao chép",
     "copyHint": "Sao chép khung giờ này sang các ngày đang mở cửa",
     "timeRequired": "Ngày hoạt động phải có giờ mở cửa và giờ đóng cửa.",
+=======
+    "timeRequired": "Ngày hoạt động phải có giờ mở cửa và giờ đóng cửa.",
+    "invalidTime": "Nhập giờ theo định dạng HH:mm, ví dụ 07:30.",
+    "openBeforeClose": "Giờ mở cửa phải trước giờ đóng cửa.",
+>>>>>>> main
     "closeAfterOpen": "Giờ đóng cửa phải sau giờ mở cửa.",
     "accountLockedHint": "Số điện thoại và Email được lấy từ tài khoản đã đăng ký và không thể chỉnh sửa tại đây.",
     "days": {

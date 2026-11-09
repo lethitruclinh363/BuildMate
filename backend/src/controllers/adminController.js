@@ -36,12 +36,12 @@ const getOne = asyncHandler(async (req, res) => {
   const data = await adminService.getVerification(req.params.id);
   return success(res, data, 'Application retrieved');
 });
-
+// duyệt hồ sơ
 const approve = asyncHandler(async (req, res) => {
   const data = await adminService.approve(req.params.id, req.user.id);
   return success(res, data, 'Partner approved');
 });
-
+//từ chối hồ sơ 
 const reject = asyncHandler(async (req, res) => {
   const data = await adminService.reject(req.params.id, req.user.id, req.body.reason);
   return success(res, data, 'Partner rejected');

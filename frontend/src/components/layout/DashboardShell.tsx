@@ -105,6 +105,7 @@ export function DashboardShell({
     <>
       <div className={cn('flex items-center justify-between px-4', theme.dense ? 'h-14' : 'h-16')}>
         <Logo inverted compact={collapsed && !mobileOpen} to={dashboardPath} />
+<<<<<<< HEAD
         <button
           type="button"
           onClick={() => (mobileOpen ? setMobileOpen(false) : setCollapsed((v) => !v))}
@@ -113,6 +114,18 @@ export function DashboardShell({
         >
           {mobileOpen ? <X className="h-4 w-4" /> : collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
+=======
+        {mobileOpen || variant !== 'store' ? (
+          <button
+            type="button"
+            onClick={() => (mobileOpen ? setMobileOpen(false) : setCollapsed((v) => !v))}
+            className="rounded-full bg-white/10 p-1.5 hover:bg-white/15"
+            aria-label={t('header.toggleSidebar')}
+          >
+            {mobileOpen ? <X className="h-4 w-4" /> : collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        ) : null}
+>>>>>>> main
       </div>
       <nav className={cn('flex-1 space-y-1 overflow-y-auto px-3 py-3', theme.dense && 'py-2')}>
         {items.map((item, index) => {
