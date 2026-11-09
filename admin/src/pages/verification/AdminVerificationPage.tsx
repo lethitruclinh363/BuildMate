@@ -71,11 +71,11 @@ function docTitle(type: DocumentType, translate: (key: string) => string) {
 function countStatus(rows: PartnerApplication[], status: VerificationStatus) {
   return rows.filter((row) => row.verificationStatus === status).length;
 }
-
+//Nhận vai trò đối tác cần xét duyệt
 export function AdminVerificationPage({ actor }: { actor: Actor }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation();//giao dịch anh -việt
   const [params] = useSearchParams();
-  const requestedId = params.get('id');
+  const requestedId = params.get('id');//Lấy ID hồ sơ nếu URL có truyền vào.
   const [status, setStatus] = useState<VerificationStatus | ''>(requestedId ? '' : 'SUBMITTED');
   const [selectedId, setSelectedId] = useState<string | null>(requestedId);
   const [reason, setReason] = useState('');

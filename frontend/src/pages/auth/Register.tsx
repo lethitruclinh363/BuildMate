@@ -164,6 +164,8 @@ export default function Register() {
       return;
     }
 
+
+
     const submitRole = parseRegisterRole(params.get('role'));
 
     setLoading(true);

@@ -189,16 +189,15 @@ function otpEmailHtml({ name, otp, purpose = 'verify' }) {
     ? 'Đặt lại mật khẩu'
     : 'Xác thực email';
 
-  const validity = 'Mã có hiệu lực trong <strong>5 phút</strong> và chỉ sử dụng được một lần.';
   const intro = isReset
-    ? `Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới. ${validity}`
-    : `Cảm ơn bạn đã đăng ký tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới để xác thực email. ${validity}`;
+    ? 'Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới. Mã có hiệu lực <strong>5 phút</strong> và chỉ sử dụng một lần.'
+    : 'Cảm ơn bạn đã đăng ký tài khoản <strong>BuildMate</strong>. Dùng mã bên dưới để xác thực email. Mã có hiệu lực <strong>5 phút</strong> và chỉ sử dụng một lần.';
 
   const label = isReset
     ? 'MÃ ĐẶT LẠI MẬT KHẨU'
     : 'MÃ XÁC THỰC';
 
-  const note = 'Vì an toàn tài khoản, tuyệt đối không chia sẻ mã này với bất kỳ ai.';
+  const note = 'Vì an toàn cho tài khoản, tuyệt đối không cung cấp mã này với bất kì ai';
 
   const safeOtp = escapeHtml(otp);
 
@@ -258,7 +257,8 @@ function otpEmailHtml({ name, otp, purpose = 'verify' }) {
 function buildOtpEmail({ name, otp, purpose = 'verify' }) {
   const isReset = purpose === 'reset';
 
-  const safetyNotice = 'Vì an toàn tài khoản, tuyệt đối không chia sẻ mã này với bất kỳ ai.';
+  const safetyNotice =
+    'Vì an toàn cho tài khoản, tuyệt đối không cung cấp mã này với bất kì ai';
 
   const subject = isReset
     ? 'BuildMate — mã đặt lại mật khẩu'
@@ -269,14 +269,14 @@ function buildOtpEmail({ name, otp, purpose = 'verify' }) {
 
 Xin chào ${name || ''},
 Mã đặt lại mật khẩu: ${otp}
-Mã có hiệu lực trong 5 phút và chỉ sử dụng được một lần.
+Mã hết hạn sau 5 phút và chỉ sử dụng một lần.
 
 ${safetyNotice}`
     : `BuildMate
 
 Xin chào ${name || ''},
 Mã xác thực của bạn là: ${otp}
-Mã có hiệu lực trong 5 phút và chỉ sử dụng được một lần.
+Mã hết hạn sau 5 phút và chỉ sử dụng một lần.
 
 ${safetyNotice}`;
 
