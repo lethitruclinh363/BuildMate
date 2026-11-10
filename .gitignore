@@ -78,3 +78,6 @@ backend/query_users.cjs
 *.tmp
 *.bak
 *.temp
+
+# Ignore project documentation - keep local only
+/docs/
