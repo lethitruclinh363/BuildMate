@@ -51,7 +51,7 @@ export function ExplorePopup({
   const paths = usePartnerPaths();
   const point = placePoint(place);
   const name = place.businessName || place.storeName;
-  const distance = formatDistance(place.distanceMeters ?? place.distance * 1000);
+  const distance = formatDistance(place.distanceMeters ?? place.distance * 1000);//View Provider Distance and Service Range
   const categories = [...new Set(place.services.map((service) => catalogCategoryLabel(service.category, t)))].slice(0, 4);
   const materials = kind === 'store' ? materialLine(place, t) : '';
   const profilePath = kind === 'contractor' ? paths.contractor(place.contractorId) : paths.store(place.id);
@@ -130,7 +130,7 @@ export function ExplorePopup({
           </div>
         ) : null}
       </div>
-
+{/* View Provider Information */}
       <div className="mt-4 grid grid-cols-3 gap-2">
         <Button asChild size="sm" className="h-10 min-h-10 px-2">
           <Link to={profilePath} state={back}>{kind === 'contractor' ? t('explore.viewProfile') : t('explore.viewStore')}</Link>

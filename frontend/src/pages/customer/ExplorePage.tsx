@@ -439,6 +439,7 @@ return (
         mobilePane={mobilePane}
         list={listPane}
         map={
+          // Hiển thị bản đồ
           <MapView
             origin={origin}
             radiusKm={filters.radius}
