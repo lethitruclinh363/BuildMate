@@ -233,15 +233,9 @@ const KNOWN_API_ERRORS: Record<string, { vi: string; en: string }> = {
     vi: 'Giờ đóng cửa phải sau giờ mở cửa.',
     en: 'Closing time must be after opening time.',
   },
-<<<<<<< HEAD
-  'Choose opening and closing times in 15-minute steps': {
-    vi: 'Hãy chọn giờ mở cửa và đóng cửa theo bước 15 phút.',
-    en: 'Choose opening and closing times in 15-minute steps.',
-=======
   'Choose valid opening and closing times': {
     vi: 'Hãy chọn giờ mở cửa và đóng cửa hợp lệ.',
     en: 'Choose valid opening and closing times.',
->>>>>>> main
   },
   'Operating hours must include all 7 days': {
     vi: 'Giờ hoạt động phải gồm đủ 7 ngày trong tuần.',

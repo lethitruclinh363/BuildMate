@@ -550,25 +550,6 @@ export function StorePublicProfilePage() {
           </Block>
 
           <Block
-<<<<<<< HEAD
-            id="working-hours"
-            title={t('storePublic.hoursTitle')}
-            hint={t('storePublic.hoursHint')}
-            action={<TextButton onClick={() => setEditing(editing === 'hours' ? null : 'hours')}>{editing === 'hours' ? t('publicProfile.doneSection') : t('storePublic.edit')}</TextButton>}
-          >
-            {editing === 'hours' ? (
-              <OperatingHoursEditor
-                value={normalizeWeeklyHours(profile.weeklyHours)}
-                onChange={(weeklyHours) => setField('weeklyHours', weeklyHours)}
-              />
-            ) : (
-              <OperatingHoursDisplay hours={normalizeWeeklyHours(profile.weeklyHours)} />
-            )}
-          </Block>
-
-          <Block
-=======
->>>>>>> main
             title={t('storePublic.areasTitle')}
             hint={t('storePublic.areasHint')}
             className="h-full"

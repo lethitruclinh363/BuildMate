@@ -8,9 +8,6 @@ import { DashboardSkeleton } from '@/components/dashboard/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Card } from '@/components/ui/Card';
-<<<<<<< HEAD
-import { catalogPickLabel, catalogServiceLabel } from '@/data/contractor-services';
-=======
 import { VerificationDocThumb } from '@/components/partner/VerificationDocThumb';
 
 import {
@@ -18,9 +15,7 @@ import {
   catalogServiceLabel,
 } from '@/data/contractor-services';
 
->>>>>>> main
 import { useContractorWorkspace } from '@/hooks/useContractorWorkspace';
-import { VerificationDocThumb } from '@/components/partner/VerificationDocThumb';
 import { mediaUrl } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
 
@@ -262,47 +257,7 @@ export function ContractorVerificationPage() {
           )}
         </Card>
 
-<<<<<<< HEAD
-        <Card hover={false}>
-          <h2 className="font-display text-xl text-navy-800">{t('verify.photosSection')}</h2>
-          {photos.length ? (
-            <ul className="mt-4 grid gap-3 sm:grid-cols-3">
-              {photos.map((photo) => (
-                <li key={photo.key}>
-                  <img src={mediaUrl(photo.src)} alt={photo.label} className="h-36 w-full rounded-2xl object-cover" />
-                  <p className="mt-2 text-xs font-semibold text-ink-400">{photo.label}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4 text-sm text-ink-400">{t('verify.noPhotos')}</p>
-          )}
-          {profile.portfolio?.projects?.length ? (
-            <div className="mt-5 divide-y divide-navy-800/10 border-t border-navy-800/10">
-              <h3 className="py-3 text-sm font-semibold text-navy-800">{t('verify.projectsTitle')}</h3>
-              {profile.portfolio.projects.map((project, index) => (
-                <div key={project.id} className="py-4">
-                  <p className="text-sm font-semibold text-navy-800">{t('verify.projectNumber', { n: index + 1 })}</p>
-                  <p className="mt-1 text-sm text-ink-500">
-                    {t('verify.projectService')}: {catalogServiceLabel(project.serviceNameSnapshot, t)}
-                  </p>
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">{t('verify.projectDescription')}</p>
-                  <p className="mt-1 text-sm text-navy-800">{project.description}</p>
-                  {project.images.length ? (
-                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {project.images.map((url) => (
-                        <img key={url} src={mediaUrl(url)} alt="" className="aspect-[4/3] w-full rounded-lg object-cover" />
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </Card>
-=======
         <div className="mt-6 grid gap-6 text-black">
->>>>>>> main
 
           {/* THÔNG TIN CONTRACTOR */}
 
@@ -611,17 +566,6 @@ function photoSlots(
   t: (key: string) => string
 ) {
   const portfolio = profile.portfolio;
-<<<<<<< HEAD
-  const projectUrls = new Set((portfolio?.projects || []).flatMap((project) => project.images));
-  const slots = [
-    { key: 'avatar', src: portfolio?.avatar || '', label: t('verify.avatar') },
-    { key: 'logo', src: portfolio?.teamLogo || '', label: t('verify.teamLogo') },
-    { key: 'workshop', src: portfolio?.workshop || '', label: t('verify.workshop') },
-    ...(portfolio?.construction || [])
-      .filter((src) => !projectUrls.has(src))
-      .map((src, index) => ({ key: `work-${index}`, src, label: t('verify.construction') })),
-    ...(portfolio?.certificates || []).map((src, index) => ({ key: `cert-${index}`, src, label: t('verify.certificatePhoto') })),
-=======
 
   // Lấy hình ảnh đã có trong các dự án
   const projectUrls = new Set(
@@ -663,7 +607,6 @@ function photoSlots(
       src,
       label: t('verify.certificatePhoto'),
     })),
->>>>>>> main
   ];
 
   // Chỉ lấy hình ảnh có đường dẫn
@@ -729,15 +672,11 @@ function DocumentGroups({
                     {/* Nếu là hình ảnh thì hiển thị ảnh */}
 
                     {doc.mimeType.startsWith('image/') ? (
-<<<<<<< HEAD
-                      <VerificationDocThumb doc={doc} kind="contractor" className="h-12 w-12 rounded-xl object-cover" />
-=======
                       <VerificationDocThumb
                         doc={doc}
                         kind="contractor"
                         className="h-12 w-12 rounded-xl object-cover"
                       />
->>>>>>> main
                     ) : (
 
                       // Nếu không phải hình ảnh thì hiển thị icon

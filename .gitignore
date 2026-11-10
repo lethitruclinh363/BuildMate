@@ -81,3 +81,4 @@ backend/query_users.cjs
 
 # Ignore project documentation - keep local only
 /docs/
+/tests/

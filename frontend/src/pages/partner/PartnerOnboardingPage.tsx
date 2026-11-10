@@ -790,15 +790,9 @@ export default function PartnerOnboardingPage() {
   const hint = unmetMessage();
 
   return (
-<<<<<<< HEAD
-    <div className="min-h-screen bg-paper-100">
-      <header className="sticky top-0 z-20 border-b border-navy-800/8 bg-paper-100/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-=======
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-paper-100">
       <header className="z-20 shrink-0 border-b border-navy-800/8 bg-paper-100/90 backdrop-blur">
         <div className="flex w-full items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-10 2xl:px-14">
->>>>>>> main
           <Logo to={getDefaultRouteByRole(currentUser)} />
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher variant="light" placement="auth-form" />
@@ -1024,11 +1018,7 @@ export default function PartnerOnboardingPage() {
               ) : null}
 
               {step === 1 && storeOwner ? (
-<<<<<<< HEAD
-                <div className={cn('mt-5', touched.services && !serviceOk && 'rounded-xl ring-1 ring-red-400')}>
-=======
                 <div className="mt-5">
->>>>>>> main
                   <p className="mb-3">
                     <FormLabel required>{steps[1].label}</FormLabel>
                   </p>

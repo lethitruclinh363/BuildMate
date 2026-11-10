@@ -22,23 +22,10 @@ export type HoursStatus = {
   close: string | null;
 };
 
-<<<<<<< HEAD
-const TIME_RE = /^([01]\d|2[0-3]):(00|15|30|45)$/;
-const TIME_ZONE = 'Asia/Ho_Chi_Minh';
-const WEEKDAY_SHORT: Record<string, Weekday> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-
-export const TIME_SLOTS: string[] = Array.from({ length: 96 }, (_, index) => {
-  const hour = String(Math.floor(index / 4)).padStart(2, '0');
-  const minute = String((index % 4) * 15).padStart(2, '0');
-  return `${hour}:${minute}`;
-});
-
-=======
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const WEEKDAY_SHORT: Record<string, Weekday> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
 
->>>>>>> main
 export function emptyDays(): WeeklyDay[] {
   return WEEKDAYS.map((weekday) => ({ weekday, closed: true, open: null, close: null }));
 }
