@@ -111,10 +111,29 @@ describe('Flow 05 create validation and replay', () => {
     const parsed = createRepairSchema.parse({
       contractorId: '507f1f77bcf86cd799439011',
       category: 'PLUMBING',
+      catalogServiceId: 'PLUMBING::PipeRepair',
       title: 'Leaking pipe',
       description: 'Water under the sink overnight',
+      address: 'Nguyen Van Cu, Ninh Kieu',
+      lat: '10.045',
+      lng: '105.746',
+      locationConfirmed: 'true',
     });
     assert.equal(parsed.title, 'Leaking pipe');
+    assert.equal(parsed.lat, 10.045);
+    assert.throws(() =>
+      createRepairSchema.parse({
+        contractorId: '507f1f77bcf86cd799439011',
+        category: 'PLUMBING',
+        catalogServiceId: 'PLUMBING::PipeRepair',
+        title: 'Leaking pipe',
+        description: 'Water under the sink overnight',
+        address: 'Nguyen Van Cu, Ninh Kieu',
+        lat: '10.045',
+        lng: '105.746',
+        locationConfirmed: 'false',
+      })
+    );
   });
 
   it('fingerprints the same customer action and allows a later distinct request', () => {
@@ -155,7 +174,7 @@ describe('Flow 05 create validation and replay', () => {
     assert.match(offerings, /Select a valid service/);
   });
 
-  it('keeps frontend submit locking and VietMap site confirmation', () => {
+  it('keeps frontend submit validation and VietMap site confirmation', () => {
     const src = readFe('pages/customer/CreateRepairRequestPage.tsx');
     assert.match(src, /isSubmitting/);
     assert.match(src, /contractorId/);
@@ -166,7 +185,9 @@ describe('Flow 05 create validation and replay', () => {
     assert.match(src, /request\.mediaRequired/);
     assert.match(src, /images\.length === 0/);
     assert.match(src, /removeImage/);
-    assert.match(src, /disabled=\{isSubmitting \|\| images\.length === 0 \|\| catalog\.length === 0\}/);
+    assert.match(src, /disabled=\{isSubmitting\}/);
+    assert.match(src, /submitAttempted && images\.length === 0/);
+    assert.match(src, /request\.submitRequirements/);
     const history = readFe('pages/customer/RequestHistoryPage.tsx');
     assert.match(history, /repairApi\.cancel/);
     assert.match(history, /request\.cancelCta|t\('request\.cancelCta'\)/);
@@ -181,12 +202,15 @@ describe('Flow 05 create validation and replay', () => {
     const controller = readBe('controllers/repairController.js');
     const upload = readBe('utils/upload.js');
     const middleware = readBe('middleware/uploadMiddleware.js');
+    const routes = readBe('routes/repairRoutes.js');
     assert.match(controller, /requireRepairSiteImages/);
     assert.match(controller, /sweepUploadedFiles|unlinkSync/);
     assert.match(upload, /function sniffImage/);
     assert.match(upload, /function requireRepairSiteImages/);
     assert.match(upload, /at least one site photo/);
     assert.match(middleware, /isRepairMedia/);
+    assert.match(routes, /validateRepairPayload/);
+    assert.match(routes, /sweepUploadedFiles/);
   });
 
   it('rejects unauthenticated repair and quotation calls when the API is up', async (t) => {

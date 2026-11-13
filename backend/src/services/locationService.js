@@ -82,7 +82,7 @@ function toCard(doc, catalog) {
     completedProjects: completed?.count || 0,
     materialCategories: catalog === 'materials' ? listedMaterialCategories(profile) : [],
     ...presentDistance(doc.distanceMeters),
-    serviceRadiusKm: doc.serviceRadiusKm || 0,
+    serviceRadiusKm: doc.serviceRadiusKm || 0,//View Provider Distance and Service Range
     deliveryEnabled: Boolean(doc.deliveryEnabled),
     baseDeliveryFee: doc.baseDeliveryFee || 0,
     location: doc.location,
@@ -330,6 +330,7 @@ function uniqueByPlaceId(rows) {
   });
 }
 
+//tìm kiếm các nhà cung cấp vật liệu và nhà thầu ở gần vị trí người dùng
 async function nearbyStores(params) {
   const rows = await geoNearby({
     ...params,

@@ -54,7 +54,7 @@ export function ExplorePage() {
       storeType: '',
     }
   );
-  const [contractors, setContractors] = useState<NearbyPlace[]>([]);
+  const [contractors, setContractors] = useState<NearbyPlace[]>([]);//Lưu danh sách các Contractor tìm được gần vị trí khách hàng
   const [stores, setStores] = useState<NearbyPlace[]>([]);
   const [services, setServices] = useState<PublicService[]>([]);
   const [pick, setPick] = useState<{ id: string; kind: 'contractor' | 'store'; token: number } | null>(null);
@@ -71,7 +71,8 @@ export function ExplorePage() {
   const pinTimer = useRef<number>(0);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const extra = {
+ // Các bộ lọc dùng chung khi tìm Contractor và Material Store
+  const searchFilters = {
     category: filters.category || undefined,
     minRating: filters.minRating || undefined,
     storeType: filters.storeType || undefined,
@@ -101,12 +102,13 @@ export function ExplorePage() {
     };
   }, [filters.category]);
 
+  //Gọi API tìm Contractor theo vị trí
   useEffect(() => {
     let cancelled = false;
     if (!seen.current) setLoading(true);
     Promise.all([
-      locationApi.nearbyContractors(origin.lat, origin.lng, filters.radius, extra),
-      locationApi.nearbyStores(origin.lat, origin.lng, filters.radius, extra),
+      locationApi.nearbyContractors(origin.lat, origin.lng, filters.radius, searchFilters),//thợ
+      locationApi.nearbyStores(origin.lat, origin.lng, filters.radius, searchFilters),//cửa hàng
     ])
       .then(([crews, yards]) => {
         if (cancelled) return;
@@ -133,8 +135,8 @@ export function ExplorePage() {
     setLoading(true);
     setError(null);
     Promise.all([
-      locationApi.nearbyContractors(origin.lat, origin.lng, filters.radius, extra),
-      locationApi.nearbyStores(origin.lat, origin.lng, filters.radius, extra),
+      locationApi.nearbyContractors(origin.lat, origin.lng, filters.radius, searchFilters),
+      locationApi.nearbyStores(origin.lat, origin.lng, filters.radius, searchFilters),
     ])
       .then(([crews, yards]) => {
         setContractors(uniqueById(crews.data.data || []));
@@ -270,6 +272,7 @@ export function ExplorePage() {
     ) : error && contractors.length === 0 && stores.length === 0 ? (
       <ErrorState body={error} onRetry={reloadNearby} />
     ) : (
+      // Hiển thị danh sách Contractor
       <ExploreResultsPane
         contractors={mrlId ? [] : contractors}
         stores={rankedStores}
@@ -287,151 +290,265 @@ export function ExplorePage() {
       />
     );
 
-  return (
-    <PageTransition className="overflow-x-hidden">
-      <div className="explore-stage flex w-full min-w-0 flex-col overflow-hidden px-3 pt-2 md:px-4">
-        <PageHeader
-          compact
-          className="mb-1.5 shrink-0"
-          title={t('explore.title')}
-          description={mrlId ? t('mrl.exploreBanner') : t('explore.description')}
-        />
-        {mrlId && mrlTitle ? (
-          <p className="mb-1.5 shrink-0 rounded-2xl bg-white px-4 py-2 text-sm text-navy-800 shadow-card">{mrlTitle}</p>
-        ) : null}
+  
+return (
+  <PageTransition className="overflow-x-hidden">
+    <div className="explore-stage flex w-full min-w-0 flex-col overflow-hidden px-3 pt-2 md:px-4">
+      {/* Tiêu đề trang */}
+      <PageHeader
+        compact
+        className="mb-1.5 shrink-0"
+        title={t('explore.title')}
+        description={
+          mrlId
+            ? t('mrl.exploreBanner')
+            : t('explore.description')
+        }
+      />
 
-        <div className="mb-1.5 flex min-w-0 shrink-0 flex-col gap-2 lg:flex-row lg:items-center">
-          <div className="min-w-0 flex-1">
-            <LocationPicker
-              compact
-              hideGps
-              submitToken={searchTick}
-              origin={origin}
-              gpsStatus={status}
-              mapCenter={mapCenter}
-              onGps={locate}
-              onPick={setOrigin}
-            />
-          </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
-            <ExploreCategorySelect
-              value={filters.category}
-              options={(groups.length
-                ? groups.map((category) => ({ category, label: catalogCategoryLabel(category, t) }))
-                : SEARCH_CHIPS.map((item) => ({ category: item.category, label: t(item.labelKey) })))}
-              onChange={(category) => setFilters((current) => ({ ...current, category }))}
-            />
-            <Button type="button" variant="primary" size="sm" className="h-10 shrink-0 px-3" onClick={() => setSearchTick((tick) => tick + 1)}>
-              <Search className="h-4 w-4" />
-              {t('common.search')}
-            </Button>
-            <Button type="button" variant="copper" size="sm" className="h-10 shrink-0 px-3" loading={status === 'asking'} onClick={locate}>
-              <Navigation className="h-4 w-4" />
-              {t('map.useCurrent')}
-            </Button>
-            <FilterDrawer value={filters} onChange={setFilters} />
-          </div>
-        </div>
-
-        {status === 'denied' || status === 'unavailable' ? (
-          <p className="mb-1.5 shrink-0 text-xs text-red-700 sm:text-sm">{status === 'denied' ? t('map.gpsDenied') : t('map.gpsUnavailable')}</p>
-        ) : null}
-        {reverseFailed || pinFailed ? <p className="mb-1.5 shrink-0 text-xs text-red-700 sm:text-sm">{t('map.reverseFailed')}</p> : null}
-
-        <div className="mb-1.5 flex shrink-0 gap-1.5 lg:hidden">
-          <button
-            type="button"
-            onClick={() => setMobilePane('map')}
-            className={cn(
-              'inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition',
-              mobilePane === 'map' ? 'bg-navy-800 text-white' : 'bg-white text-ink-600 shadow-card'
-            )}
-          >
-            <Map className="h-4 w-4" />
-            {t('explore.viewMap')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobilePane('list')}
-            className={cn(
-              'inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition',
-              mobilePane === 'list' ? 'bg-navy-800 text-white' : 'bg-white text-ink-600 shadow-card'
-            )}
-          >
-            <List className="h-4 w-4" />
-            {t('explore.viewList')}
-          </button>
-        </div>
-
-        <ExploreSplitShell
-          listRef={listRef}
-          mobilePane={mobilePane}
-          list={listPane}
-          map={
-            <MapView
-              origin={origin}
-              radiusKm={filters.radius}
-              contractors={mapContractors}
-              stores={mapStores}
-              activeId={pick?.id}
-              activeKind={pick?.kind}
-              focus={focus}
-              focusToken={pick?.token}
-              loading={loading}
-              onGps={locate}
-              gpsAsking={status === 'asking'}
-              onSelect={choose}
-              onPick={pinFromMap}
-              onViewChange={setMapCenter}
-              className="h-full w-full"
-              overlay={
-                selected && pick ? (
-                  <ExplorePopup place={selected} kind={pick.kind} onClose={() => setPick(null)} mrlId={mrlId || undefined} />
-                ) : null
-              }
-            />
-          }
-        />
-
-        <div className="mt-1 flex shrink-0 flex-wrap gap-x-3 gap-y-0.5 pb-1 text-[11px] text-ink-500 sm:text-xs">
-          <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3 text-navy-800" /> {legend[0][1]}</span>
-          <span className="inline-flex items-center gap-1"><HardHat className="h-3 w-3 text-copper-500" /> {legend[1][1]}</span>
-          <span className="inline-flex items-center gap-1"><Store className="h-3 w-3 text-amber-600" /> {legend[2][1]}</span>
-        </div>
-      </div>
-
-      {mrlId ? null : (
-      <>
-      <section className="mt-8 px-4 md:px-6">
-        <h2 className="font-display text-[1.75rem] text-navy-800">{t('explore.popular')}</h2>
-        {services.length === 0 ? (
-          <div className="mt-4">
-            <CompactEmpty
-              title={t('explore.popularEmpty')}
-              body={t('explore.popularEmptyBody')}
-              action={filters.radius < 10 ? () => setFilters((current) => ({ ...current, radius: 10 })) : undefined}
-              actionLabel={t('explore.widen')}
-            />
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {services.slice(0, 8).map((s) => (
-              <Card key={s.id}>
-                <Badge tone="copper">{catalogCategoryLabel(s.category, t)}</Badge>
-                <h3 className="mt-3 font-display text-lg text-navy-800">{catalogServiceLabel(s.name, t)}</h3>
-                <p className="mt-1 text-sm text-ink-400">{s.store?.name}</p>
-                <p className="mt-3 font-display text-xl text-navy-800">{s.basePrice ? vnd(s.basePrice) : null}</p>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="px-4 pb-8 md:px-6">
-        <MaterialExplorer stores={stores} />
-      </div>
-      </>
+      {/* Tiêu đề danh sách vật liệu */}
+      {mrlId && mrlTitle && (
+        <p className="mb-1.5 shrink-0 rounded-2xl bg-white px-4 py-2 text-sm text-navy-800 shadow-card">
+          {mrlTitle}
+        </p>
       )}
-    </PageTransition>
-  );
+
+      {/* Thanh tìm kiếm và bộ lọc */}
+      <div className="mb-1.5 flex min-w-0 shrink-0 flex-col gap-2 lg:flex-row lg:items-center">
+        <div className="min-w-0 flex-1">
+          <LocationPicker
+            compact
+            hideGps
+            submitToken={searchTick}
+            origin={origin}
+            gpsStatus={status}
+            mapCenter={mapCenter}
+            onGps={locate}
+            onPick={setOrigin}
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
+          {/* Chọn danh mục dịch vụ */}
+          <ExploreCategorySelect
+            value={filters.category}
+            options={
+              groups.length
+                ? groups.map((category) => ({
+                    category,
+                    label: catalogCategoryLabel(category, t),
+                  }))
+                : SEARCH_CHIPS.map((item) => ({
+                    category: item.category,
+                    label: t(item.labelKey),
+                  }))
+            }
+            onChange={(category) =>
+              setFilters((current) => ({
+                ...current,
+                category,
+              }))
+            }
+          />
+
+          {/* Nút tìm kiếm */}
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            className="h-10 shrink-0 px-3"
+            onClick={() =>
+              setSearchTick((tick) => tick + 1)
+            }
+          >
+            <Search className="h-4 w-4" />
+            {t('common.search')}
+          </Button>
+
+          {/* Sử dụng vị trí hiện tại */}
+          <Button
+            type="button"
+            variant="copper"
+            size="sm"
+            className="h-10 shrink-0 px-3"
+            loading={status === 'asking'}
+            onClick={locate}
+          >
+            <Navigation className="h-4 w-4" />
+            {t('map.useCurrent')}
+          </Button>
+
+          {/* Bộ lọc nâng cao */}
+          <FilterDrawer
+            value={filters}
+            onChange={setFilters}
+          />
+        </div>
+      </div>
+
+      {/* Thông báo lỗi GPS */}
+      {(status === 'denied' || status === 'unavailable') && (
+        <p className="mb-1.5 shrink-0 text-xs text-red-700 sm:text-sm">
+          {status === 'denied'
+            ? t('map.gpsDenied')
+            : t('map.gpsUnavailable')}
+        </p>
+      )}
+
+      {/* Thông báo lỗi lấy địa chỉ */}
+      {(reverseFailed || pinFailed) && (
+        <p className="mb-1.5 shrink-0 text-xs text-red-700 sm:text-sm">
+          {t('map.reverseFailed')}
+        </p>
+      )}
+
+      {/* Chuyển đổi bản đồ và danh sách trên mobile */}
+      <div className="mb-1.5 flex shrink-0 gap-1.5 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobilePane('map')}
+          className={cn(
+            'inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition',
+            mobilePane === 'map'
+              ? 'bg-navy-800 text-white'
+              : 'bg-white text-ink-600 shadow-card'
+          )}
+        >
+          <Map className="h-4 w-4" />
+          {t('explore.viewMap')}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobilePane('list')}
+          className={cn(
+            'inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition',
+            mobilePane === 'list'
+              ? 'bg-navy-800 text-white'
+              : 'bg-white text-ink-600 shadow-card'
+          )}
+        >
+          <List className="h-4 w-4" />
+          {t('explore.viewList')}
+        </button>
+      </div>
+
+      {/* Khu vực bản đồ và danh sách kết quả */}
+      <ExploreSplitShell
+        listRef={listRef}
+        mobilePane={mobilePane}
+        list={listPane}
+        map={
+          // Hiển thị bản đồ
+          <MapView
+            origin={origin}
+            radiusKm={filters.radius}
+            contractors={mapContractors}
+            stores={mapStores}
+            activeId={pick?.id}
+            activeKind={pick?.kind}
+            focus={focus}
+            focusToken={pick?.token}
+            loading={loading}
+            onGps={locate}
+            gpsAsking={status === 'asking'}
+            onSelect={choose}
+            onPick={pinFromMap}
+            onViewChange={setMapCenter}
+            className="h-full w-full"
+            overlay={
+              selected && pick ? (
+                <ExplorePopup
+                  place={selected}
+                  kind={pick.kind}
+                  onClose={() => setPick(null)}
+                  mrlId={mrlId || undefined}
+                />
+              ) : null
+            }
+          />
+        }
+      />
+
+      {/* Chú thích ký hiệu trên bản đồ */}
+      <div className="mt-1 flex shrink-0 flex-wrap gap-x-3 gap-y-0.5 pb-1 text-[11px] text-ink-500 sm:text-xs">
+        <span className="inline-flex items-center gap-1">
+          <MapPin className="h-3 w-3 text-navy-800" />
+          {legend[0][1]}
+        </span>
+
+        <span className="inline-flex items-center gap-1">
+          <HardHat className="h-3 w-3 text-copper-500" />
+          {legend[1][1]}
+        </span>
+
+        <span className="inline-flex items-center gap-1">
+          <Store className="h-3 w-3 text-amber-600" />
+          {legend[2][1]}
+        </span>
+      </div>
+    </div>
+
+    {/* Nội dung bổ sung: dịch vụ phổ biến và vật liệu */}
+    {!mrlId && (
+      <>
+        {/* Dịch vụ phổ biến */}
+        <section className="mt-8 px-4 md:px-6">
+          <h2 className="font-display text-[1.75rem] text-navy-800">
+            {t('explore.popular')}
+          </h2>
+
+          {services.length === 0 ? (
+            <div className="mt-4">
+              <CompactEmpty
+                title={t('explore.popularEmpty')}
+                body={t('explore.popularEmptyBody')}
+                action={
+                  filters.radius < 10
+                    ? () =>
+                        setFilters((current) => ({
+                          ...current,
+                          radius: 10,
+                        }))
+                    : undefined
+                }
+                actionLabel={t('explore.widen')}
+              />
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {services.slice(0, 8).map((service) => (
+                <Card key={service.id}>
+                  <Badge tone="copper">
+                    {catalogCategoryLabel(service.category, t)}
+                  </Badge>
+
+                  <h3 className="mt-3 font-display text-lg text-navy-800">
+                    {catalogServiceLabel(service.name, t)}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-ink-400">
+                    {service.store?.name}
+                  </p>
+
+                  <p className="mt-3 font-display text-xl text-navy-800">
+                    {service.basePrice
+                      ? vnd(service.basePrice)
+                      : null}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Khám phá cửa hàng vật liệu */}
+        <div className="px-4 pb-8 md:px-6">
+          <MaterialExplorer stores={stores} />
+        </div>
+      </>
+    )}
+  </PageTransition>
+);
+
 }
