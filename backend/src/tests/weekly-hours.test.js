@@ -46,17 +46,13 @@ describe('weekly operating hours', () => {
     assert.throws(() => parseWeeklyHours(hours), /Closing time must be after opening time/);
   });
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> main
+
   it('rejects times outside 15-minute slots', () => {
     const hours = sampleHours();
     hours.days[0].open = '07:10';
     assert.throws(() => parseWeeklyHours(hours), /15-minute/);
-<<<<<<< HEAD
-=======
-=======
+  });
+
   it('accepts minute-level times and rejects invalid clock values', () => {
     const hours = sampleHours();
     hours.days[0].open = '07:10';
@@ -67,8 +63,7 @@ describe('weekly operating hours', () => {
 
     hours.days[0].open = '24:00';
     assert.throws(() => parseWeeklyHours(hours), /valid opening and closing times/);
->>>>>>> origin/main
->>>>>>> main
+
   });
 
   it('keeps two partners independent and summarizes a valid week', () => {

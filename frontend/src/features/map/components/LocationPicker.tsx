@@ -48,6 +48,8 @@ export function LocationPicker({
   const reverseTimer = useRef<number>(0);
   const originRef = useRef(origin);
   originRef.current = origin;
+  const queryMatchesOrigin = query.trim() === (origin.label || origin.address || '').trim();
+  const locationConfirmed = confirmed && queryMatchesOrigin;
 
   useEffect(() => {
     setQuery(origin.label || origin.address || '');
@@ -232,6 +234,9 @@ export function LocationPicker({
     <div className="space-y-3 p-4">
       {/* Tìm kiếm địa chỉ */}
       {searchRow}
+      {!queryMatchesOrigin ? (
+        <p className="text-xs text-amber-700">{t('map.selectSearchResult')}</p>
+      ) : null}
 
       {/* Thông tin và xác nhận vị trí */}
       <div className="rounded-2xl bg-paper-100 px-4 py-3">
@@ -243,16 +248,16 @@ export function LocationPicker({
 
           <span
             className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
-              confirmed ? 'text-emerald-700' : 'text-amber-700'
+              locationConfirmed ? 'text-emerald-700' : 'text-amber-700'
             }`}
           >
             <span
               className={`h-2 w-2 rounded-full ${
-                confirmed ? 'bg-emerald-500' : 'bg-amber-500'
+                locationConfirmed ? 'bg-emerald-500' : 'bg-amber-500'
               }`}
             />
 
-            {confirmed
+            {locationConfirmed
               ? t('map.confirmed')
               : t('map.unconfirmed')}
           </span>
@@ -323,7 +328,7 @@ export function LocationPicker({
 
           <Button
             type="button"
-            disabled={busy || confirmed || !origin.source}
+            disabled={busy || locationConfirmed || !queryMatchesOrigin || !origin.source}
             onClick={confirmLocation}
           >
             {t('map.confirm')}
@@ -333,7 +338,7 @@ export function LocationPicker({
         <div className="flex justify-end">
           <Button
             type="button"
-            disabled={busy || confirmed || !origin.source}
+            disabled={busy || locationConfirmed || !queryMatchesOrigin || !origin.source}
             onClick={confirmLocation}
           >
             {t('map.confirm')}

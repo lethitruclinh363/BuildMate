@@ -26,32 +26,35 @@ export function CustomerDashboardPage() {
   const { t } = useI18n();
   const back = useReturnState();
   const liveVersion = useOrderLiveStore((s) => s.version);
-  const [requestCount, setRequestCount] = useState<number | null>(null);
-  const [orderCount, setOrderCount] = useState<number | null>(null);
-  const [nearbyCount, setNearbyCount] = useState<number | null>(null);
-  const [messageCount, setMessageCount] = useState<number | null>(null);
+  const [requestCount, setRequestCount] = useState<number>(0);
+  const [orderCount, setOrderCount] = useState<number>(0);
+  const [nearbyCount, setNearbyCount] = useState<number>(0);
+  const [messageCount, setMessageCount] = useState<number>(0);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [recentOrders, setRecentOrders] = useState<{ id: string; title: string; status: string }[]>([]);
   const [recentMaterials, setRecentMaterials] = useState<{ id: string; title: string; status: string }[]>([]);
 
   useEffect(() => {
-    repairApi
-      .mine()
-      .then((res) => setRequestCount(res.data.data.length))
-      .catch(() => setRequestCount(0));
-    orderApi
-      .customer()
-      .then((res) => {
+    setHasLoaded(false);
+
+    let cancelled = false;
+
+    const finish = () => {
+      if (!cancelled) setHasLoaded(true);
+    };
+
+    Promise.allSettled([
+      repairApi.mine().then((res) => {
+        if (!cancelled) setRequestCount((res.data.data || []).length || 0);
+      }),
+      orderApi.customer().then((res) => {
+        if (cancelled) return;
         const rows = (res.data.data || []) as Array<{ id: string; title: string; status: string }>;
         setOrderCount(rows.filter((row) => isOpenRepairStatus(row.status)).length);
         setRecentOrders(rows.slice(0, 5).map((row) => ({ id: row.id, title: row.title, status: row.status })));
-      })
-      .catch(() => {
-        setOrderCount(0);
-        setRecentOrders([]);
-      });
-    materialRequirementApi
-      .mine()
-      .then((res) => {
+      }),
+      materialRequirementApi.mine().then((res) => {
+        if (cancelled) return;
         const rows = res.data.data || [];
         setRecentMaterials(
           rows.slice(0, 5).map((row) => ({
@@ -60,19 +63,26 @@ export function CustomerDashboardPage() {
             status: row.status,
           }))
         );
-      })
-      .catch(() => setRecentMaterials([]));
-    chatApi
-      .rooms()
-      .then((res) => setMessageCount((res.data.data || []).length))
-      .catch(() => setMessageCount(0));
-    const origin = readExplore()?.origin;
-    const lat = Number(origin?.lat);
-    const lng = Number(origin?.lng);
-    locationApi
-      .nearbyContractors(Number.isFinite(lat) ? lat : CAN_THO.lat, Number.isFinite(lng) ? lng : CAN_THO.lng, 5)
-      .then((res) => setNearbyCount((res.data.data || []).length))
-      .catch(() => setNearbyCount(0));
+      }),
+      chatApi.rooms().then((res) => {
+        if (!cancelled) setMessageCount((res.data.data || []).length || 0);
+      }),
+      (async () => {
+        const origin = readExplore()?.origin;
+        const lat = Number(origin?.lat);
+        const lng = Number(origin?.lng);
+        const res = await locationApi.nearbyContractors(
+          Number.isFinite(lat) ? lat : CAN_THO.lat,
+          Number.isFinite(lng) ? lng : CAN_THO.lng,
+          5
+        );
+        if (!cancelled) setNearbyCount((res.data.data || []).length || 0);
+      })(),
+    ]).catch(() => undefined).finally(finish);
+
+    return () => {
+      cancelled = true;
+    };
   }, [liveVersion]);
 
   const stats = [
@@ -82,7 +92,7 @@ export function CustomerDashboardPage() {
     { label: t('customerHome.messages'), value: messageCount, icon: MessageSquare, to: '/customer/chat' },
   ];
 
-  const loading = requestCount === null || orderCount === null;
+  const loading = !hasLoaded;
   const hasActivity = recentOrders.length > 0 || recentMaterials.length > 0;
 
   return (
@@ -108,7 +118,7 @@ export function CustomerDashboardPage() {
               <p className="text-sm text-ink-500">{item.label}</p>
               <item.icon className="h-4 w-4 text-copper-600" />
             </div>
-            <p className="mt-1 text-2xl font-semibold text-navy-800">{item.value === null ? '…' : String(item.value)}</p>
+            <p className="mt-1 text-2xl font-semibold text-navy-800">{String(item.value)}</p>
           </Link>
         ))}
       </div>

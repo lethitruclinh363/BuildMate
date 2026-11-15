@@ -131,39 +131,6 @@ export function ProfilePage() {
   return (
     <PageTransition>
       <PageHeader eyebrow={t('profile.eyebrow')} title={t('profile.title')} description={t('profile.desc')} />
-<<<<<<< HEAD
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <Card hover={false} className="text-center">
-          <p className="text-xs uppercase tracking-[0.2em] text-copper-500">{t('profile.avatar')}</p>
-          <div className="mt-4 flex justify-center">
-            <Avatar name={user.name} src={mediaUrl(user.avatar)} size="lg" />
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={(e) => {
-              void onAvatar(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-          <Button className="mt-4" size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
-            <Camera className="h-4 w-4" />
-            {t('profile.changeAvatar')}
-          </Button>
-          <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-left">
-            <p className="flex items-center gap-2 text-sm font-semibold text-navy-800">
-              <ShieldCheck className="h-4 w-4 text-copper-500" />
-              {t('profile.status')}
-            </p>
-            <Badge className="mt-2" tone={user.status === 'ACTIVE' ? 'success' : 'warn'}>
-              {labeled(t, 'status', user.status)}
-            </Badge>
-            <p className="mt-2 text-xs text-ink-600">{labeled(t, 'role', user.role)}</p>
-            <p className="mt-1 text-xs text-ink-600">
-              {t('profile.memberSince', { date: new Date(user.createdAt || Date.now()).toLocaleDateString() })}
-=======
       <div className="grid items-start gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
         <Card hover={false} className="overflow-hidden p-0">
           <div className="h-24 bg-gradient-to-r from-navy-800 via-[#173b56] to-[#2d6171]" />
@@ -194,42 +161,7 @@ export function ProfilePage() {
             <p className="mt-1 flex min-w-0 items-center gap-2 text-sm text-ink-500">
               <Mail className="h-4 w-4 shrink-0" />
               <span className="truncate">{user.email}</span>
->>>>>>> main
             </p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                void onAvatar(e.target.files?.[0]);
-                e.target.value = '';
-              }}
-            />
-            <Button className="mt-4 w-full" size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
-              <Camera className="h-4 w-4" />
-              {t('profile.changeAvatar')}
-            </Button>
-            <div className="mt-5 space-y-3 rounded-xl bg-mist-100/70 p-4">
-              <p className="flex items-center gap-2 text-sm font-semibold text-navy-800">
-                <ShieldCheck className="h-4 w-4 text-copper-500" />
-                {t('profile.status')}
-              </p>
-              <div className="flex items-start gap-3 text-sm text-ink-600">
-                <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
-                <span>{labeled(t, 'role', user.role)}</span>
-              </div>
-              <div className="flex items-start gap-3 text-sm text-ink-600">
-                <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
-                <span>{t('profile.memberSince', { date: new Date(user.createdAt || Date.now()).toLocaleDateString() })}</span>
-              </div>
-              {user.phone ? (
-                <div className="flex items-start gap-3 text-sm text-ink-600">
-                  <Phone className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
-                  <span>{user.phone}</span>
-                </div>
-              ) : null}
-            </div>
           </div>
         </Card>
 
@@ -345,21 +277,6 @@ export function ProfilePage() {
                 </button>
               </div>
             </div>
-<<<<<<< HEAD
-            <Button
-              className="mt-4"
-              loading={pwdBusy}
-              disabled={
-                currentPassword.length < 8 ||
-                !passwordIsValid ||
-                !confirmPassword ||
-                newPassword !== confirmPassword
-              }
-              onClick={() => void changePassword()}
-            >
-              {t('profile.updatePassword')}
-            </Button>
-=======
             <div className="mt-5 flex justify-end border-t border-navy-800/8 pt-4">
               <Button
                 className="disabled:bg-navy-800 disabled:text-paper-50 disabled:opacity-100"
@@ -375,7 +292,6 @@ export function ProfilePage() {
                 {t('profile.updatePassword')}
               </Button>
             </div>
->>>>>>> main
           </Card>
         </div>
       </div>

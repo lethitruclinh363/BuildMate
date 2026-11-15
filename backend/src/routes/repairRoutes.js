@@ -8,6 +8,17 @@ const repairController = require('../controllers/repairController');
 
 const router = require('express').Router();
 
+function validateRepairPayload(req, res, next) {
+  const cleanupOnFailure = () => {
+    if (res.statusCode >= 400) repairController.sweepUploadedFiles(req.files);
+  };
+  res.once('finish', cleanupOnFailure);
+  return validate(createRepairSchema)(req, res, (error) => {
+    res.removeListener('finish', cleanupOnFailure);
+    next(error);
+  });
+}
+
 router.post(
   '/',
   authenticate,
@@ -16,7 +27,7 @@ router.post(
     { name: 'images', maxCount: 8 },
     { name: 'videos', maxCount: 2 },
   ]),
-  validate(createRepairSchema),
+  validateRepairPayload,
   repairController.create
 );
 
