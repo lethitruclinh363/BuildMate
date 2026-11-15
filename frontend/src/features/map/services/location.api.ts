@@ -32,7 +32,7 @@ export interface MaterialSearchResult {
   limit: number;
   totalPages: number;
 }
-
+//API Search Contractors by Location & Search Material Stores by Location
 export const locationApi = {
   nearbyStores: (lat: number, lng: number, radius: number, extra?: Record<string, string | number | undefined>) =>
     api.get<ApiResponse<NearbyPlace[]>>('/location/stores/nearby', { params: { lat, lng, radius, ...extra } }),

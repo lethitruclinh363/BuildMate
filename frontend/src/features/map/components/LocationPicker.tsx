@@ -62,12 +62,12 @@ export function LocationPicker({
       : gpsError === 'unavailable' || gpsStatus === 'unavailable'
         ? t('map.gpsUnavailable')
         : '';
-
+//Set Repair Location by Address( bằng địa chỉ)
   async function choose(hit: AddressSuggestion) {
     setSearching(true);
     setNotice('');
     try {
-      const place = await placeDetail(hit.refId);
+      const place = await placeDetail(hit.refId);//originFromPlace Chuyển địa chỉ thành tọa độ
       const next = { ...originFromPlace(place, 'VIETMAP_PLACE'), locationConfirmed: false };
       if (!hasCoordinates(next.lat, next.lng)) {
         setNotice(t('map.searchFailed'));
@@ -111,7 +111,7 @@ export function LocationPicker({
         .finally(() => setReversing(false));
     }, 400);
   }
-
+//Set Repair Location by Geolocation(bằng GPS)
   async function useCurrent() {
     if (variant === 'inline' && onGps) {
       onGps();
@@ -149,6 +149,7 @@ export function LocationPicker({
 
   const searchRow = (
     <div className={compact ? 'flex min-w-0 items-center gap-2' : 'flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center'}>
+     {/* ô nhập search */}
       <AddressSearch
         value={query}
         onChange={setQuery}
@@ -196,62 +197,150 @@ export function LocationPicker({
   const busy = locating || reversing || searching;
 
   return (
-    <div className="rounded-[22px] border border-navy-800/10 bg-white shadow-card">
-      <div className="relative overflow-hidden rounded-t-[22px]">
-        <VietMapView
-          center={origin}
-          zoom={18}
-          marker={{ lat: origin.lat, lng: origin.lng, draggable: true }}
-          className="h-[280px] w-full md:h-[340px]"
-          onMapClick={(lat, lng) => resolvePin(lat, lng, 'MANUAL_PIN')}
-          onMarkerDrag={(lat, lng) => resolvePin(lat, lng, 'MANUAL_PIN')}
-        />
-        {busy ? (
-          <div className="pointer-events-none absolute left-14 top-3 z-10 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-navy-800 shadow-card">
-            {locating ? t('map.locating') : reversing ? t('map.reversing') : t('map.searching')}
-          </div>
+  <div className="rounded-[22px] border border-navy-800/10 bg-white shadow-card">
+    {/* Bản đồ chọn vị trí */}
+    <div className="relative overflow-hidden rounded-t-[22px]">
+      <VietMapView
+        center={origin}
+        zoom={18}
+        marker={{
+          lat: origin.lat,
+          lng: origin.lng,
+          draggable: true,
+        }}
+        className="h-[280px] w-full md:h-[340px]"
+        onMapClick={(lat, lng) =>
+          resolvePin(lat, lng, 'MANUAL_PIN')
+        }
+        onMarkerDrag={(lat, lng) =>
+          resolvePin(lat, lng, 'MANUAL_PIN')
+        }
+      />
+
+      {/* Trạng thái xử lý vị trí */}
+      {busy ? (
+        <div className="pointer-events-none absolute left-14 top-3 z-10 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-navy-800 shadow-card">
+          {locating
+            ? t('map.locating')
+            : reversing
+              ? t('map.reversing')
+              : t('map.searching')}
+        </div>
+      ) : null}
+    </div>
+
+    <div className="space-y-3 p-4">
+      {/* Tìm kiếm địa chỉ */}
+      {searchRow}
+
+      {/* Thông tin và xác nhận vị trí */}
+      <div className="rounded-2xl bg-paper-100 px-4 py-3">
+        {/* Tiêu đề và trạng thái xác nhận */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs uppercase tracking-[0.16em] text-copper-500">
+            {t('map.confirmTitle')}
+          </p>
+
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+              confirmed ? 'text-emerald-700' : 'text-amber-700'
+            }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                confirmed ? 'bg-emerald-500' : 'bg-amber-500'
+              }`}
+            />
+
+            {confirmed
+              ? t('map.confirmed')
+              : t('map.unconfirmed')}
+          </span>
+        </div>
+
+        {/* Hướng dẫn xác nhận */}
+        <p className="mt-2 text-sm leading-6 text-ink-600">
+          {t('map.confirmHint')}
+        </p>
+
+        {/* Địa chỉ đã chọn */}
+        <p className="mt-2 text-sm font-medium text-navy-800">
+          {origin.label ||
+            origin.address ||
+            t('map.emptyAddress')}
+        </p>
+
+        {/* Tọa độ vị trí */}
+        <p className="mt-2 text-xs text-ink-400">
+          {t('map.coordinates')}:{' '}
+          {formatCoordinates(origin.lat, origin.lng)}
+        </p>
+
+        {/* Hướng dẫn điều chỉnh vị trí */}
+        <p className="mt-1 text-xs text-ink-500">
+          {t('map.dragExact')}
+        </p>
+
+        {/* Gợi ý sử dụng bản đồ */}
+        <p className="mt-1 text-xs text-ink-400">
+          {t('map.satelliteHint')}
+        </p>
+
+        {/* Ghi chú bổ sung */}
+        {note ? (
+          <p className="mt-2 text-xs font-medium text-navy-800">
+            {note}
+          </p>
         ) : null}
       </div>
-      <div className="space-y-3 p-4">
-        {searchRow}
-        <div className="rounded-2xl bg-paper-100 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs uppercase tracking-[0.16em] text-copper-500">{t('map.confirmTitle')}</p>
-            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>
-              <span className={`h-2 w-2 rounded-full ${confirmed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              {confirmed ? t('map.confirmed') : t('map.unconfirmed')}
-            </span>
-          </div>
-          <p className="mt-2 text-sm leading-6 text-ink-600">{t('map.confirmHint')}</p>
-          <p className="mt-2 text-sm font-medium text-navy-800">{origin.label || origin.address || t('map.emptyAddress')}</p>
-          <p className="mt-2 text-xs text-ink-400">
-            {t('map.coordinates')}: {formatCoordinates(origin.lat, origin.lng)}
-          </p>
-          <p className="mt-1 text-xs text-ink-500">{t('map.dragExact')}</p>
-          <p className="mt-1 text-xs text-ink-400">{t('map.satelliteHint')}</p>
-          {note ? <p className="mt-2 text-xs font-medium text-navy-800">{note}</p> : null}
+
+      {/* Thông báo lỗi GPS */}
+      {gpsMessage ? (
+        <p className="text-sm text-red-700">
+          {gpsMessage}
+        </p>
+      ) : null}
+
+      {/* Thông báo lỗi hoặc trạng thái khác */}
+      {notice ? (
+        <p className="text-sm text-red-700">
+          {notice}
+        </p>
+      ) : null}
+
+      {/* Nút hủy và xác nhận */}
+      {onSave || onCancel ? (
+        <div className="flex justify-end gap-2">
+          {onCancel ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+            >
+              {t('common.cancel')}
+            </Button>
+          ) : null}
+
+          <Button
+            type="button"
+            disabled={busy || confirmed || !origin.source}
+            onClick={confirmLocation}
+          >
+            {t('map.confirm')}
+          </Button>
         </div>
-        {gpsMessage ? <p className="text-sm text-red-700">{gpsMessage}</p> : null}
-        {notice ? <p className="text-sm text-red-700">{notice}</p> : null}
-            {onSave || onCancel ? (
-              <div className="flex justify-end gap-2">
-                {onCancel ? (
-                  <Button type="button" variant="outline" onClick={onCancel}>
-                    {t('common.cancel')}
-                  </Button>
-                ) : null}
-                <Button type="button" disabled={busy || confirmed || !origin.source} onClick={confirmLocation}>
-                  {t('map.confirm')}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex justify-end">
-                <Button type="button" disabled={busy || confirmed || !origin.source} onClick={confirmLocation}>
-                  {t('map.confirm')}
-                </Button>
-              </div>
-            )}
-      </div>
+      ) : (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            disabled={busy || confirmed || !origin.source}
+            onClick={confirmLocation}
+          >
+            {t('map.confirm')}
+          </Button>
+        </div>
+      )}
     </div>
-  );
+  </div>
+);
 }
