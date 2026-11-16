@@ -54,6 +54,23 @@ export function ChatPage() {
   const sendingFile = useRef(false);
   const sendingMrl = useRef(false);
 
+  const translateChatPreview = (preview: string) => {
+    const previewKeys: Record<string, string> = {
+      'Repair request opened': 'chat.requestOpenedPreview',
+      'Sent a quotation': 'chat.quotePreview',
+      'Sent a photo': 'chat.photoPreview',
+      'Sent a video': 'chat.videoPreview',
+      'Shared a location': 'chat.locationSharedPreview',
+      'Material quote request': 'chat.materialQuoteRequestPreview',
+      'Material list': 'chat.materialListPreview',
+      'Material quote': 'chat.materialQuotePreview',
+      'Material quote confirmed': 'chat.materialQuoteConfirmedPreview',
+      'Material quote rejected': 'chat.materialQuoteRejectedPreview',
+    };
+    const key = previewKeys[preview];
+    return key ? t(key) : preview;
+  };
+
   const isCustomer = user?.role === 'CUSTOMER';
   const chatBase =
     user?.role === 'MATERIAL_STORE_OWNER' ? '/store/chat' : isCustomer ? '/customer/chat' : '/contractor/chat';
@@ -147,7 +164,7 @@ export function ChatPage() {
       if (msg.type === 'IMAGE') return t('chat.photoPreview');
       if (msg.type === 'VIDEO') return t('chat.videoPreview');
       if (msg.type === 'LOCATION') return msg.location?.label || msg.location?.address || t('chat.sendLocation');
-      return mrlChatPreview(msg.content);
+      return translateChatPreview(mrlChatPreview(msg.content));
     };
     const onReceive = (msg: ChatMessage) => {
       setRooms((prev) =>
@@ -336,7 +353,9 @@ export function ChatPage() {
                   <span className="block truncate text-sm font-semibold text-navy-800">
                     {peer?.name || t('chat.crewFallback')}
                   </span>
-                  <span className="block truncate text-xs text-ink-400">{item.lastMessage}</span>
+                  <span className="block truncate text-xs text-ink-400">
+                    {translateChatPreview(item.lastMessage)}
+                  </span>
                 </span>
               </button>
             );

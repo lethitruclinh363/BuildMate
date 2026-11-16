@@ -173,7 +173,7 @@ async function createRequest(customerId, payload) {
       title: 'New repair request',
       message: `${payload.title} · ${payload.category}`,
       type: NOTIFICATION_TYPE.REQUEST,
-      link: `/contractor/requests`,
+      link: `/contractor/requests/${request._id}`,
       meta: { requestId: String(request._id), roomId: String(room._id) },
     });
 

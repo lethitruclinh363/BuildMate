@@ -5,7 +5,7 @@ import { notificationApi } from '@/features/chat/services/sprint4.api';
 import { useSocket } from '@/providers/SocketProvider';
 import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
-import { notificationTitle } from '@/features/notification/notificationLabel';
+import { notificationMessage, notificationTitle } from '@/features/notification/notificationLabel';
 import { useAuthStore } from '@/store/auth.store';
 import { roleHome } from '@/store/auth.store';
 
@@ -101,7 +101,7 @@ export function NotificationBell() {
                     }}
                   >
                     <p className="break-words font-semibold text-navy-800">{notificationTitle(t, n)}</p>
-                    <p className="break-words text-ink-400">{n.message}</p>
+                    <p className="break-words text-ink-400">{notificationMessage(t, n)}</p>
                   </button>
                 </li>
               ))

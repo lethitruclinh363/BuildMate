@@ -26,5 +26,12 @@
   "gpsUnavailable": "Không lấy được vị trí hiện tại trên thiết bị này.",
   "quotePreview": "Đã gửi báo giá",
   "photoPreview": "Đã gửi ảnh",
-  "videoPreview": "Đã gửi video"
+  "videoPreview": "Đã gửi video",
+  "requestOpenedPreview": "Đã mở yêu cầu sửa chữa",
+  "locationSharedPreview": "Đã chia sẻ vị trí",
+  "materialQuoteRequestPreview": "Yêu cầu báo giá vật liệu",
+  "materialListPreview": "Danh sách vật tư",
+  "materialQuotePreview": "Báo giá vật liệu",
+  "materialQuoteConfirmedPreview": "Đã xác nhận báo giá vật liệu",
+  "materialQuoteRejectedPreview": "Đã từ chối báo giá vật liệu"
 }
