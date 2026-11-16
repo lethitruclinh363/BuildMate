@@ -364,6 +364,7 @@
   },
   "notify": {
     "title": "Notifications",
+    "newNotification": "You have a new notification",
     "markAll": "Mark all read",
     "empty": "No alerts yet.",
     "aria": "Notifications",
@@ -383,6 +384,10 @@
       "Request declined": "Request declined",
       "Request cancelled": "Request cancelled",
       "New message": "New message",
+      "New review": "New review",
+      "Deposit held in escrow": "Deposit held in escrow",
+      "Payment received": "Payment received",
+      "Payment refunded": "Payment refunded",
       "Status update": "Status update",
       "New construction order": "New repair job",
       "New repair job": "New repair job",
@@ -397,6 +402,9 @@
       "Material requirement list": "Material requirement list",
       "Material quote received": "Material quote received",
       "Material quote confirmed": "Material quote confirmed"
+    },
+    "messages": {
+      "depositHeld": "{amount} is held by BuildMate in escrow"
     }
   },
   "feedback": {

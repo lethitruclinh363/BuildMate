@@ -193,6 +193,7 @@ export function App() {
                   <Route path="/contractor/earnings" element={<ContractorEarningsPage />} />
                   <Route path="/contractor/reviews" element={<ContractorReviewsPage />} />
                   <Route path="/contractor/reputation" element={<Navigate to="/contractor/dashboard" replace />} />
+                  <Route path="/contractor/chat" element={<ChatPage />} />
                   <Route path="/contractor/chat/:roomId" element={<ChatPage />} />
                   <Route path="/contractor/quotation/create/:requestId" element={<CreateQuotationPage />} />
                   <Route path="/contractor/material-requirements/new/:requestId" element={<ContractorMaterialRequirementPage />} />
