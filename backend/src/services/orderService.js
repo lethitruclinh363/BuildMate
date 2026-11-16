@@ -209,7 +209,7 @@ async function createFromQuotation(quotation, request, actorId, outerTx, options
       title: 'New repair job',
       message: `${order.title} · ${order.orderCode}`,
       type: NOTIFICATION_TYPE.ORDER_CREATED,
-      link: `/contractor/orders`,
+      link: `/contractor/orders/${order._id}`,
       meta: {
         orderId: String(order._id),
         quotationId: String(quotation._id),

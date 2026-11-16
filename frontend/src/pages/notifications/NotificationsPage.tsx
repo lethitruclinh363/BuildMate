@@ -7,7 +7,7 @@ import { QueryState } from '@/components/feedback/QueryState';
 import { Button } from '@/components/ui/Button';
 import { notificationApi } from '@/features/chat/services/sprint4.api';
 import { useI18n } from '@/locales';
-import { notificationTitle } from '@/features/notification/notificationLabel';
+import { notificationMessage, notificationTitle } from '@/features/notification/notificationLabel';
 import { useSocket } from '@/providers/SocketProvider';
 import { cn } from '@/lib/cn';
 import { getApiErrorMessage } from '@/lib/api';
@@ -103,7 +103,7 @@ export function NotificationsPage() {
                 <span className={cn('mt-2 h-2 w-2 shrink-0 rounded-full', n.isRead ? 'bg-ink-200' : 'bg-copper-400')} />
                 <span className="min-w-0">
                   <span className="block break-words font-semibold text-navy-800">{notificationTitle(t, n)}</span>
-                  <span className="mt-1 block break-words text-sm text-ink-400">{n.message}</span>
+                  <span className="mt-1 block break-words text-sm text-ink-400">{notificationMessage(t, n)}</span>
                   <span className="mt-1 block text-xs text-ink-400">{new Date(n.createdAt).toLocaleString()}</span>
                 </span>
               </button>

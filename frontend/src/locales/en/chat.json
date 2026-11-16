@@ -26,5 +26,12 @@
   "gpsUnavailable": "Current location is unavailable on this device.",
   "quotePreview": "Sent a quotation",
   "photoPreview": "Sent a photo",
-  "videoPreview": "Sent a video"
+  "videoPreview": "Sent a video",
+  "requestOpenedPreview": "Repair request opened",
+  "locationSharedPreview": "Shared a location",
+  "materialQuoteRequestPreview": "Material quote request",
+  "materialListPreview": "Material list",
+  "materialQuotePreview": "Material quote",
+  "materialQuoteConfirmedPreview": "Material quote confirmed",
+  "materialQuoteRejectedPreview": "Material quote rejected"
 }

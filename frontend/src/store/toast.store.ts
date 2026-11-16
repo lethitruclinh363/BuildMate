@@ -7,6 +7,7 @@ export interface ToastItem {
   kind: ToastKind;
   title: string;
   body?: string;
+  link?: string;
   prominent?: boolean;
 }
 

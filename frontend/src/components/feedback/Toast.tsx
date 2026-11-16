@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, Info, X, XCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 import { useToastStore, type ToastKind } from '@/store/toast.store';
 
@@ -10,6 +11,7 @@ const icons: Record<ToastKind, typeof Info> = {
 };
 
 export function ToastViewport() {
+  const navigate = useNavigate();
   const items = useToastStore((s) => s.items);
   const dismiss = useToastStore((s) => s.dismiss);
 
@@ -44,16 +46,27 @@ export function ToastViewport() {
                 )}
               />
               <div className="min-w-0 flex-1">
-                <p className={cn('text-sm font-semibold text-navy-800', item.prominent && item.kind === 'error' && 'text-red-900')}>
-                  {item.title}
-                </p>
-                {item.body ? (
-                  <p className={cn('mt-1 text-xs text-ink-400', item.prominent && item.kind === 'error' && 'text-sm font-medium text-red-800')}>
-                    {item.body}
+                <button
+                  type="button"
+                  disabled={!item.link}
+                  className={cn('w-full text-left', item.link && 'cursor-pointer')}
+                  onClick={() => {
+                    if (!item.link?.startsWith('/') || item.link.startsWith('//')) return;
+                    dismiss(item.id);
+                    navigate(item.link);
+                  }}
+                >
+                  <p className={cn('text-sm font-semibold text-navy-800', item.prominent && item.kind === 'error' && 'text-red-900')}>
+                    {item.title}
                   </p>
-                ) : null}
+                  {item.body ? (
+                    <p className={cn('mt-1 text-xs text-ink-400', item.prominent && item.kind === 'error' && 'text-sm font-medium text-red-800')}>
+                      {item.body}
+                    </p>
+                  ) : null}
+                </button>
               </div>
-              <button type="button" className="text-ink-400 hover:text-navy-800" onClick={() => dismiss(item.id)}>
+              <button type="button" aria-label="Dismiss notification" className="text-ink-400 hover:text-navy-800" onClick={() => dismiss(item.id)}>
                 <X className="h-4 w-4" />
               </button>
             </motion.div>

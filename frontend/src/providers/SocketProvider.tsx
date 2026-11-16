@@ -1,6 +1,9 @@
 import { io, type Socket } from 'socket.io-client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { notificationMessage, notificationTitle } from '@/features/notification/notificationLabel';
+import { t } from '@/locales';
+import { useToastStore } from '@/store/toast.store';
 import type { AppNotification, ChatMessage } from '@/types/sprint4';
 
 interface SocketContextValue {
@@ -30,13 +33,15 @@ function socketOrigin() {
 }
 
 export function SocketProvider({ children }: { children: ReactNode }) {
-  const { token, ready } = useAuth();
+  const { token, ready, currentUser } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
   const [notifications, setItems] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const socketRef = useRef<Socket | null>(null);
+  const roleRef = useRef(currentUser?.role);
+  roleRef.current = currentUser?.role;
 
   useEffect(() => {
     if (!ready || !token) {
@@ -74,6 +79,16 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         if (!n?.isRead) setUnread((count) => count + 1);
         return [n, ...prev].slice(0, 40);
       });
+      if (roleRef.current === 'CONTRACTOR' || roleRef.current === 'CUSTOMER') {
+        useToastStore.getState().push({
+          id: n.id,
+          kind: 'info',
+          title: notificationTitle(t, n),
+          body: notificationMessage(t, n),
+          link: n.link,
+          durationMs: 5000,
+        });
+      }
     });
 
     return () => {

@@ -34,7 +34,7 @@ export type DashboardNavItem = {
 
 function navItemActive(to: string, end: boolean | undefined, pathname: string, search: string) {
   const url = new URL(to, 'http://local');
-  if (pathname !== url.pathname) return false;
+  if (pathname !== url.pathname && (end || !pathname.startsWith(`${url.pathname}/`))) return false;
   const expectedStep = url.searchParams.get('step');
   if (expectedStep) {
     const actualStep = new URLSearchParams(search).get('step') || 'info';

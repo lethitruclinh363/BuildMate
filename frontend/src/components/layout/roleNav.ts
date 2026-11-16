@@ -40,6 +40,7 @@ export function contractorNav(t: Translate): DashboardNavItem[] {
     { to: '/contractor/verification', label: t('nav.contractor.profile'), icon: ClipboardCheck },
     { to: '/contractor/services', label: t('nav.contractor.services'), icon: Wrench },
     { to: '/contractor/requests', label: t('nav.contractor.requests'), icon: Inbox },
+    { to: '/contractor/chat', label: t('nav.contractor.messages'), icon: MessageSquare },
     { to: '/contractor/orders', label: t('nav.contractor.orders'), icon: ClipboardList },
     { to: '/contractor/earnings', label: t('nav.contractor.revenue'), icon: Wallet },
     { to: '/contractor/reviews', label: t('nav.contractor.reviews'), icon: Star },

@@ -364,6 +364,7 @@
   },
   "notify": {
     "title": "Thông báo",
+    "newNotification": "Có thông báo mới",
     "markAll": "Đánh dấu đã đọc",
     "empty": "Chưa có thông báo.",
     "aria": "Thông báo",
@@ -383,6 +384,10 @@
       "Request declined": "Yêu cầu bị từ chối",
       "Request cancelled": "Yêu cầu đã hủy",
       "New message": "Tin nhắn mới",
+      "New review": "Đánh giá mới",
+      "Deposit held in escrow": "Tiền cọc đang được giữ ký quỹ",
+      "Payment received": "Đã nhận thanh toán",
+      "Payment refunded": "Đã hoàn tiền",
       "Status update": "Cập nhật trạng thái",
       "New construction order": "Công việc sửa chữa mới",
       "New repair job": "Công việc sửa chữa mới",
@@ -397,6 +402,9 @@
       "Material requirement list": "Danh sách vật tư",
       "Material quote received": "Đã nhận báo giá vật liệu",
       "Material quote confirmed": "Báo giá vật liệu đã được xác nhận"
+    },
+    "messages": {
+      "depositHeld": "{amount} đang được BuildMate tạm giữ theo hình thức ký quỹ"
     }
   },
   "feedback": {
