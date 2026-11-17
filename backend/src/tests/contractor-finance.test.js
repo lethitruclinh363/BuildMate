@@ -27,21 +27,21 @@ const {
 } = require('../utils/contractor-finance');
 
 describe('contractor finance snapshot (TC02-TC04, TC16)', () => {
-  it('splits 10_000_000 into 15% deposit, 5% fee, 10% hold, 85% remaining', () => {
+  it('splits 10_000_000 into 15% deposit, 10% fee, 5% hold, 85% remaining', () => {
     const snap = snapshotContractorQuote(10_000_000);
     assert.equal(snap.ok, true);
     assert.equal(snap.depositAmount, 1_500_000);
-    assert.equal(snap.platformFee, 500_000);
-    assert.equal(snap.contractorHold, 1_000_000);
+    assert.equal(snap.platformFee, 1_000_000);
+    assert.equal(snap.contractorHold, 500_000);
     assert.equal(snap.remainingAmount, 8_500_000);
-    assert.equal(snap.contractorTotalEarning, 9_500_000);
+    assert.equal(snap.contractorTotalEarning, 9_000_000);
     assert.equal(snap.depositAmount + snap.remainingAmount, snap.totalAmount);
     assert.equal(snap.platformFee + snap.contractorHold, snap.depositAmount);
   });
 
   it('does not treat remaining 85% as platform revenue', () => {
     const snap = snapshotContractorQuote(10_000_000);
-    assert.equal(snap.platformFee, 500_000);
+    assert.equal(snap.platformFee, 1_000_000);
     assert.notEqual(snap.platformFee, snap.remainingAmount);
   });
 
@@ -75,11 +75,11 @@ describe('escrow state machine (TC05-TC15)', () => {
     assert.equal(canReleaseEscrow({ escrow, customerAccepted: false, remainingSettled: true, openComplaint: false }).ok, false);
   });
 
-  it('releases 10% once and refuses a second payout', () => {
+  it('releases 5% once and refuses a second payout', () => {
     const escrow = funded();
     const first = releaseEscrow(escrow);
     assert.equal(first.ok, true);
-    assert.equal(first.escrow.payoutAmount, 1_000_000);
+    assert.equal(first.escrow.payoutAmount, 500_000);
     assert.equal(first.escrow.payoutStatus, PAYOUT_STATUS.PAID);
     const second = releaseEscrow(first.escrow);
     assert.equal(second.ok, false);
@@ -241,7 +241,7 @@ describe('escrow balance (TC13-TC15)', () => {
     assert.equal(paidOut.ok, true);
     const refundAfterPayout = refundEscrow(paidOut.escrow, { fullDeposit: true });
     assert.equal(refundAfterPayout.ok, false);
-    assert.equal(availableBalance(paidOut.escrow), 500_000);
+    assert.equal(availableBalance(paidOut.escrow), 1_000_000);
   });
 
   it('blocks a concurrent-style refund+payout double spend in sequence', () => {
@@ -259,7 +259,7 @@ describe('escrow balance (TC13-TC15)', () => {
     assert.equal(pending.ok, true);
     const first = releaseEscrow(pending.escrow);
     assert.equal(first.ok, true);
-    assert.equal(first.escrow.payoutAmount, 1_000_000);
+    assert.equal(first.escrow.payoutAmount, 500_000);
     assert.equal(releaseEscrow(first.escrow).code, 'PAYOUT_ALREADY_PAID');
   });
 });

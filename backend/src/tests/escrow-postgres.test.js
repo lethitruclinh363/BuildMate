@@ -50,7 +50,7 @@ describe('contractor escrow on isolated PostgreSQL', { timeout: 120000 }, () => 
     return paid;
   }
 
-  it('creates a contractor order, captures a 15% mock deposit, holds escrow, then posts 5% once with a 10% payout', async (t) => {
+  it('creates a contractor order, captures a 15% mock deposit, holds escrow, then posts 10% once with a 5% payout', async (t) => {
     if (!dbReady) {
       t.skip('PostgreSQL test database is not available');
       return;
@@ -62,8 +62,8 @@ describe('contractor escrow on isolated PostgreSQL', { timeout: 120000 }, () => 
     assert.equal(accepted.payment.type, 'DEPOSIT');
     assert.equal(accepted.payment.amount, 1_500_000);
     const snap = snapshotContractorQuote(10_000_000);
-    assert.equal(snap.platformFee, 500_000);
-    assert.equal(snap.contractorHold, 1_000_000);
+    assert.equal(snap.platformFee, 1_000_000);
+    assert.equal(snap.contractorHold, 500_000);
     assert.equal(snap.depositAmount, snap.platformFee + snap.contractorHold);
 
     const paid = await payDeposit(origin, party.tokens.customer, accepted.payment.id);
@@ -104,11 +104,11 @@ describe('contractor escrow on isolated PostgreSQL', { timeout: 120000 }, () => 
     const live = await Payment.findById(accepted.payment.id);
     const escrow = live.metadata.escrow;
     assert.equal(escrow.status, 'RELEASED');
-    assert.equal(Number(escrow.releasedAmount), 1_000_000);
+    assert.equal(Number(escrow.releasedAmount), 500_000);
     assert.equal(Number(escrow.refundedAmount || 0) + Number(escrow.releasedAmount) <= Number(escrow.grossAmount), true);
     const commission = await Commission.findOne({ paymentId: accepted.payment.id });
     assert.equal(commission.status, 'POSTED');
-    assert.equal(Number(commission.platformAmount), 500_000);
+    assert.equal(Number(commission.platformAmount), 1_000_000);
 
     const again = await api(origin, {
       method: 'POST',

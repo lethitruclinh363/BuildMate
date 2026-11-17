@@ -4,6 +4,9 @@ const { CommissionRule, Commission } = require('../repositories/commerceAccess')
 const { ApiError } = require('../utils/ApiError');
 const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { writeAudit, AUDIT_ACTION } = require('./auditService');
+const { PLATFORM_FEE_RATE } = require('../utils/contractor-finance');
+
+const PLATFORM_FEE_PERCENTAGE = PLATFORM_FEE_RATE * 100;
 
 function roundVnd(value) {
   return Math.round(Number(value) || 0);
@@ -11,10 +14,11 @@ function roundVnd(value) {
 
 async function getActiveRule() {
   let rule = await CommissionRule.findOne({ active: true }).sort({ createdAt: -1 });
-  if (!rule) {
+  if (!rule || Number(rule.percentage) !== PLATFORM_FEE_PERCENTAGE) {
+    if (rule) await CommissionRule.updateMany({ active: true }, { active: false });
     rule = await CommissionRule.create({
       name: 'Default platform fee',
-      percentage: 5,
+      percentage: PLATFORM_FEE_PERCENTAGE,
       active: true,
     });
   }
@@ -23,8 +27,8 @@ async function getActiveRule() {
 
 async function setActivePercentage(percentage, name = 'Platform fee') {
   const rate = Number(percentage);
-  if (rate !== 5) {
-    throw new ApiError(422, 'BuildMate contractor platform fee is fixed at 5%');
+  if (rate !== PLATFORM_FEE_PERCENTAGE) {
+    throw new ApiError(422, `BuildMate contractor platform fee is fixed at ${PLATFORM_FEE_PERCENTAGE}%`);
   }
   await CommissionRule.updateMany({ active: true }, { active: false });
   const rule = await CommissionRule.create({
@@ -48,6 +52,9 @@ async function createForPaidPayment(payment, actorId = null, tx) {
   const contractorAmount = finance
     ? roundVnd(finance.contractorHold || finance.contractorTotalEarning)
     : payment.amount - platformAmount;
+  const rateSnapshot = finance && Number.isFinite(Number(finance.platformFeeRate))
+    ? Number(finance.platformFeeRate) * 100
+    : rule.percentage;
 
   let doc;
   try {
@@ -55,7 +62,7 @@ async function createForPaidPayment(payment, actorId = null, tx) {
       paymentId: payment._id,
       orderId: payment.orderId,
       contractorId: payment.contractorId,
-      rateSnapshot: rule.percentage,
+      rateSnapshot,
       platformAmount,
       contractorAmount,
       status: COMMISSION_STATUS.POSTED,

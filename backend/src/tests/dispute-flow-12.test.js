@@ -148,7 +148,7 @@ describe('Flow 12 escrow freeze and settle', () => {
 
   it('keeps 15/5/10/85 and freezes HELD escrow when a complaint opens', () => {
     assert.equal(DEPOSIT_RATE, 0.15);
-    assert.equal(PLATFORM_FEE_RATE, 0.05);
+    assert.equal(PLATFORM_FEE_RATE, 0.10);
     const frozen = freezeEscrow(funded());
     assert.equal(frozen.escrow.status, ESCROW_STATUS.FROZEN);
     assert.equal(frozen.escrow.cancelCase, CANCEL_CASE.DISPUTE);

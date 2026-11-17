@@ -95,7 +95,7 @@
     "cta": "Confirm completion",
     "title": "Accept the finished work?",
     "body": "Confirm after you have checked the site.",
-    "unpaidHint": "Handover does not mean the remaining 85% is paid. The 5% fee posts only when escrow is eligible to settle.",
+    "unpaidHint": "Handover does not mean the remaining 85% is paid. The 10% fee posts only when escrow is eligible to settle.",
     "done": "Order completed"
   },
   "cancel": {
@@ -148,7 +148,7 @@
     "collected": "Store confirmed collection",
     "codHint": "Pay on delivery (COD) or transfer the store directly. BuildMate does not hold this money.",
     "waitDeposit": "Wait for the customer deposit before starting work.",
-    "escrowHeld": "BuildMate is holding the deposit (mock). The contractor has not received the 10% yet.",
+    "escrowHeld": "BuildMate is holding the deposit (mock). The contractor has not received the 5% yet.",
     "confirmRemaining": "Confirm the remaining 85% was paid directly",
     "remainingConfirmed": "Direct 85% payment recorded",
     "settleEscrow": "Settle escrow (mock)",

@@ -357,7 +357,7 @@
       "Deposit must be held in escrow before work can start": "Cọc phải được giữ trong escrow trước khi bắt đầu thi công",
       "Work cannot start while escrow is frozen by a dispute": "Không thể bắt đầu khi escrow đang bị đóng băng vì tranh chấp",
       "Escrow is frozen while a complaint is open": "Escrow đang đóng băng vì còn khiếu nại",
-      "BuildMate contractor platform fee is fixed at 5%": "Phí nền tảng Contractor được chốt 5%",
+      "BuildMate contractor platform fee is fixed at 10%": "Phí nền tảng Contractor được chốt 10%",
       "Checkout has not started": "Chưa bắt đầu thanh toán",
       "Payment must be PENDING before capture": "Khoản thanh toán chưa ở trạng thái chờ"
     }

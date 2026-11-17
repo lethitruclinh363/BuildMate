@@ -35,7 +35,7 @@ describe('Sprint 6.3 business E2E + integrity', { timeout: 180000 }, () => {
     dbReady = testDatabaseReady();
     if (!dbReady) return;
     server = await startTestServer();
-    await commissionService.setActivePercentage(5, 'Sprint 6.3 5%');
+    await commissionService.setActivePercentage(10, 'Sprint 6.3 10%');
     admin = await createUser({
       name: 'Sprint63 Admin',
       email: `e2e.admin63.${Date.now()}@buildmate.test`,

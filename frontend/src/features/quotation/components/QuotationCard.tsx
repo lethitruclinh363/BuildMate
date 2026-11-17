@@ -31,7 +31,7 @@ export function QuotationCard({
   const showPricedMaterials = !showSuggested && pricedMaterials.length > 0;
 
   return (
-    <div className="overflow-hidden rounded-[22px] border border-copper-300/70 bg-white/70 shadow-lift backdrop-blur-md">
+    <div className="overflow-hidden rounded-[22px] border border-navy-800/10 bg-white">
       <div className="flex items-center justify-between bg-navy-800 px-5 py-3 text-white">
         <p className="font-display text-lg">{t('quote.title')}</p>
         <Badge tone={statusTone[quote.status]}>{labeled(t, 'status', quote.status)}</Badge>

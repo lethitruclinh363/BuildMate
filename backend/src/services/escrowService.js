@@ -209,7 +209,7 @@ async function settle(orderId, user) {
         type: LEDGER_TYPE.PAYOUT,
         amount: finance.contractorHold,
         key: `payout:${live.pgId || live._id}`,
-        note: 'Mock contractor hold 10% released',
+        note: 'Mock contractor hold 5% released',
       },
     });
     const payoutAmount = released.escrow.payoutAmount || finance.contractorHold;

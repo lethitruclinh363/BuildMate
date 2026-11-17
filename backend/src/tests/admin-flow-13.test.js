@@ -35,11 +35,11 @@ function readAdmin(rel) {
 }
 
 describe('Flow 13 GMV and commission formulas', () => {
-  it('keeps 10_000_000 quote as 1_500_000 deposit / 500_000 fee / 1_000_000 hold / 8_500_000 remaining', () => {
+  it('keeps 10_000_000 quote as 1_500_000 deposit / 1_000_000 fee / 500_000 hold / 8_500_000 remaining', () => {
     const snap = snapshotContractorQuote(10_000_000);
     assert.equal(snap.depositAmount, 1_500_000);
-    assert.equal(snap.platformFee, 500_000);
-    assert.equal(snap.contractorHold, 1_000_000);
+    assert.equal(snap.platformFee, 1_000_000);
+    assert.equal(snap.contractorHold, 500_000);
     assert.equal(snap.remainingAmount, 8_500_000);
   });
 
@@ -91,7 +91,7 @@ describe('Flow 13 time series and period delta', () => {
     assert.equal(dayKey(utcEvening), '2026-10-26');
     const series = buildAdminSeries(now, {
       gmvEvents: [{ at: utcEvening, amount: 10_000_000 }],
-      commissionEvents: [{ at: utcEvening, platformAmount: 500_000, contractorAmount: 1_000_000 }],
+      commissionEvents: [{ at: utcEvening, platformAmount: 1_000_000, contractorAmount: 500_000 }],
     });
     const today = series.days7.find((row) => row.key === '2026-10-26');
     assert.equal(today.gmv, 10_000_000);

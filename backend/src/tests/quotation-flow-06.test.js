@@ -179,15 +179,15 @@ describe('Flow 06 quote tally and replay', () => {
   });
 });
 
-describe('Flow 06 deposit 15/5/10/85', () => {
+describe('Flow 06 deposit 15/10/5/85', () => {
   it('splits 10_000_000 using the locked contractor rates', () => {
     assert.equal(DEPOSIT_RATE, 0.15);
-    assert.equal(PLATFORM_FEE_RATE, 0.05);
+    assert.equal(PLATFORM_FEE_RATE, 0.10);
     const snap = snapshotContractorQuote(10_000_000);
     assert.equal(snap.ok, true);
     assert.equal(snap.depositAmount, 1_500_000);
-    assert.equal(snap.platformFee, 500_000);
-    assert.equal(snap.contractorHold, 1_000_000);
+    assert.equal(snap.platformFee, 1_000_000);
+    assert.equal(snap.contractorHold, 500_000);
     assert.equal(snap.remainingAmount, 8_500_000);
     assert.equal(snap.depositAmount + snap.remainingAmount, snap.totalAmount);
     assert.equal(snap.platformFee + snap.contractorHold, snap.depositAmount);
