@@ -46,7 +46,7 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
       t.skip('PostgreSQL test database is not available');
       return;
     }
-    await commissionService.setActivePercentage(5, 'Test 5%');
+    await commissionService.setActivePercentage(10, 'Test 10%');
     const party = await createParty(`pay-${Date.now()}`);
     trash.push(party);
     const accepted = await customerAction(party.quotation._id, party.customer._id, 'accept');
@@ -131,12 +131,12 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
     assert.equal(res.status, 403);
   });
 
-  it('platform fee stays locked at 5% and deposit still posts no commission', async (t) => {
+  it('platform fee stays locked at 10% and deposit still posts no commission', async (t) => {
     if (!dbReady) {
       t.skip('PostgreSQL test database is not available');
       return;
     }
-    await commissionService.setActivePercentage(5, 'Snap 5');
+    await commissionService.setActivePercentage(10, 'Snap 10');
     const first = await createParty(`fee-a-${Date.now()}`);
     const second = await createParty(`fee-b-${Date.now() + 1}`);
     trash.push(first, second);
@@ -155,6 +155,10 @@ describe('Sprint 6.1 finance, review, complaint, analytics', { timeout: 120000 }
     assert.equal(paidA.json.data.commission, null);
     assert.equal(paidA.json.data.escrow.status, 'HELD');
 
+    await assert.rejects(
+      () => commissionService.setActivePercentage(5, 'Snap 5'),
+      (err) => err.statusCode === 422
+    );
     await assert.rejects(
       () => commissionService.setActivePercentage(8, 'Snap 8'),
       (err) => err.statusCode === 422

@@ -181,7 +181,7 @@ async function seedReference(test) {
       }
       if (!source.rowCount) {
         await test.query(
-          `INSERT INTO commission_rules (name, percentage, is_active) VALUES ('Default platform fee', 5, true)`
+          `INSERT INTO commission_rules (name, percentage, is_active) VALUES ('Default platform fee', 10, true)`
         );
       }
     }

@@ -209,20 +209,20 @@ async function run() {
       desc: 'Deposit = 15% tổng báo giá',
     };
 
-    // FIN02: Platform Fee = 5%
+    // FIN02: Platform Fee = 10%
     finResults['FIN02'] = {
-      expected: 500000,
+      expected: 1000000,
       actual: contractorQuote.platformFee,
-      passed: contractorQuote.platformFee === 500000,
-      desc: 'Platform Fee = 5% tổng báo giá',
+      passed: contractorQuote.platformFee === 1000000,
+      desc: 'Platform Fee = 10% tổng báo giá',
     };
 
-    // FIN03: Contractor Hold = 10%
+    // FIN03: Contractor Hold = 5%
     finResults['FIN03'] = {
-      expected: 1000000,
+      expected: 500000,
       actual: contractorQuote.contractorHold,
-      passed: contractorQuote.contractorHold === 1000000,
-      desc: 'Contractor Hold = 10% tổng báo giá',
+      passed: contractorQuote.contractorHold === 500000,
+      desc: 'Contractor Hold = 5% tổng báo giá',
     };
 
     // FIN04: Remaining Direct = 85%
@@ -270,10 +270,10 @@ async function run() {
       desc: 'Escrow FROZEN không thể giải ngân (409 Conflict)',
     };
 
-    // FIN11: Customer cancel after deposit does not auto-distribute 5%/10%
+    // FIN11: Customer cancel after deposit does not auto-distribute 10%/5%
     finResults['FIN11'] = {
       passed: true,
-      desc: 'Customer tự ý hủy sau cọc không tự động chia 5%/10% (Escrow FROZEN, tiền giữ nguyên)',
+      desc: 'Customer tự ý hủy sau cọc không tự động chia 10%/5% (Escrow FROZEN, tiền giữ nguyên)',
     };
 
     // FIN12: Platform revenue does not include material COD
@@ -283,7 +283,7 @@ async function run() {
       materialGmv: fin?.materialGmv,
       materialPlatformRevenue: fin?.materialPlatformRevenue,
       contractorCommission: fin?.commission,
-      passed: fin?.materialPlatformRevenue === 0 && fin?.commission === 500000,
+      passed: fin?.materialPlatformRevenue === 0 && fin?.commission === 1000000,
       desc: 'Doanh thu nền tảng không cộng tiền COD vật liệu',
     };
 

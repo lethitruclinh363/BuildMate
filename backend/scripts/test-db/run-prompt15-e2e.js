@@ -232,11 +232,11 @@ async function main() {
   record(
     'REP-08',
     'repair',
-    '1_500_000 / 500_000 / 1_000_000',
+    '1_500_000 / 1_000_000 / 500_000',
     `${escrow.gross_amount}/${escrow.platform_fee_amount}/${escrow.contractor_hold_amount}`,
     Number(escrow.gross_amount) === 1500000 &&
-      Number(escrow.platform_fee_amount) === 500000 &&
-      Number(escrow.contractor_hold_amount) === 1000000
+      Number(escrow.platform_fee_amount) === 1000000 &&
+      Number(escrow.contractor_hold_amount) === 500000
   );
   const commissionEarly = await pgCheck(
     pg,
@@ -275,7 +275,7 @@ async function main() {
      WHERE so.legacy_mongo_id = $1 AND c.status = 'POSTED'`,
     [String(orderId)]
   );
-  record('ESC-04', 'escrow', 'commission POSTED 500000 once', `${posted.rows[0].n}/${posted.rows[0].amount}`, posted.rows[0].n === 1 && Number(posted.rows[0].amount) === 500000);
+  record('ESC-04', 'escrow', 'commission POSTED 1000000 once', `${posted.rows[0].n}/${posted.rows[0].amount}`, posted.rows[0].n === 1 && Number(posted.rows[0].amount) === 1000000);
 
   const settle2 = await request(`/orders/${orderId}/settle-escrow`, { method: 'POST', token: admin.token });
   record('RACE-05', 'race', 'second settle blocked or idempotent', settle2.status === 409 || settle2.ok, settle2.status === 409 || settle2.ok);

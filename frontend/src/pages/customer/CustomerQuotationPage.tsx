@@ -219,7 +219,8 @@ export function CustomerQuotationPage() {
               <dt className="text-ink-500">{t('quote.contractorHold')}</dt>
               <dd className="font-semibold text-navy-800">{vnd(split.contractorHold)}</dd>
             </div>
-            <label className="mt-3 flex items-start gap-2 text-sm text-ink-600">
+            <p className="pt-2 font-semibold text-ink-800">{t('quote.cancelDepositWarning')}</p>
+            <label className="flex items-start gap-2 text-sm text-ink-600">
               <input type="checkbox" className="mt-1" checked={termsOk} onChange={(e) => setTermsOk(e.target.checked)} />
               <span>{t('quote.terms')}</span>
             </label>
@@ -231,19 +232,18 @@ export function CustomerQuotationPage() {
         {quote.status === 'ACCEPTED' ? (
           <div className="space-y-3">
             <SuccessState title={t('feedback.quoteAccepted')} body={t('quote.acceptedHint')} />
-            <Button className="bg-emerald-700 hover:bg-emerald-600" loading={busy} disabled={busy} onClick={() => void goToDeposit()}>
+            <Button loading={busy} disabled={busy} onClick={() => void goToDeposit()}>
               {t('quote.continueDeposit')}
             </Button>
           </div>
         ) : awaiting ? (
           <div className="space-y-3 rounded-[22px] border border-navy-800/8 bg-white p-6">
             <div className="flex flex-wrap gap-2">
-              <Button className="bg-emerald-700 hover:bg-emerald-600" disabled={busy || !termsOk} onClick={() => setConfirm('accept')}>
+              <Button disabled={busy || !termsOk} onClick={() => setConfirm('accept')}>
                 {t('quote.accept')}
               </Button>
               <Button
                 variant="outline"
-                className="border-red-200 text-red-700 hover:bg-red-50"
                 disabled={busy}
                 onClick={() => setConfirm('reject')}
               >
@@ -259,7 +259,6 @@ export function CustomerQuotationPage() {
             />
             <Button
               variant="outline"
-              className="border-amber-300 text-amber-800"
               disabled={busy || note.trim().length < 4}
               onClick={() => void act(() => quotationApi.requestModify(quote.id, note), t('quote.sendModify'))}
             >
