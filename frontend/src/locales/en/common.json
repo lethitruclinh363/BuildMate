@@ -357,7 +357,7 @@
       "Deposit must be held in escrow before work can start": "Deposit must be held in escrow before work can start",
       "Work cannot start while escrow is frozen by a dispute": "Work cannot start while escrow is frozen by a dispute",
       "Escrow is frozen while a complaint is open": "Escrow is frozen while a complaint is open",
-      "BuildMate contractor platform fee is fixed at 5%": "BuildMate contractor platform fee is fixed at 5%",
+      "BuildMate contractor platform fee is fixed at 10%": "BuildMate contractor platform fee is fixed at 10%",
       "Checkout has not started": "Checkout has not started",
       "Payment must be PENDING before capture": "Payment must be pending before it can be captured"
     }

@@ -90,7 +90,7 @@ async function seedFakeReference(client) {
   if (rules.rows[0].count === 0) {
     await client.query(
       `INSERT INTO commission_rules (name, percentage, is_active)
-       VALUES ('Default platform fee', 5, true)`
+       VALUES ('Default platform fee', 10, true)`
     );
   }
 }

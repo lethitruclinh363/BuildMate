@@ -95,7 +95,7 @@
     "cta": "Xác nhận hoàn thành",
     "title": "Nghiệm thu công việc?",
     "body": "Xác nhận sau khi kiểm tra hiện trường.",
-    "unpaidHint": "Nghiệm thu không tự ghi nhận 85% đã trả. Phí 5% chỉ ghi khi escrow đủ điều kiện giải ngân.",
+    "unpaidHint": "Nghiệm thu không tự ghi nhận 85% đã trả. Phí 10% chỉ ghi khi escrow đủ điều kiện giải ngân.",
     "done": "Đã nghiệm thu đơn"
   },
   "cancel": {
@@ -148,7 +148,7 @@
     "collected": "Cửa hàng đã xác nhận thu tiền",
     "codHint": "Thanh toán khi nhận hàng (COD) hoặc chuyển khoản trực tiếp cho cửa hàng. BuildMate không giữ tiền.",
     "waitDeposit": "Chờ khách thanh toán cọc trước khi bắt đầu thi công.",
-    "escrowHeld": "BuildMate đang giữ tiền cọc (mô phỏng). Contractor chưa nhận 10%.",
+    "escrowHeld": "BuildMate đang giữ tiền cọc (mô phỏng). Contractor chưa nhận 5%.",
     "confirmRemaining": "Xác nhận đã thanh toán 85% trực tiếp",
     "remainingConfirmed": "Đã ghi nhận thanh toán 85% trực tiếp",
     "settleEscrow": "Quyết toán escrow (mô phỏng)",
