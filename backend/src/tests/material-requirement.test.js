@@ -24,6 +24,7 @@ const {
   fulfillmentSchema,
 } = require('../validators/material-requirement.validator');
 const { parseMrlChat, encodeMrlChat, requestPayload, quotePayload } = require('../utils/mrl-chat');
+const { matchesRequirementItem } = require('../utils/material-requirement-matching');
 const { assertDevDatabaseUrl } = require('../utils/dev-database-guard');
 
 const FRONTEND_ROOT = path.resolve(__dirname, '../../../frontend/src');
@@ -36,6 +37,32 @@ function readFe(rel) {
 function readBe(rel) {
   return fs.readFileSync(path.join(BACKEND_ROOT, rel), 'utf8');
 }
+
+describe('Material requirement catalog matching', () => {
+  it('matches normalized product name, specification, and unit', () => {
+    assert.equal(
+      matchesRequirementItem(
+        { name: 'Ống PVC', specification: 'Phi 20', unit: 'Mét' },
+        { name: 'Ống PVC Phi 20', description: 'Ống nhựa xây dựng', unit: 'mét' }
+      ),
+      true
+    );
+  });
+
+  it('does not count description-only, wrong-specification, or wrong-unit matches', () => {
+    const requirement = { name: 'Gạch ống', specification: '8x18', unit: 'viên' };
+    assert.equal(
+      matchesRequirementItem(requirement, {
+        name: 'Keo dán gạch',
+        description: 'Dùng để dán gạch ống kích thước 8x18',
+        unit: 'viên',
+      }),
+      false
+    );
+    assert.equal(matchesRequirementItem(requirement, { name: 'Gạch ống 8x20', unit: 'viên' }), false);
+    assert.equal(matchesRequirementItem(requirement, { name: 'Gạch ống 8x18', unit: 'thùng' }), false);
+  });
+});
 
 describe('Material Requirement List rules', () => {
   it('only edits items in DRAFT and requires items before send', () => {

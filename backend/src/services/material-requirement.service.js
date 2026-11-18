@@ -11,6 +11,8 @@ const { notify, NOTIFICATION_TYPE } = require('./notificationService');
 const { ROOM_KIND } = require('../utils/chat-room.rules');
 const { emitToUser } = require('./socketService');
 const { encodeMrlChat, requestPayload, quotePayload, confirmedPayload, rejectedPayload } = require('../utils/mrl-chat');
+const { foldServiceName } = require('../constants/contractorServices');
+const { matchesRequirementItem } = require('../utils/material-requirement-matching');
 const { roundVnd } = require('../utils/contractor-finance');
 const repo = require('../repositories/materialRequirement.postgres');
 const {
@@ -487,22 +489,66 @@ async function suggestCatalog(user, id) {
 
 async function listEligibleStores(user, id) {
   const list = await loadOwnedList(id, user);
-  const matches = await collectPublicMaterials(list);
+  const groups = new Map();
+  for (const item of list.items || []) {
+    const name = String(item.name || '').trim();
+    const key = foldServiceName(name);
+    if (!name || !key) continue;
+    const group = groups.get(key) || { name, items: [] };
+    group.items.push(item);
+    groups.set(key, group);
+  }
+
+  const groupsToSearch = [...groups.values()];
   const byStore = new Map();
-  for (const row of matches) {
-    if (!row.storeId || byStore.has(row.storeId)) continue;
-    const live = await marketplaceService.assertApprovedLiveStore(row.storeId);
+  for (let index = 0; index < groupsToSearch.length; index += 5) {
+    const batch = groupsToSearch.slice(index, index + 5);
+    const results = await Promise.all(
+      batch.map(async (group) => {
+        const result = await marketplaceService.searchMaterials({
+          keyword: group.name,
+          sellingStatus: 'selling',
+          page: 1,
+          limit: 100,
+        });
+        return { group, rows: Array.isArray(result) ? result : result.items };
+      })
+    );
+    for (const { group, rows } of results) {
+      for (const row of rows) {
+        if (!row.storeId) continue;
+        const matchingItems = group.items.filter((item) => matchesRequirementItem(item, row));
+        if (!matchingItems.length) continue;
+        const storeId = String(row.storeId);
+        const storeMatch = byStore.get(storeId) || {
+          storeId,
+          name: row.store?.name || '',
+          city: row.store?.city || '',
+          sampleMaterial: row.name,
+          samplePrice: row.price,
+          matchedItemIds: new Set(),
+        };
+        matchingItems.forEach((item) => storeMatch.matchedItemIds.add(String(item.id)));
+        byStore.set(storeId, storeMatch);
+      }
+    }
+  }
+
+  const eligible = [];
+  for (const [storeId, match] of byStore) {
+    const live = await marketplaceService.assertApprovedLiveStore(storeId);
     if (!live) continue;
     if (live.storeType !== STORE_TYPE.MATERIALS && live.storeType !== STORE_TYPE.BOTH) continue;
-    byStore.set(row.storeId, {
-      storeId: row.storeId,
-      name: row.storeName || live.name,
-      city: row.city || live.city || '',
-      sampleMaterial: row.name,
-      samplePrice: row.price,
+    eligible.push({
+      storeId,
+      name: match.name || live.name,
+      city: match.city || live.city || '',
+      sampleMaterial: match.sampleMaterial,
+      samplePrice: match.samplePrice,
+      matchedItemIds: [...match.matchedItemIds],
     });
   }
-  return [...byStore.values()];
+  return eligible;
 }
 
 async function createStoreQuote(user, id, payload) {

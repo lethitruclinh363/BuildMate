@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { NearbyCard } from '@/features/map/components/NearbyCard';
+import type { MaterialStoreMatchSummary } from '@/features/map/components/MaterialStoreCard';
 import { RadiusSelector } from '@/features/map/components/RadiusSelector';
 import type { LatLng } from '@/features/map/lib/location';
 import { cn } from '@/lib/cn';
@@ -27,6 +28,7 @@ export function ExploreResultsPane({
   onTabChange,
   onRadiusChange,
   origin,
+  materialMatches,
 }: {
   contractors: NearbyPlace[];
   stores: NearbyPlace[];
@@ -41,6 +43,7 @@ export function ExploreResultsPane({
   onTabChange: (tab: ExploreListTab) => void;
   onRadiusChange: (km: number) => void;
   origin?: LatLng | null;
+  materialMatches?: Record<string, MaterialStoreMatchSummary>;
 }) {
   const { t } = useI18n();
 
@@ -99,6 +102,7 @@ export function ExploreResultsPane({
               active={pick?.kind === kind && pick.id === place.id}
               onHover={() => onChoose(place.id, kind)}
               origin={origin}
+              requirementMatch={kind === 'store' ? materialMatches?.[String(place.id)] : undefined}
             />
           ))}
         </div>

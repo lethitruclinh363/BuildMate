@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/cn';
 import { ExplorePopup } from '@/features/map/components/ExplorePopup';
 import { ExploreResultsPane, CardSkeleton, CompactEmpty, type ExploreListTab } from '@/features/map/components/ExploreResultsPane';
+import type { MaterialStoreMatchSummary } from '@/features/map/components/MaterialStoreCard';
 import { ExploreSplitShell } from '@/features/map/components/ExploreSplitShell';
 import { LocationPicker } from '@/features/map/components/LocationPicker';
 import { MapView } from '@/features/map/components/MapView';
@@ -27,7 +28,10 @@ import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/api';
 import { vnd } from '@/lib/partner-api';
 import { useI18n } from '@/locales';
-import { materialRequirementApi } from '@/lib/material-requirement-api';
+import {
+  materialRequirementApi,
+  type MaterialRequirementItem,
+} from '@/lib/material-requirement-api';
 import { SEARCH_CHIPS, type NearbyPlace, type PublicService } from '@/types/marketplace';
 
 function uniqueById(places: NearbyPlace[]) {
@@ -38,6 +42,11 @@ function uniqueById(places: NearbyPlace[]) {
     seen.add(id);
     return true;
   });
+}
+
+function requirementItemLabel(item: MaterialRequirementItem) {
+  const details = [item.specification, item.unit].filter(Boolean).join(', ');
+  return details ? `${item.name} (${details})` : item.name;
 }
 
 export function ExplorePage() {
@@ -66,7 +75,8 @@ export function ExplorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pinFailed, setPinFailed] = useState(false);
-  const [eligibleIds, setEligibleIds] = useState<Set<string>>(new Set());
+  const [requiredItems, setRequiredItems] = useState<MaterialRequirementItem[]>([]);
+  const [eligibleStoreMatches, setEligibleStoreMatches] = useState<Record<string, string[]> | null>(null);
   const [mrlTitle, setMrlTitle] = useState('');
   const pinTimer = useRef<number>(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -177,26 +187,37 @@ export function ExplorePage() {
     rememberExplore({ origin, filters, mapCenter });
   }, [origin, filters, mapCenter]);
 
-  const mrlOriginApplied = useRef(false);
+  const mrlOriginApplied = useRef('');
   useEffect(() => {
     if (!mrlId) {
-      mrlOriginApplied.current = false;
+      mrlOriginApplied.current = '';
+      setRequiredItems([]);
+      setEligibleStoreMatches(null);
+      setMrlTitle('');
       return;
     }
     setListTab('store');
     setFilters((current) => (current.storeType === 'MATERIALS' ? current : { ...current, storeType: 'MATERIALS' }));
-    if (mrlOriginApplied.current) return;
     let ignore = false;
+    setMrlTitle('');
+    setRequiredItems([]);
+    setEligibleStoreMatches(null);
     materialRequirementApi
       .get(mrlId)
       .then((res) => {
         if (ignore) return;
         const list = res.data.data;
         setMrlTitle(list.title || list.requestTitle || list.requestCode || '');
+        setRequiredItems(list.items || []);
+        const hasSiteCoordinates =
+          list.siteLat != null &&
+          list.siteLng != null &&
+          hasCoordinates(Number(list.siteLat), Number(list.siteLng));
+        if (mrlOriginApplied.current === mrlId) return;
         const lat = Number(list.siteLat);
         const lng = Number(list.siteLng);
-        if (!hasCoordinates(lat, lng)) return;
-        mrlOriginApplied.current = true;
+        if (!hasSiteCoordinates) return;
+        mrlOriginApplied.current = mrlId;
         setOrigin({
           lat,
           lng,
@@ -205,15 +226,24 @@ export function ExplorePage() {
           source: 'MAP_PIN',
         });
       })
-      .catch(() => null);
+      .catch(() => {
+        if (!ignore) {
+          setMrlTitle('');
+          setRequiredItems([]);
+        }
+      });
     materialRequirementApi
       .eligibleStores(mrlId)
       .then((res) => {
         if (ignore) return;
-        setEligibleIds(new Set((res.data.data || []).map((row) => String(row.storeId))));
+        const matches: Record<string, string[]> = {};
+        for (const row of res.data.data || []) {
+          matches[String(row.storeId)] = row.matchedItemIds || [];
+        }
+        setEligibleStoreMatches(matches);
       })
       .catch(() => {
-        if (!ignore) setEligibleIds(new Set());
+        if (!ignore) setEligibleStoreMatches(null);
       });
     return () => {
       ignore = true;
@@ -238,9 +268,29 @@ export function ExplorePage() {
   }
 
   const rankedStores = useMemo(() => {
-    if (!eligibleIds.size) return stores;
-    return [...stores].sort((a, b) => Number(eligibleIds.has(String(b.id))) - Number(eligibleIds.has(String(a.id))));
-  }, [stores, eligibleIds]);
+    if (!mrlId || !eligibleStoreMatches) return stores;
+    return [...stores].sort(
+      (a, b) =>
+        (eligibleStoreMatches[String(b.id)]?.length || 0) -
+        (eligibleStoreMatches[String(a.id)]?.length || 0)
+    );
+  }, [stores, mrlId, eligibleStoreMatches]);
+  const materialMatches = useMemo(() => {
+    if (!mrlId || !eligibleStoreMatches || !requiredItems.length) return undefined;
+    const result: Record<string, MaterialStoreMatchSummary> = {};
+    for (const store of stores) {
+      const matchedIds = new Set(eligibleStoreMatches[String(store.id)] || []);
+      const matchedItems = requiredItems.filter((item) => matchedIds.has(String(item.id)));
+      const missingItems = requiredItems.filter((item) => !matchedIds.has(String(item.id)));
+      result[String(store.id)] = {
+        matchedCount: matchedItems.length,
+        totalCount: requiredItems.length,
+        matchedNames: matchedItems.map(requirementItemLabel),
+        missingNames: missingItems.map(requirementItemLabel),
+      };
+    }
+    return result;
+  }, [mrlId, eligibleStoreMatches, requiredItems, stores]);
   const selected = pick
     ? (pick.kind === 'store' ? rankedStores : contractors).find((place) => place.id === pick.id) || null
     : null;
@@ -287,6 +337,7 @@ export function ExplorePage() {
         onTabChange={setListTab}
         onRadiusChange={(radius) => setFilters((current) => ({ ...current, radius }))}
         origin={origin}
+        materialMatches={materialMatches}
       />
     );
 

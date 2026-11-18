@@ -13,6 +13,13 @@ import { useI18n } from '@/locales';
 import { useToastStore } from '@/store/toast.store';
 import type { NearbyPlace } from '@/types/marketplace';
 
+export type MaterialStoreMatchSummary = {
+  matchedCount: number;
+  totalCount: number;
+  matchedNames: string[];
+  missingNames: string[];
+};
+
 function categoryLine(place: NearbyPlace, t: (path: string, vars?: Record<string, string | number>) => string) {
   const registered = place.materialCategories || [];
   const fromProducts = [...new Set((place.products || []).map((item) => item.category).filter(Boolean))].map((name) => ({
@@ -32,11 +39,13 @@ export function StoreResultCard({
   active,
   onHover,
   origin,
+  requirementMatch,
 }: {
   place: NearbyPlace;
   active?: boolean;
   onHover?: () => void;
   origin?: LatLng | null;
+  requirementMatch?: MaterialStoreMatchSummary;
 }) {
   const { t } = useI18n();
   const back = useReturnState();
@@ -47,6 +56,11 @@ export function StoreResultCard({
   const materials = categoryLine(place, t);
   const storeHref = paths.store(place.id);
   const point = fromGeoPoint(place.location);
+  const serviceRadiusKm = Number(place.serviceRadiusKm);
+  const deliveryRangeText =
+    Number.isFinite(serviceRadiusKm) && serviceRadiusKm > 0
+      ? t('explore.deliveryRadius', { km: serviceRadiusKm })
+      : t('explore.deliveryRangeUnknown');
 
   return (
     <div id={`place-store-${place.id}`} className="scroll-mt-16">
@@ -81,7 +95,9 @@ export function StoreResultCard({
             <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] leading-4 text-ink-600">
               <span className="inline-flex items-center gap-0.5">
                 <MapPin className="h-3 w-3 text-copper-500" />
-                {formatDistance(place.distanceMeters ?? place.distance * 1000)}
+                {t('explore.searchDistance', {
+                  distance: formatDistance(place.distanceMeters ?? place.distance * 1000),
+                })}
                 {place.city ? <span>· {place.city}</span> : null}
               </span>
               <span className="inline-flex items-center gap-0.5 font-semibold text-navy-800">
@@ -90,6 +106,27 @@ export function StoreResultCard({
               </span>
             </p>
             {materials ? <p className="mt-0.5 line-clamp-1 text-[11px] leading-4 text-ink-600">{t('explore.materialLine')}: {materials}</p> : null}
+            {requirementMatch ? (
+              <div className="mt-1 space-y-0.5 text-[11px] leading-4">
+                <p className="font-semibold text-navy-800">
+                  {t('explore.mrlMatchCount', {
+                    matched: requirementMatch.matchedCount,
+                    total: requirementMatch.totalCount,
+                  })}
+                </p>
+                {requirementMatch.matchedNames.length ? (
+                  <p className="line-clamp-1 text-ink-600">
+                    {t('explore.mrlMatchedItems', { items: requirementMatch.matchedNames.join(', ') })}
+                  </p>
+                ) : null}
+                {requirementMatch.missingNames.length ? (
+                  <p className="line-clamp-1 text-ink-500">
+                    {t('explore.mrlMissingItems', { items: requirementMatch.missingNames.join(', ') })}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            <p className="mt-1 text-[11px] leading-4 text-ink-500">{deliveryRangeText}</p>
           </div>
         </div>
         <div className="mt-2 flex items-stretch gap-1.5">
