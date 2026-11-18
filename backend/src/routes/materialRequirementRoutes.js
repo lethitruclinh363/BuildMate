@@ -6,6 +6,7 @@ const { validate } = require('../utils/validator');
 const {
   createListSchema,
   itemBody,
+  contractorItemBody,
   sendListSchema,
   directRequestSchema,
   updateListSchema,
@@ -60,7 +61,7 @@ router.post(
   '/:id/items',
   authenticate,
   authorize(ROLES.CONTRACTOR),
-  validate(itemBody),
+  validate(contractorItemBody),
   controller.addItem
 );
 

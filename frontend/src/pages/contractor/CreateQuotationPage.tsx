@@ -24,6 +24,7 @@ import { canCreateQuotation, type QuotationItem, type RepairRequest } from '@/ty
 type LineDraft = { name: string; quantity: number; unit: string; price: number };
 type MaterialLine = { name: string; specification: string; unit: string; quantity: number; notes: string };
 type MaterialDraft = { name: string; specification: string; unit: string; quantity: string; notes: string };
+const MAX_MATERIAL_ITEMS = 40;
 
 function emptyMaterial(): MaterialDraft {
   return { name: '', specification: '', unit: '', quantity: '', notes: '' };
@@ -88,7 +89,10 @@ export function CreateQuotationPage() {
       repairApi.get(requestId),
       contractorApi.listServices().catch(() => ({ data: { data: [] as CatalogService[] } })),
       quotationApi.forRequest(requestId).catch(() => ({ data: { data: [] } })),
-      materialRequirementApi.mine({ repairRequestId: requestId }).catch(() => ({ data: { data: [] as MaterialRequirementList[] } })),
+      materialRequirementApi.mine({ repairRequestId: requestId }).catch((err: unknown) => {
+        setError(te(getApiErrorMessage(err)));
+        return { data: { data: [] as MaterialRequirementList[] } };
+      }),
     ]).then(([req, svcs, quotes, mrlRes]) => {
       const next = req.data.data;
       setRequest(next);
@@ -162,14 +166,25 @@ export function CreateQuotationPage() {
       setError(t('mrl.qtyMustBePositive'));
       return null;
     }
-    if (!next.name) {
-      setError(t('quote.mrlInvalid'));
+    if (
+      next.quantity > 1000000 ||
+      Math.abs(next.quantity * 1000 - Math.round(next.quantity * 1000)) >= 1e-8
+    ) {
+      setError(t('mrl.quantityInvalid'));
+      return null;
+    }
+    if (next.name.length < 2) {
+      setError(t('mrl.nameInvalid'));
       return null;
     }
     return next;
   };
 
   const addMaterial = () => {
+    if (materials.length >= MAX_MATERIAL_ITEMS) {
+      setError(t('mrl.materialLimit'));
+      return;
+    }
     const next = packedMaterial();
     if (!next) return;
     setMaterials((prev) => [...prev, next]);
@@ -222,6 +237,48 @@ export function CreateQuotationPage() {
   };
 
   const canEditMrl = !mrl || mrl.status === 'DRAFT';
+  const materialDraftStarted = Boolean(
+    materialDraft.name.trim() ||
+    materialDraft.specification.trim() ||
+    materialDraft.unit.trim() ||
+    materialDraft.notes.trim() ||
+    materialDraft.quantity.trim()
+  );
+
+  const collectMaterialRows = (): MaterialLine[] | null => {
+    let rows = materials;
+    if (materialDraftStarted) {
+      const next = packedMaterial();
+      if (!next) return null;
+      rows = editingIndex == null
+        ? [...materials, next]
+        : materials.map((row, i) => (i === editingIndex ? next : row));
+    }
+
+    if (rows.length > MAX_MATERIAL_ITEMS) {
+      setError(t('mrl.materialLimit'));
+      return null;
+    }
+    for (const row of rows) {
+      const quantity = Number(row.quantity);
+      if (
+        row.name.trim().length < 2 ||
+        row.name.trim().length > 140 ||
+        row.specification.trim().length > 200 ||
+        !row.unit.trim() ||
+        row.unit.trim().length > 40 ||
+        row.notes.trim().length > 500 ||
+        !Number.isFinite(quantity) ||
+        quantity <= 0 ||
+        quantity > 1000000 ||
+        Math.abs(quantity * 1000 - Math.round(quantity * 1000)) >= 1e-8
+      ) {
+        setError(t('quote.mrlInvalid'));
+        return null;
+      }
+    }
+    return rows;
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -247,34 +304,9 @@ export function CreateQuotationPage() {
       setError(t('quote.totalMin'));
       return;
     }
-    let rows = materials;
-    if (
-      materialDraft.name.trim() ||
-      materialDraft.specification.trim() ||
-      materialDraft.unit.trim() ||
-      materialDraft.notes.trim() ||
-      String(materialDraft.quantity).trim()
-    ) {
-      const next = packedMaterial();
-      if (!next) return;
-      rows = editingIndex == null
-        ? [...materials, next]
-        : materials.map((row, i) => (i === editingIndex ? next : row));
-    }
-    const filled = rows.filter(
-      (row) => row.name.trim() || row.specification.trim() || row.unit.trim() || row.notes.trim()
-    );
-    for (const row of filled) {
-      if (unitLooksLikeQuantity(row.unit)) {
-        setError(t('mrl.unitLooksLikeQty'));
-        return;
-      }
-      if (row.name.trim().length < 2 || !row.unit.trim() || !(Number(row.quantity) > 0)) {
-        setError(t('quote.mrlInvalid'));
-        return;
-      }
-    }
-    const mrlItems = filled.map((row) => {
+    const rows = collectMaterialRows();
+    if (!rows) return;
+    const mrlItems = rows.map((row) => {
       const next = toMaterialLine(row);
       return {
         name: next.name,
@@ -289,7 +321,12 @@ export function CreateQuotationPage() {
     setError('');
     try {
       if (canEditMrl && (mrlItems.length > 0 || mrl?.status === 'DRAFT')) {
-        await materialRequirementApi.create({ requestId, items: mrlItems });
+        const response = await materialRequirementApi.create({ requestId, items: mrlItems });
+        const saved = response.data.data;
+        setMrl(saved);
+        setMaterials((saved.items || []).map((row) => toMaterialLine(row)));
+        setMaterialDraft(emptyMaterial());
+        setEditingIndex(null);
       }
       await quotationApi.create({
         requestId,
@@ -319,7 +356,6 @@ export function CreateQuotationPage() {
         title={`${t('quote.title')} · ${request.title}`}
         description={`${request.customer?.name || t('quote.customerFallback')} · ${catalogCategoryLabel(String(request.category || ''), t)}`}
       />
-
       <div className="mb-4 space-y-3">
         <p className="text-sm text-ink-500">
           <span className="font-semibold text-navy-800">{t('quote.requestMeta')}</span> {request.id}
@@ -334,75 +370,90 @@ export function CreateQuotationPage() {
 
       <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-5">
-          <section className="space-y-3 rounded-[22px] border border-navy-800/8 bg-white p-5 shadow-card">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-copper-600">{t('quote.laborSection')}</p>
-            <p className="text-xs text-ink-400">{t('quote.laborHint')}</p>
-            <div className="grid gap-2 sm:grid-cols-[1.3fr_0.5fr_0.6fr_0.8fr_auto]">
-              <Input
-                id="labor-name"
-                label={t('quote.laborName')}
-                value={laborDraft.name}
-                onChange={(e) => setLaborDraft((row) => ({ ...row, name: e.target.value }))}
-              />
-              <Input
-                id="labor-qty"
-                label={t('quote.qty')}
-                type="number"
-                min={1}
-                step={1}
-                value={laborDraft.quantity}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  if (!Number.isFinite(next) || next < 1) return;
-                  setLaborDraft((row) => ({ ...row, quantity: Math.trunc(next) }));
-                }}
-              />
-              <Input
-                id="labor-unit"
-                label={t('quote.requirementUnit')}
-                value={laborDraft.unit}
-                onChange={(e) => setLaborDraft((row) => ({ ...row, unit: e.target.value }))}
-              />
-              <Input
-                id="labor-price"
-                label={t('quote.requirementPrice')}
-                type="number"
-                min={0}
-                step="1"
-                value={laborDraft.price}
-                onChange={(e) => {
-                  if (e.target.value === '') {
-                    setLaborDraft((row) => ({ ...row, price: 0 }));
-                    return;
-                  }
-                  const next = Number(e.target.value);
-                  if (!Number.isFinite(next) || next < 0) return;
-                  setLaborDraft((row) => ({ ...row, price: next }));
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="sm:mt-7"
-                onClick={() => {
-                  const name = laborDraft.name.trim();
-                  if (!name) return;
-                  addItem({
-                    type: 'LABOR',
-                    name,
-                    quantity: Math.max(1, Math.trunc(Number(laborDraft.quantity) || 1)),
-                    unit: laborDraft.unit.trim() || 'job',
-                    price: Number.isFinite(Number(laborDraft.price)) && Number(laborDraft.price) >= 0 ? Number(laborDraft.price) : 0,
-                  });
-                  setLaborDraft({ name: '', quantity: 1, unit: laborDraft.unit || 'job', price: 0 });
-                }}
-              >
-                {t('common.add')}
-              </Button>
+          <section className="space-y-4 rounded-2xl border border-navy-800/10 bg-white p-4 sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-navy-800">{t('quote.laborSection')}</p>
+                <p className="mt-1 text-sm text-ink-500">{t('quote.laborHint')}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-ink-400">{t('quote.fromYard')}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
+            <div className="border-y border-navy-800/10 py-4">
+              <div className="grid items-end gap-3 sm:grid-cols-6 lg:grid-cols-12">
+                <div className="sm:col-span-6 lg:col-span-4">
+                  <Input
+                    id="labor-name"
+                    label={t('quote.laborName')}
+                    value={laborDraft.name}
+                    onChange={(e) => setLaborDraft((row) => ({ ...row, name: e.target.value }))}
+                  />
+                </div>
+                <div className="sm:col-span-2 lg:col-span-2">
+                  <Input
+                    id="labor-qty"
+                    label={t('quote.qty')}
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={laborDraft.quantity}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      if (!Number.isFinite(next) || next < 1) return;
+                      setLaborDraft((row) => ({ ...row, quantity: Math.trunc(next) }));
+                    }}
+                  />
+                </div>
+                <div className="sm:col-span-2 lg:col-span-2">
+                  <Input
+                    id="labor-unit"
+                    label={t('quote.requirementUnit')}
+                    value={laborDraft.unit}
+                    onChange={(e) => setLaborDraft((row) => ({ ...row, unit: e.target.value }))}
+                  />
+                </div>
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <Input
+                    id="labor-price"
+                    label={t('quote.requirementPrice')}
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={laborDraft.price}
+                    onChange={(e) => {
+                      if (e.target.value === '') {
+                        setLaborDraft((row) => ({ ...row, price: 0 }));
+                        return;
+                      }
+                      const next = Number(e.target.value);
+                      if (!Number.isFinite(next) || next < 0) return;
+                      setLaborDraft((row) => ({ ...row, price: next }));
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full sm:col-span-6 lg:col-span-1"
+                  onClick={() => {
+                    const name = laborDraft.name.trim();
+                    if (!name) return;
+                    addItem({
+                      type: 'LABOR',
+                      name,
+                      quantity: Math.max(1, Math.trunc(Number(laborDraft.quantity) || 1)),
+                      unit: laborDraft.unit.trim() || 'job',
+                      price: Number.isFinite(Number(laborDraft.price)) && Number(laborDraft.price) >= 0 ? Number(laborDraft.price) : 0,
+                    });
+                    setLaborDraft({ name: '', quantity: 1, unit: laborDraft.unit || 'job', price: 0 });
+                  }}
+                >
+                  {t('common.add')}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-ink-500">{t('quote.fromYard')}</p>
+              <div className="flex flex-wrap gap-2">
                 {services
                   .filter(
                     (service) =>
@@ -415,7 +466,7 @@ export function CreateQuotationPage() {
                     <button
                       key={s.id}
                       type="button"
-                      className="rounded-full bg-navy-800/8 px-3 py-1.5 text-xs font-semibold text-navy-800"
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-sm text-navy-700 transition hover:bg-navy-800/5 hover:text-navy-900"
                       onClick={() =>
                         addItem({
                           type: 'LABOR',
@@ -426,7 +477,8 @@ export function CreateQuotationPage() {
                         })
                       }
                     >
-                      + {catalogServiceLabel(s.name, t)}
+                      <span className="text-ink-400">+</span>
+                      {catalogServiceLabel(s.name, t)}
                     </button>
                   ))}
               </div>
@@ -438,34 +490,37 @@ export function CreateQuotationPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-copper-600">{t('mrl.title')}</p>
             <p className="text-sm text-ink-500">{t('quote.mrlLaborHint')}</p>
             <p className="text-xs text-ink-400">{t('quote.mrlNoPrice')}</p>
-            <p className="text-sm font-medium text-navy-800">{t('quote.mrlAddedCount', { n: materials.length })}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-navy-800">{t('quote.mrlAddedCount', { n: materials.length })}</p>
+              <p className="text-xs text-ink-500">{t('mrl.materialCount', { count: materials.length, max: MAX_MATERIAL_ITEMS })}</p>
+            </div>
             {materials.length ? (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-lg border border-navy-800/10">
                 <table className="min-w-[36rem] w-full text-sm">
                   <thead>
-                    <tr className="border-y border-navy-800/8 text-left text-xs uppercase tracking-[0.12em] text-ink-400">
-                      <th className="py-2 pr-2 font-medium">{t('mrl.stt')}</th>
-                      <th className="py-2 pr-2 font-medium">{t('mrl.name')}</th>
-                      <th className="py-2 pr-2 font-medium">{t('mrl.spec')}</th>
-                      <th className="py-2 pr-2 text-right font-medium">{t('mrl.qtyShort')}</th>
-                      <th className="py-2 pr-2 font-medium">{t('mrl.unit')}</th>
-                      <th className="py-2 text-right font-medium">{t('quote.mrlActions')}</th>
+                    <tr className="border-b border-navy-800/8 text-center text-xs uppercase tracking-[0.12em] text-ink-400">
+                      <th className="px-3 py-2 font-medium">{t('mrl.stt')}</th>
+                      <th className="px-3 py-2 font-medium">{t('mrl.name')}</th>
+                      <th className="px-3 py-2 font-medium">{t('mrl.spec')}</th>
+                      <th className="px-3 py-2 font-medium">{t('mrl.qtyShort')}</th>
+                      <th className="px-3 py-2 font-medium">{t('mrl.unit')}</th>
+                      <th className="px-3 py-2 font-medium">{t('quote.mrlActions')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {materials.map((row, index) => (
                       <tr key={`${row.name}-${index}`} className="border-b border-navy-800/8 align-top">
-                        <td className="py-2.5 pr-2 text-ink-400">{mrlIndex(index)}</td>
-                        <td className="py-2.5 pr-2">
+                        <td className="px-3 py-2.5 text-center text-ink-400">{mrlIndex(index)}</td>
+                        <td className="px-3 py-2.5 text-center">
                           <p className="font-semibold text-navy-800">{row.name}</p>
                           {row.notes ? <p className="mt-0.5 text-xs text-ink-400">{row.notes}</p> : null}
                         </td>
-                        <td className="py-2.5 pr-2 text-ink-600">{formatMrlSpec(row.specification) || t('mrl.specMissing')}</td>
-                        <td className="py-2.5 pr-2 text-right font-semibold text-navy-800">{formatMrlQuantity(row.quantity)}</td>
-                        <td className="py-2.5 pr-2 text-ink-600">{formatMrlSpec(row.unit)}</td>
-                        <td className="py-2.5">
+                        <td className="px-3 py-2.5 text-center text-ink-600">{formatMrlSpec(row.specification) || t('mrl.specMissing')}</td>
+                        <td className="px-3 py-2.5 text-center font-semibold text-navy-800">{formatMrlQuantity(row.quantity)}</td>
+                        <td className="px-3 py-2.5 text-center text-ink-600">{formatMrlSpec(row.unit)}</td>
+                        <td className="px-3 py-2.5">
                           {canEditMrl ? (
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-center gap-2">
                               <button type="button" className="text-xs font-medium text-navy-800 hover:underline" onClick={() => startEditMaterial(index)}>
                                 {t('quote.editMaterial')}
                               </button>
@@ -491,6 +546,7 @@ export function CreateQuotationPage() {
                       id="mrl-name"
                       label={t('mrl.name')}
                       placeholder={t('mrl.namePh')}
+                      maxLength={140}
                       value={materialDraft.name}
                       onChange={(e) => setMaterialDraft((row) => ({ ...row, name: e.target.value }))}
                     />
@@ -499,6 +555,7 @@ export function CreateQuotationPage() {
                     id="mrl-spec"
                     label={t('mrl.spec')}
                     placeholder={t('mrl.specPh')}
+                    maxLength={200}
                     value={materialDraft.specification}
                     onChange={(e) => setMaterialDraft((row) => ({ ...row, specification: e.target.value }))}
                   />
@@ -506,6 +563,7 @@ export function CreateQuotationPage() {
                     id="mrl-unit"
                     label={t('mrl.unitLabel')}
                     placeholder={t('mrl.unitPh')}
+                    maxLength={40}
                     value={materialDraft.unit}
                     onChange={(e) => setMaterialDraft((row) => ({ ...row, unit: e.target.value }))}
                     error={unitLooksLikeQuantity(materialDraft.unit) ? t('mrl.unitLooksLikeQty') : undefined}
@@ -515,7 +573,8 @@ export function CreateQuotationPage() {
                     label={t('mrl.qty')}
                     type="number"
                     min={0.001}
-                    step="any"
+                    max={1000000}
+                    step="0.001"
                     placeholder={t('mrl.qtyPh')}
                     value={materialDraft.quantity}
                     onKeyDown={(e) => guardNumberKeyDown(e, 0.001)}
@@ -535,6 +594,7 @@ export function CreateQuotationPage() {
                     id="mrl-notes"
                     label={t('mrl.notes')}
                     placeholder={t('mrl.notesPh')}
+                    maxLength={500}
                     value={materialDraft.notes}
                     onChange={(e) => setMaterialDraft((row) => ({ ...row, notes: e.target.value }))}
                   />
@@ -590,28 +650,30 @@ export function CreateQuotationPage() {
         </div>
 
         <aside className="h-fit space-y-3 lg:sticky lg:top-20">
-          <div className="rounded-[22px] border border-copper-300 bg-white/90 p-6 shadow-lift backdrop-blur">
-            <p className="font-display text-xl text-navy-800">{t('quote.summary')}</p>
-            <dl className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt>{t('quote.labor')}</dt>
-                <dd className="font-semibold">{vnd(totals.laborCost)}</dd>
+          <div className="rounded-2xl border border-navy-800/10 bg-white p-5 shadow-sm">
+            <p className="text-lg font-semibold text-navy-800">{t('quote.summary')}</p>
+            <dl className="mt-3 divide-y divide-navy-800/8">
+              <div className="flex items-center justify-between gap-3 py-2.5">
+                <dt className="text-sm text-ink-600">{t('quote.labor')}</dt>
+                <dd className="text-sm font-medium text-navy-800">{vnd(totals.laborCost)}</dd>
               </div>
-              <div className="flex justify-between gap-3">
-                <dt>{t('quote.time')}</dt>
-                <dd className="font-semibold">{t('quote.daysWork', { n: estimatedDays })}</dd>
+              <div className="flex items-center justify-between gap-3 py-2.5">
+                <dt className="text-sm text-ink-600">{t('quote.time')}</dt>
+                <dd className="text-right text-sm font-medium text-navy-800">{t('quote.daysWork', { n: estimatedDays })}</dd>
               </div>
-              <div className="flex justify-between gap-3">
-                <dt>{t('mrl.title')}</dt>
-                <dd className="font-semibold">{t('quote.mrlCount', { n: materials.length })}</dd>
+              <div className="flex items-center justify-between gap-3 py-2.5">
+                <dt className="text-sm text-ink-600">{t('mrl.title')}</dt>
+                <dd className="text-right text-sm font-medium text-navy-800">{t('quote.mrlCount', { n: materials.length })}</dd>
               </div>
             </dl>
-            <p className="mt-4 text-xs uppercase tracking-[0.14em] text-ink-400">{t('quote.labor')}</p>
-            <p className="font-display text-3xl text-navy-800">{vnd(totals.total)}</p>
-            <p className="mt-1 text-sm text-ink-400">{t('quote.mrlNoPrice')}</p>
+            <div className="mt-3 border-t border-navy-800/10 pt-3">
+              <p className="text-sm text-ink-600">{t('quote.total')}</p>
+              <p className="mt-0.5 text-2xl font-semibold text-navy-800">{vnd(totals.total)}</p>
+              <p className="mt-1 text-xs text-ink-500">{t('quote.mrlNoPrice')}</p>
+            </div>
             {lockedReason ? <p className="mt-3 text-sm text-amber-700">{lockedReason}</p> : null}
             {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-            <Button type="submit" className="mt-6 w-full" loading={saving} disabled={Boolean(lockedReason)}>
+            <Button type="submit" className="mt-5 w-full" loading={saving} disabled={Boolean(lockedReason)}>
               {t('quote.sendToChat')}
             </Button>
           </div>
@@ -646,52 +708,72 @@ function LineList({
   const { t } = useI18n();
   const rows = items.map((item, index) => ({ item, index })).filter((row) => row.item.type === 'LABOR');
   if (!rows.length) {
-    return <p className="text-sm text-ink-400">{emptyLabel}</p>;
+    return <p className="border-t border-navy-800/10 py-3 text-sm text-ink-400">{emptyLabel}</p>;
   }
   return (
-    <ul className="space-y-2">
+    <ul className="divide-y divide-navy-800/10 border-y border-navy-800/10">
       {rows.map(({ item, index }) => (
-        <li key={`${item.type}-${index}-${item.name}`} className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="min-w-0 flex-1 font-medium text-navy-800">{item.name}</span>
-          <input
-            type="number"
-            min={1}
-            step={1}
-            value={item.quantity}
-            aria-label={t('quote.qty')}
-            className="h-9 w-16 rounded-xl border border-navy-800/10 px-2"
-            onKeyDown={(e) => guardNumberKeyDown(e, 1)}
-            onPaste={(e) => guardNumberPaste(e, 1)}
-            onChange={(e) => {
-              const next = Number(e.target.value);
-              if (!Number.isFinite(next) || next < 1) return;
-              onUpdate(index, { quantity: Math.trunc(next) });
-            }}
-          />
-          <span className="w-12 text-xs text-ink-400">{item.unit}</span>
-          <input
-            type="number"
-            min={0}
-            step="1"
-            value={item.price}
-            aria-label={t('quote.requirementPrice')}
-            className="h-9 w-24 rounded-xl border border-navy-800/10 px-2"
-            onKeyDown={(e) => guardNumberKeyDown(e, 0)}
-            onPaste={(e) => guardNumberPaste(e, 0)}
-            onChange={(e) => {
-              if (e.target.value === '') {
-                onUpdate(index, { price: 0 });
-                return;
-              }
-              const next = Number(e.target.value);
-              if (!Number.isFinite(next) || next < 0) return;
-              onUpdate(index, { price: next });
-            }}
-          />
-          <span className="w-28 text-right font-semibold">{vnd(item.quantity * item.price)}</span>
-          <button type="button" className="text-xs text-red-600" onClick={() => onRemove(index)}>
-            {t('common.remove')}
-          </button>
+        <li
+          key={`${item.type}-${index}-${item.name}`}
+          className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+        >
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-navy-800">{item.name}</p>
+            <p className="mt-0.5 text-xs text-ink-500">{item.unit}</p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2.5">
+            <label className="grid gap-1 text-xs text-ink-500">
+              {t('quote.qty')}
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={item.quantity}
+                aria-label={t('quote.qty')}
+                className="h-9 w-[4.5rem] rounded-md border border-navy-800/15 bg-white px-2 text-sm text-navy-800 outline-none focus:border-navy-500"
+                onKeyDown={(e) => guardNumberKeyDown(e, 1)}
+                onPaste={(e) => guardNumberPaste(e, 1)}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  if (!Number.isFinite(next) || next < 1) return;
+                  onUpdate(index, { quantity: Math.trunc(next) });
+                }}
+              />
+            </label>
+            <label className="grid gap-1 text-xs text-ink-500">
+              {t('quote.requirementPrice')}
+              <input
+                type="number"
+                min={0}
+                step="1"
+                value={item.price}
+                aria-label={t('quote.requirementPrice')}
+                className="h-9 w-28 rounded-md border border-navy-800/15 bg-white px-2 text-sm text-navy-800 outline-none focus:border-navy-500"
+                onKeyDown={(e) => guardNumberKeyDown(e, 0)}
+                onPaste={(e) => guardNumberPaste(e, 0)}
+                onChange={(e) => {
+                  if (e.target.value === '') {
+                    onUpdate(index, { price: 0 });
+                    return;
+                  }
+                  const next = Number(e.target.value);
+                  if (!Number.isFinite(next) || next < 0) return;
+                  onUpdate(index, { price: next });
+                }}
+              />
+            </label>
+            <div className="min-w-[7rem] pb-1 text-right">
+              <p className="text-xs text-ink-500">{t('quote.total')}</p>
+              <p className="text-sm font-medium text-navy-800">{vnd(item.quantity * item.price)}</p>
+            </div>
+            <button
+              type="button"
+              className="h-9 px-1 text-xs font-medium text-red-600 hover:underline"
+              onClick={() => onRemove(index)}
+            >
+              {t('common.remove')}
+            </button>
+          </div>
         </li>
       ))}
     </ul>

@@ -22,6 +22,7 @@ const {
   canConfirmQuote,
   isFulfillmentStatus,
   assertItem,
+  assertContractorItem,
   quoteTotal,
 } = require('../utils/material-requirement.rules');
 
@@ -153,7 +154,7 @@ async function createList(user, payload) {
       if (canEditItems(existing.status) && Array.isArray(payload.items)) {
         const pk = await repo.listPkByPublicId(existing.id);
         if (!pk) throw new ApiError(404, 'Material requirement list not found');
-        const nextItems = payload.items.map((row) => assertItem(row));
+        const nextItems = payload.items.map((row) => assertContractorItem(row));
         if (nextItems.length > 40) throw new ApiError(422, 'Too many items on this list');
         await repo.replaceItems(pk, nextItems);
         if (payload.note) await repo.updateList(pk, { note: payload.note });
@@ -170,7 +171,7 @@ async function createList(user, payload) {
     });
     const items = payload.items || [];
     for (let i = 0; i < items.length; i += 1) {
-      await repo.insertItem(created.id, assertItem(items[i]), i);
+      await repo.insertItem(created.id, assertContractorItem(items[i]), i);
     }
     return repo.findByPublicId(created.legacy_mongo_id);
   });
@@ -251,7 +252,7 @@ async function addItem(user, id, payload) {
   const list = await loadOwnedList(id, user);
   if (String(list.contractorId) !== String(user.id)) throw new ApiError(403, 'You cannot edit this list');
   if (!canEditItems(list.status)) throw new ApiError(409, 'Items can only be edited while the list is a draft');
-  const item = assertItem(payload);
+  const item = assertContractorItem(payload);
   const row = await repo.findByPublicId(id);
   const pkRows = await repo.findByPublicId(id);
   const internal = await require('../config/prisma').prisma.$queryRaw`
@@ -273,7 +274,7 @@ async function updateItem(user, id, itemId, payload) {
     if (!sameId(list.contractorId, user.id) || list.kind === 'SAVED') {
       throw new ApiError(403, 'You cannot edit this list');
     }
-    await repo.updateItem(BigInt(itemId), assertItem(payload));
+    await repo.updateItem(BigInt(itemId), assertContractorItem(payload));
     return repo.findByPublicId(id);
   }
   if (user.role === ROLES.CUSTOMER) {

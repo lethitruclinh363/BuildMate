@@ -5,14 +5,21 @@ const itemBody = z.object({
   name: z.string().trim().min(2).max(140),
   specification: z.string().trim().max(200).optional().or(z.literal('')),
   unit: z.string().trim().max(40).optional().or(z.literal('')),
-  quantity: finiteNumber().gt(0).lte(1000000),
+  quantity: finiteNumber()
+    .gt(0)
+    .lte(1000000)
+    .refine((value) => Math.abs(value * 1000 - Math.round(value * 1000)) < 1e-8, 'Quantity supports up to 3 decimal places'),
   notes: z.string().trim().max(500).optional().or(z.literal('')),
+});
+
+const contractorItemBody = itemBody.extend({
+  unit: z.string().trim().min(1).max(40),
 });
 
 const createListSchema = z.object({
   requestId: z.string().min(8).max(40),
   note: z.string().trim().max(1000).optional().or(z.literal('')),
-  items: z.array(itemBody).max(40).optional(),
+  items: z.array(contractorItemBody).max(40).optional(),
 });
 
 const updateListSchema = z.object({
@@ -54,6 +61,7 @@ module.exports = {
   updateListSchema,
   sendListSchema,
   directRequestSchema,
+  contractorItemBody,
   createQuoteSchema,
   fulfillmentSchema,
 };
