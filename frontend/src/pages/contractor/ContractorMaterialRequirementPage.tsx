@@ -71,6 +71,14 @@ export function ContractorMaterialRequirementPage() {
   const onAdd = (event: FormEvent) => {
     event.preventDefault();
     if (!list) return;
+    if (list.items.length >= 40) {
+      setError(t('mrl.materialLimit'));
+      return;
+    }
+    if (item.name.trim().length < 2) {
+      setError(t('mrl.nameInvalid'));
+      return;
+    }
     const qty = Number(item.quantity);
     if (unitLooksLikeQuantity(item.unit)) {
       setError(t('mrl.unitLooksLikeQty'));
@@ -82,6 +90,10 @@ export function ContractorMaterialRequirementPage() {
     }
     if (!Number.isFinite(qty) || qty <= 0) {
       setError(t('mrl.qtyMustBePositive'));
+      return;
+    }
+    if (qty > 1000000 || Math.abs(qty * 1000 - Math.round(qty * 1000)) >= 1e-8) {
+      setError(t('mrl.quantityInvalid'));
       return;
     }
     void run(async () => {
@@ -113,17 +125,18 @@ export function ContractorMaterialRequirementPage() {
 
       {draft ? (
         <form onSubmit={onAdd} className="mb-6 grid gap-3 rounded-2xl border border-navy-800/10 bg-white p-4 md:grid-cols-2">
-          <Input id="mrl-name" label={t('mrl.name')} placeholder={t('mrl.namePh')} value={item.name} onChange={(e) => setItem({ ...item, name: e.target.value })} required />
-          <Input id="mrl-spec" label={t('mrl.spec')} placeholder={t('mrl.specPh')} value={item.specification} onChange={(e) => setItem({ ...item, specification: e.target.value })} />
-          <Input id="mrl-unit" label={t('mrl.unitLabel')} placeholder={t('mrl.unitPh')} value={item.unit} onChange={(e) => setItem({ ...item, unit: e.target.value })} error={unitLooksLikeQuantity(item.unit) ? t('mrl.unitLooksLikeQty') : undefined} />
-          <Input id="mrl-qty" label={t('mrl.qty')} type="number" min={0.001} step="any" placeholder={t('mrl.qtyPh')} value={item.quantity} onChange={(e) => {
+          <Input id="mrl-name" label={t('mrl.name')} placeholder={t('mrl.namePh')} maxLength={140} value={item.name} onChange={(e) => setItem({ ...item, name: e.target.value })} required />
+          <Input id="mrl-spec" label={t('mrl.spec')} placeholder={t('mrl.specPh')} maxLength={200} value={item.specification} onChange={(e) => setItem({ ...item, specification: e.target.value })} />
+          <Input id="mrl-unit" label={t('mrl.unitLabel')} placeholder={t('mrl.unitPh')} maxLength={40} value={item.unit} onChange={(e) => setItem({ ...item, unit: e.target.value })} required error={unitLooksLikeQuantity(item.unit) ? t('mrl.unitLooksLikeQty') : undefined} />
+          <Input id="mrl-qty" label={t('mrl.qty')} type="number" min={0.001} max={1000000} step="0.001" placeholder={t('mrl.qtyPh')} value={item.quantity} onChange={(e) => {
             if (e.target.value === '' || Number(e.target.value) >= 0) setItem({ ...item, quantity: e.target.value });
           }} required />
           <div className="md:col-span-2">
-            <Input id="mrl-notes" label={t('mrl.notes')} placeholder={t('mrl.notesPh')} value={item.notes} onChange={(e) => setItem({ ...item, notes: e.target.value })} />
+            <Input id="mrl-notes" label={t('mrl.notes')} placeholder={t('mrl.notesPh')} maxLength={500} value={item.notes} onChange={(e) => setItem({ ...item, notes: e.target.value })} />
           </div>
           <div>
-            <Button type="submit" disabled={busy}>{t('mrl.addItem')}</Button>
+            <Button type="submit" disabled={busy || list.items.length >= 40}>{t('mrl.addItem')}</Button>
+            <p className="mt-2 text-xs text-ink-500">{t('mrl.materialCount', { count: list.items.length, max: 40 })}</p>
           </div>
         </form>
       ) : null}

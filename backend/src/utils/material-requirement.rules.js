@@ -162,6 +162,16 @@ function assertItem(input) {
   return item;
 }
 
+function assertContractorItem(input) {
+  const item = assertItem(input);
+  if (!item.unit) {
+    const error = new Error('Unit is required');
+    error.statusCode = 422;
+    throw error;
+  }
+  return item;
+}
+
 function quoteTotal(items = [], deliveryFee = 0) {
   const lines = (items || []).reduce((sum, row) => {
     const qty = Number(row.availableQty != null ? row.availableQty : row.quantity);
@@ -198,5 +208,6 @@ module.exports = {
   mrlIndex,
   normalizeItem,
   assertItem,
+  assertContractorItem,
   quoteTotal,
 };

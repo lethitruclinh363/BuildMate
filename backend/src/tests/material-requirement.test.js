@@ -13,9 +13,16 @@ const {
   nextFulfillment,
   isFulfillmentStatus,
   assertItem,
+  assertContractorItem,
   quoteTotal,
 } = require('../utils/material-requirement.rules');
-const { createListSchema, itemBody, createQuoteSchema, fulfillmentSchema } = require('../validators/material-requirement.validator');
+const {
+  createListSchema,
+  itemBody,
+  contractorItemBody,
+  createQuoteSchema,
+  fulfillmentSchema,
+} = require('../validators/material-requirement.validator');
 const { parseMrlChat, encodeMrlChat, requestPayload, quotePayload } = require('../utils/mrl-chat');
 const { assertDevDatabaseUrl } = require('../utils/dev-database-guard');
 
@@ -64,6 +71,15 @@ describe('Material Requirement List rules', () => {
     assert.equal(item.name, 'Cement PCB40');
     assert.equal(quoteTotal([{ quantity: 2, unitPrice: 100000 }], 50000), 250000);
     assert.equal(quoteTotal([{ availableQty: 3, quantity: 2, unitPrice: 100000 }], 0), 300000);
+  });
+
+  it('requires a unit for contractor material lines and limits quantity precision', () => {
+    const valid = { name: 'PVC pipe', specification: '20mm', unit: 'meter', quantity: 1.125 };
+    assert.equal(assertContractorItem(valid).unit, 'meter');
+    assert.throws(() => assertContractorItem({ ...valid, unit: '' }), /Unit is required/);
+    assert.throws(() => contractorItemBody.parse({ ...valid, unit: '' }));
+    assert.throws(() => contractorItemBody.parse({ ...valid, quantity: 1.1234 }));
+    assert.equal(contractorItemBody.parse({ ...valid, quantity: '1.125' }).quantity, 1.125);
   });
 
   it('strips a mistaken leading quantity from the unit without changing quantity', () => {
@@ -379,6 +395,81 @@ describe('Material Request HTTP auth when API is up', () => {
 });
 
 describe('Material Request isolated Postgres journeys', () => {
+  it('lets the owning contractor create and update a material draft for an accepted request', async (t) => {
+    const { testDatabaseReady } = require('./helpers/pg-cleanup');
+    if (!testDatabaseReady()) {
+      t.skip('PostgreSQL test database is not available');
+      return;
+    }
+
+    const { createParty, cleanupParty } = require('./helpers/party');
+    const { startTestServer, api } = require('./helpers/http');
+    const server = await startTestServer();
+    let party;
+    try {
+      party = await createParty();
+      const missingUnit = await api(server.origin, {
+        method: 'POST',
+        path: '/api/material-requirements',
+        token: party.tokens.contractor,
+        body: {
+          requestId: String(party.request._id),
+          items: [{ name: 'PVC pipe', quantity: 2 }],
+        },
+      });
+      assert.equal(missingUnit.status, 422);
+
+      const created = await api(server.origin, {
+        method: 'POST',
+        path: '/api/material-requirements',
+        token: party.tokens.contractor,
+        body: {
+          requestId: String(party.request._id),
+          items: [{ name: 'PVC pipe', specification: '20mm', unit: 'meter', quantity: 2 }],
+        },
+      });
+      assert.equal(created.status, 201, created.json?.message || JSON.stringify(created.json));
+      const list = created.json.data;
+      assert.equal(list.status, 'DRAFT');
+      assert.equal(list.items.length, 1);
+      assert.equal(list.items[0].unit, 'meter');
+
+      const updated = await api(server.origin, {
+        method: 'POST',
+        path: '/api/material-requirements',
+        token: party.tokens.contractor,
+        body: {
+          requestId: String(party.request._id),
+          items: [
+            { name: 'PVC pipe', specification: '25mm', unit: 'meter', quantity: 3 },
+            { name: 'Elbow connector', unit: 'piece', quantity: 2 },
+          ],
+        },
+      });
+      assert.equal(updated.status, 201, updated.json?.message || JSON.stringify(updated.json));
+      assert.equal(updated.json.data.id, list.id);
+      assert.equal(updated.json.data.items.length, 2);
+      assert.equal(updated.json.data.items[0].quantity, 3);
+
+      const invalidAdd = await api(server.origin, {
+        method: 'POST',
+        path: `/api/material-requirements/${list.id}/items`,
+        token: party.tokens.contractor,
+        body: { name: 'Sand', quantity: 1 },
+      });
+      assert.equal(invalidAdd.status, 422);
+
+      const denied = await api(server.origin, {
+        path: `/api/material-requirements/${list.id}`,
+        token: party.tokens.stranger,
+      });
+      assert.equal(denied.status, 403);
+    } finally {
+      await server.close();
+      if (party) await cleanupParty(party);
+    }
+  });
+
   it('sends a customer request to the owning store, notifies, and opens chat', async (t) => {
     const { testDatabaseReady, deleteFixtureUsers } = require('./helpers/pg-cleanup');
     if (!testDatabaseReady()) {

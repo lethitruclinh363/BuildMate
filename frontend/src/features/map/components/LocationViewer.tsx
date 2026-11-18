@@ -23,7 +23,6 @@ export function LocationViewer({
           center={{ lat, lng }}
           zoom={15}
           marker={{ lat, lng }}
-          interactive={false}
           showStyleSwitcher={!compact}
           className={compact ? 'h-28 w-full' : 'h-52 w-full md:h-64'}
         />
