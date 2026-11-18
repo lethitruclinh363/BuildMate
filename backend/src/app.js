@@ -16,7 +16,7 @@ const { canServeContractorPublicFile } = require('./utils/contractor-public-uplo
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { sanitizeInput } = require('./middleware/sanitizeMiddleware');
-const { apiLimiter, authLimiter, otpRequestLimiter } = require('./middleware/rateLimitMiddleware');
+const { apiLimiter, authLimiter, locationLimiter, otpRequestLimiter } = require('./middleware/rateLimitMiddleware');
 const { requestTiming } = require('./middleware/requestTiming');
 // const { sanitizeInput } = require('./middleware/sanitizeMiddleware');
 
@@ -70,8 +70,11 @@ function createApp() {
 
   const apiRate = apiLimiter();
   const authRate = authLimiter();
+  const locationRate = locationLimiter();
   const otpRate = otpRequestLimiter();
   app.use('/api', apiRate);
+  app.use('/api/location', locationRate);
+  app.use('/api/v1/location', locationRate);
   for (const apiPrefix of ['/api', '/api/v1']) {
     app.use(`${apiPrefix}/auth/register`, otpRate);
     app.use(`${apiPrefix}/auth/resend-code`, otpRate);

@@ -7,6 +7,7 @@ import { ConfirmModal } from '@/components/feedback/ConfirmModal';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { quotationApi, repairApi } from '@/features/chat/services/sprint4.api';
 import { getApiErrorMessage } from '@/lib/api';
 import { catalogCategoryLabel, catalogServiceLabel } from '@/data/contractor-services';
@@ -70,9 +71,15 @@ export function CreateQuotationPage() {
   const sendingRef = useRef(false);
   const [request, setRequest] = useState<RepairRequest | null>(null);
   const [services, setServices] = useState<CatalogService[]>([]);
-  const [laborDraft, setLaborDraft] = useState<LineDraft>({ name: '', quantity: 1, unit: 'job', price: 0 });
+  const [laborDraft, setLaborDraft] = useState<LineDraft>(() => ({
+    name: '',
+    quantity: 1,
+    unit: t('quote.unitDefault'),
+    price: 0,
+  }));
   const [items, setItems] = useState<QuotationItem[]>([]);
   const [estimatedDays, setEstimatedDays] = useState(3);
+  const [transportCost, setTransportCost] = useState(0);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -102,6 +109,7 @@ export function CreateQuotationPage() {
         | {
             status?: string;
             items?: QuotationItem[];
+            transportCost?: number;
             estimatedDays?: number;
             note?: string;
             modificationNote?: string;
@@ -109,6 +117,7 @@ export function CreateQuotationPage() {
         | undefined;
       if (last?.status === 'MODIFICATION_REQUEST') {
         setItems(toQuotePayloadItems(last.items || []));
+        setTransportCost(last.transportCost ?? 0);
         setEstimatedDays(last.estimatedDays ?? 3);
         setNote(last.note || last.modificationNote || '');
       }
@@ -137,8 +146,8 @@ export function CreateQuotationPage() {
 
   const totals = useMemo(() => {
     const laborCost = items.filter((i) => i.type === 'LABOR').reduce((s, i) => s + i.quantity * i.price, 0);
-    return { laborCost, total: laborCost };
-  }, [items]);
+    return { laborCost, total: laborCost + transportCost };
+  }, [items, transportCost]);
 
   const addItem = (item: QuotationItem) => {
     setItems((prev) => [...prev, item]);
@@ -296,6 +305,10 @@ export function CreateQuotationPage() {
       setError(t('quote.daysInvalid'));
       return;
     }
+    if (!Number.isSafeInteger(transportCost) || transportCost < 0 || transportCost > 1_000_000_000) {
+      setError(t('quote.transportInvalid'));
+      return;
+    }
     if (items.some((row) => !Number.isInteger(row.quantity) || row.quantity < 1 || !Number.isFinite(row.price) || row.price < 0)) {
       setError(t('validation.invalid'));
       return;
@@ -331,7 +344,7 @@ export function CreateQuotationPage() {
       await quotationApi.create({
         requestId,
         items: toQuotePayloadItems(items),
-        transportCost: 0,
+        transportCost,
         estimatedDays: days,
         note,
       });
@@ -403,12 +416,19 @@ export function CreateQuotationPage() {
                   />
                 </div>
                 <div className="sm:col-span-2 lg:col-span-2">
-                  <Input
+                  <Select
                     id="labor-unit"
                     label={t('quote.requirementUnit')}
                     value={laborDraft.unit}
                     onChange={(e) => setLaborDraft((row) => ({ ...row, unit: e.target.value }))}
-                  />
+                  >
+                    <option value={t('quote.unitDefault')}>{t('quote.unitDefault')}</option>
+                    <option value={t('quote.unitWork')}>{t('quote.unitWork')}</option>
+                    <option value={t('quote.unitHour')}>{t('quote.unitHour')}</option>
+                    <option value={t('quote.unitPiece')}>{t('quote.unitPiece')}</option>
+                    <option value={t('quote.unitSet')}>{t('quote.unitSet')}</option>
+                    <option value={t('quote.unitArea')}>{t('quote.unitArea')}</option>
+                  </Select>
                 </div>
                 <div className="sm:col-span-2 lg:col-span-3">
                   <Input
@@ -441,10 +461,15 @@ export function CreateQuotationPage() {
                       type: 'LABOR',
                       name,
                       quantity: Math.max(1, Math.trunc(Number(laborDraft.quantity) || 1)),
-                      unit: laborDraft.unit.trim() || 'job',
+                      unit: laborDraft.unit.trim() || t('quote.unitDefault'),
                       price: Number.isFinite(Number(laborDraft.price)) && Number(laborDraft.price) >= 0 ? Number(laborDraft.price) : 0,
                     });
-                    setLaborDraft({ name: '', quantity: 1, unit: laborDraft.unit || 'job', price: 0 });
+                    setLaborDraft({
+                      name: '',
+                      quantity: 1,
+                      unit: laborDraft.unit || t('quote.unitDefault'),
+                      price: 0,
+                    });
                   }}
                 >
                   {t('common.add')}
@@ -472,7 +497,7 @@ export function CreateQuotationPage() {
                           type: 'LABOR',
                           name: catalogServiceLabel(s.name, t),
                           quantity: 1,
-                          unit: 'job',
+                          unit: t('quote.unitDefault'),
                           price: s.basePrice || 0,
                         })
                       }
@@ -637,6 +662,29 @@ export function CreateQuotationPage() {
                 setEstimatedDays(Math.min(180, Math.trunc(next)));
               }}
             />
+            <div>
+              <Input
+                id="transport-cost"
+                label={t('quote.transportField')}
+                type="number"
+                min={0}
+                max={1_000_000_000}
+                step={1000}
+                value={transportCost}
+                onKeyDown={(e) => guardNumberKeyDown(e, 0)}
+                onPaste={(e) => guardNumberPaste(e, 0)}
+                onChange={(e) => {
+                  if (e.target.value === '') {
+                    setTransportCost(0);
+                    return;
+                  }
+                  const next = Number(e.target.value);
+                  if (!Number.isFinite(next) || next < 0 || next > 1_000_000_000) return;
+                  setTransportCost(Math.trunc(next));
+                }}
+              />
+              <p className="mt-1.5 text-xs text-ink-500">{t('quote.transportHint')}</p>
+            </div>
             <label className="block space-y-1.5">
               <span className="text-sm font-semibold">{t('quote.note')}</span>
               <textarea
@@ -658,12 +706,20 @@ export function CreateQuotationPage() {
                 <dd className="text-sm font-medium text-navy-800">{vnd(totals.laborCost)}</dd>
               </div>
               <div className="flex items-center justify-between gap-3 py-2.5">
+                <dt className="text-sm text-ink-600">{t('quote.transport')}</dt>
+                <dd className="text-right text-sm font-medium text-navy-800">
+                  {transportCost === 0 ? t('quote.transportFree') : vnd(transportCost)}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 py-2.5">
                 <dt className="text-sm text-ink-600">{t('quote.time')}</dt>
                 <dd className="text-right text-sm font-medium text-navy-800">{t('quote.daysWork', { n: estimatedDays })}</dd>
               </div>
               <div className="flex items-center justify-between gap-3 py-2.5">
                 <dt className="text-sm text-ink-600">{t('mrl.title')}</dt>
-                <dd className="text-right text-sm font-medium text-navy-800">{t('quote.mrlCount', { n: materials.length })}</dd>
+                <dd className="text-right text-sm font-medium text-navy-800">
+                  {t('quote.mrlCount', { n: materials.length })} · {t('quote.mrlQuotedSeparately')}
+                </dd>
               </div>
             </dl>
             <div className="mt-3 border-t border-navy-800/10 pt-3">
@@ -719,7 +775,9 @@ function LineList({
         >
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-navy-800">{item.name}</p>
-            <p className="mt-0.5 text-xs text-ink-500">{item.unit}</p>
+            <p className="mt-0.5 text-xs text-ink-500">
+              {item.unit?.toLowerCase() === 'job' ? t('quote.unitDefault') : item.unit}
+            </p>
           </div>
           <div className="flex flex-wrap items-end gap-2.5">
             <label className="grid gap-1 text-xs text-ink-500">

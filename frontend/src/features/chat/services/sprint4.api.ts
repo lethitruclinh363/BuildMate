@@ -18,8 +18,10 @@ export const chatApi = {
   room: (id: string) => api.get<ApiResponse<ChatRoom>>(`/chat/rooms/${id}`),
   openStoreRoom: (storeId: string) =>
     api.post<ApiResponse<ChatRoom>>(`/chat/stores/${storeId}/rooms`, {}),
-  messages: (id: string, limit = 50) =>
-    api.get<ApiResponse<ChatMessage[]>>(`/chat/rooms/${id}/messages`, { params: { limit } }),
+  messages: (id: string, limit = 50, includePeerRooms = false) =>
+    api.get<ApiResponse<ChatMessage[]>>(`/chat/rooms/${id}/messages`, {
+      params: { limit, includePeerRooms: includePeerRooms ? 'true' : undefined },
+    }),
   send: (id: string, content: string) =>
     api.post<ApiResponse<ChatMessage>>(`/chat/rooms/${id}/messages`, { type: 'TEXT', content }),
   sendLocation: (id: string, location: { lat: number; lng: number; address: string; label: string }) =>

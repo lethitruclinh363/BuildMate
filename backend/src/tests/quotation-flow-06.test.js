@@ -59,6 +59,13 @@ describe('Flow 06 quotation statuses and create gate', () => {
     assert.match(src, /A quotation was already accepted/);
   });
 
+  it('uses the submitted transportation cost when calculating and storing a quotation', () => {
+    const src = readBe('services/quotationService.js');
+    assert.match(src, /const costs = tally\(items, payload\.transportCost \|\| 0\)/);
+    assert.match(src, /items,\s*\.\.\.costs,/);
+    assert.doesNotMatch(src, /transportCost:\s*0,\s*estimatedDays:/);
+  });
+
   it('rejects invalid create payloads before they reach persistence', () => {
     assert.throws(() => createQuotationSchema.parse({ requestId: 'short', items: [] }));
     assert.throws(() => createQuotationSchema.parse({

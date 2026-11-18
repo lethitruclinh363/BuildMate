@@ -61,6 +61,22 @@ describe('Flow 11 chat rooms and membership', () => {
     assert.doesNotMatch(chat, /REQUEST_STATUS/);
     assert.match(page, /canCreateQuotation\(room\?\.request\?\.status\)/);
   });
+
+  it('shows one repair thread per account and loads messages across that pair’s request rooms', () => {
+    const chat = readBe('services/chatService.js');
+    const page = readFe('pages/chat/ChatPage.tsx');
+    const socket = readFe('providers/SocketProvider.tsx');
+    assert.match(chat, /includePeerRooms/);
+    assert.match(chat, /roomKindOf\(room\) === ROOM_KIND\.CUSTOMER_CONTRACTOR/);
+    assert.match(chat, /roomKindOf\(peerRoom\) === ROOM_KIND\.CUSTOMER_CONTRACTOR/);
+    assert.match(chat, /filter\.roomId = \{ \$in: roomIds \}/);
+    assert.match(page, /function chatThreadKey/);
+    assert.match(page, /visibleRooms\.map/);
+    assert.match(page, /chatApi\.messages\(roomId, 50, true\)/);
+    assert.match(page, /conversationRoomIds/);
+    assert.match(socket, /string \| string\[\] \| undefined/);
+    assert.match(page, /messageForRequest/);
+  });
 });
 
 describe('Flow 11 messages, media and location', () => {

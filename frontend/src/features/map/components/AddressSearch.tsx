@@ -23,11 +23,14 @@ export function AddressSearch({
   const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
   const typedValue = useRef<string | null>(null);
+  const submittedToken = useRef(0);
+  const submitController = useRef<AbortController | null>(null);
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'empty' | 'error'>('idle');
   const [hits, setHits] = useState<AddressSuggestion[]>([]);
+  const [hitsQuery, setHitsQuery] = useState('');
   const [active, setActive] = useState(0);
 
   useEffect(() => {
@@ -43,6 +46,7 @@ export function AddressSearch({
     const text = value.trim();
     if (text.length < 2) {
       setHits([]);
+      setHitsQuery('');
       setLoading(false);
       setStatus('idle');
       setOpen(false);
@@ -50,6 +54,7 @@ export function AddressSearch({
     }
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
+      if (typedValue.current !== value) return;
       setLoading(true);
       setOpen(true);
       autocompleteAddress(text, focus, controller.signal)
@@ -57,6 +62,7 @@ export function AddressSearch({
           if (controller.signal.aborted) return;
           const next = rows.slice(0, 6);
           setHits(next);
+          setHitsQuery(text);
           setActive(0);
           setStatus(next.length ? 'idle' : 'empty');
         })
@@ -85,6 +91,7 @@ export function AddressSearch({
     typedValue.current = null;
     setOpen(false);
     setHits([]);
+    setHitsQuery('');
     onChange(hit.display);
     onSelect(hit);
   }
@@ -113,10 +120,58 @@ export function AddressSearch({
   }
 
   useEffect(() => {
-    if (!submitToken) return;
-    if (hits[active]) choose(hits[active]);
-    else if (hits[0]) choose(hits[0]);
-    // submitToken is a click counter; reuse the current hit list only
+    if (!submitToken || submittedToken.current === submitToken) return;
+    submittedToken.current = submitToken;
+    if (typedValue.current !== value) return;
+
+    const text = value.trim();
+    const matchingHits = hitsQuery === text ? hits : [];
+    const hit = matchingHits[active] || matchingHits[0];
+    if (hit) {
+      choose(hit);
+      return;
+    }
+    if (text.length < 2) return;
+
+    submitController.current?.abort();
+    const controller = new AbortController();
+    submitController.current = controller;
+    setLoading(true);
+    setOpen(true);
+    setStatus('idle');
+    autocompleteAddress(text, focus, controller.signal)
+      .then((rows) => {
+        if (controller.signal.aborted || typedValue.current !== value) return;
+        const next = rows.slice(0, 6);
+        setHits(next);
+        setHitsQuery(text);
+        setActive(0);
+        if (next[0]) choose(next[0]);
+        else setStatus('empty');
+      })
+      .catch((err: { code?: string; name?: string; message?: string }) => {
+        if (
+          controller.signal.aborted ||
+          err?.code === 'ERR_CANCELED' ||
+          err?.name === 'CanceledError' ||
+          err?.name === 'AbortError' ||
+          /signal is aborted/i.test(err?.message || '')
+        ) return;
+        setHits([]);
+        setHitsQuery(text);
+        setStatus('error');
+      })
+      .finally(() => {
+        if (submitController.current === controller) {
+          submitController.current = null;
+          setLoading(false);
+        }
+      });
+    return () => {
+      controller.abort();
+      if (submitController.current === controller) submitController.current = null;
+    };
+    // submitToken is a click counter; use the current query and matching hits
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submitToken]);
 
@@ -135,7 +190,13 @@ export function AddressSearch({
         value={value}
         className="h-10 w-full rounded-lg border border-navy-800/10 bg-white px-3 text-sm text-ink-800 outline-none placeholder:text-ink-400 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/10"
         onChange={(event) => {
+          submitController.current?.abort();
+          submitController.current = null;
+          setLoading(false);
           typedValue.current = event.target.value;
+          setHits([]);
+          setHitsQuery('');
+          setActive(0);
           setOpen(true);
           onChange(event.target.value);
         }}

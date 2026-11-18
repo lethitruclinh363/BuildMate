@@ -126,23 +126,25 @@ export function useSocket() {
   return useContext(SocketContext);
 }
 
-export function useRoomMessages(roomId: string | undefined, onMessage: (m: ChatMessage) => void) {
+export function useRoomMessages(roomIds: string | string[] | undefined, onMessage: (m: ChatMessage) => void) {
   const { socket } = useSocket();
   const handlerRef = useRef(onMessage);
   handlerRef.current = onMessage;
+  const roomIdsKey = (Array.isArray(roomIds) ? roomIds : roomIds ? [roomIds] : []).filter(Boolean).join('|');
 
   useEffect(() => {
-    if (!socket || !roomId) return;
-    const join = () => socket.emit('join_room', { roomId });
+    if (!socket || !roomIdsKey) return;
+    const activeRoomIds = new Set(roomIdsKey.split('|'));
+    const join = () => activeRoomIds.forEach((roomId) => socket.emit('join_room', { roomId }));
     join();
     socket.on('connect', join);
     const onReceive = (msg: ChatMessage) => {
-      if (!msg?.roomId || String(msg.roomId) === String(roomId)) handlerRef.current(msg);
+      if (msg?.roomId && activeRoomIds.has(String(msg.roomId))) handlerRef.current(msg);
     };
     socket.on('receive_message', onReceive);
     return () => {
       socket.off('connect', join);
       socket.off('receive_message', onReceive);
     };
-  }, [socket, roomId]);
+  }, [socket, roomIdsKey]);
 }

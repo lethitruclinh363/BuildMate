@@ -19,6 +19,11 @@ function isAuthPath(req) {
   return /\/auth(\/|\?|$)/.test(req.originalUrl || req.url || '');
 }
 
+function isLocationRead(req) {
+  return req.method === 'GET'
+    && /^\/api(?:\/v1)?\/location(?:\/|$)/.test(req.originalUrl || req.url || '');
+}
+
 function apiLimiter() {
   if (!env.rateLimitEnabled) {
     return (_req, _res, next) => next();
@@ -28,7 +33,20 @@ function apiLimiter() {
     max: env.rateLimitMax,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req) => req.method === 'OPTIONS' || isHealth(req) || isAuthPath(req),
+    skip: (req) => req.method === 'OPTIONS' || isHealth(req) || isAuthPath(req) || isLocationRead(req),
+    message: RATE_MESSAGE,
+  });
+}
+
+function locationLimiter() {
+  if (!env.rateLimitEnabled) {
+    return (_req, _res, next) => next();
+  }
+  return rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
     message: RATE_MESSAGE,
   });
 }
@@ -65,4 +83,4 @@ function otpRequestLimiter() {
   });
 }
 
-module.exports = { apiLimiter, authLimiter, otpRequestLimiter };
+module.exports = { apiLimiter, authLimiter, locationLimiter, otpRequestLimiter };

@@ -130,7 +130,7 @@ async function createQuotation(contractorId, payload) {
     throw new ApiError(422, 'Construction quotations cannot include material prices');
   }
   if (!items.length) throw new ApiError(422, 'Add at least one line item');
-  const costs = tally(items, 0);
+  const costs = tally(items, payload.transportCost || 0);
   if (costs.totalCost <= 0) {
     throw new ApiError(422, 'Quotation total must be greater than zero');
   }
@@ -148,7 +148,6 @@ async function createQuotation(contractorId, payload) {
       roomId: room?._id || null,
       items,
       ...costs,
-      transportCost: 0,
       estimatedDays: estimatedDaysOf(payload.estimatedDays),
       note: payload.note || '',
       status: QUOTATION_STATUS.SENT,
