@@ -1,4 +1,4 @@
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ClipboardList, ImagePlus, MapPin, Send } from 'lucide-react';
@@ -26,8 +26,61 @@ import { canCreateQuotation, type ChatMessage, type ChatRoom, type Quotation } f
 import { cn } from '@/lib/cn';
 import { useI18n } from '@/locales';
 
+function validChatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function sameLocalDay(first: Date, second: Date) {
+  return (
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate()
+  );
+}
+
+function formatChatTime(date: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date);
+}
+
+function formatChatDay(date: Date, now: Date, locale: string, t: (path: string) => string) {
+  if (sameLocalDay(date, now)) return t('chat.today');
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (sameLocalDay(date, yesterday)) return t('chat.yesterday');
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'vi-VN', {
+    day: 'numeric',
+    month: 'long',
+    ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' as const } : {}),
+  }).format(date);
+}
+
+function formatConversationTime(value: string, now: Date, locale: string, t: (path: string) => string) {
+  const date = validChatDate(value);
+  if (!date) return '';
+  if (sameLocalDay(date, now)) return formatChatTime(date, locale);
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (sameLocalDay(date, yesterday)) return t('chat.yesterday');
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' as const } : {}),
+  }).format(date);
+}
+
+function chatThreadKey(room: ChatRoom, userId: string) {
+  const peerId = String(room.customerId) === String(userId) ? room.contractorId : room.customerId;
+  const roomKind = room.roomKind || (room.storeId ? 'CUSTOMER_MATERIAL_STORE' : 'CUSTOMER_CONTRACTOR');
+  return roomKind === 'CUSTOMER_MATERIAL_STORE'
+    ? `store:${String(room.storeId || peerId)}`
+    : `peer:${String(peerId)}`;
+}
+
 export function ChatPage() {
-  const { t, te } = useI18n();
+  const { t, te, locale } = useI18n();
   const { roomId } = useParams();
   const [search] = useSearchParams();
   const navigate = useNavigate();
@@ -99,7 +152,7 @@ export function ChatPage() {
           setMessages([]);
           return;
         }
-        const [r, m] = await Promise.all([chatApi.room(roomId), chatApi.messages(roomId)]);
+        const [r, m] = await Promise.all([chatApi.room(roomId), chatApi.messages(roomId, 50, true)]);
         if (cancelled) return;
         setRoom(r.data.data);
         setMessages(m.data.data);
@@ -144,7 +197,32 @@ export function ChatPage() {
     };
   }, [isStoreRoom, mrlQuery, messages, room]);
 
-  useRoomMessages(roomId, (msg) => {
+  const visibleRooms = useMemo(() => {
+    const ordered = [...rooms].sort(
+      (a, b) => (Date.parse(b.lastMessageAt || '') || 0) - (Date.parse(a.lastMessageAt || '') || 0)
+    );
+    const seen = new Set<string>();
+    return ordered.filter((item) => {
+      const key = chatThreadKey(item, String(user?.id || ''));
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [rooms, user?.id]);
+
+  const activeThreadKey = room && user ? chatThreadKey(room, String(user.id)) : '';
+  const conversationRoomIds = useMemo(() => {
+    if (!room || !user) return roomId ? [roomId] : [];
+    const key = chatThreadKey(room, String(user.id));
+    const ids = rooms
+      .filter((item) => chatThreadKey(item, String(user.id)) === key)
+      .map((item) => String(item.id));
+    if (roomId && !ids.includes(String(roomId))) ids.push(String(roomId));
+    return [...new Set(ids)];
+  }, [room, rooms, user?.id, roomId]);
+  const roomById = useMemo(() => new Map(rooms.map((item) => [String(item.id), item])), [rooms]);
+
+  useRoomMessages(conversationRoomIds, (msg) => {
     setMessages((prev) => {
       if (prev.some((p) => p.id === msg.id)) return prev;
       if (
@@ -203,14 +281,14 @@ export function ChatPage() {
   useEffect(() => {
     if (!socket || !roomId) return;
     const onTyping = (p: { roomId: string; userId: string; name: string; isTyping: boolean }) => {
-      if (p.roomId !== roomId || p.userId === user?.id) return;
+      if (!conversationRoomIds.includes(String(p.roomId)) || p.userId === user?.id) return;
       setTypingName(p.isTyping ? p.name : null);
     };
     socket.on('typing', onTyping);
     return () => {
       socket.off('typing', onTyping);
     };
-  }, [socket, roomId, user?.id]);
+  }, [socket, conversationRoomIds, user?.id]);
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' });
@@ -227,8 +305,8 @@ export function ChatPage() {
     : false;
 
   const emitTyping = (isTyping: boolean) => {
-    if (!socket || !roomId) return;
-    socket.emit('typing', { roomId, isTyping });
+    if (!socket || !conversationRoomIds.length) return;
+    conversationRoomIds.forEach((activeRoomId) => socket.emit('typing', { roomId: activeRoomId, isTyping }));
   };
 
   const sendText = async () => {
@@ -293,7 +371,7 @@ export function ChatPage() {
 
   const reloadMessages = async () => {
     if (!roomId) return;
-    const m = await chatApi.messages(roomId);
+    const m = await chatApi.messages(roomId, 50, true);
     setMessages(m.data.data);
   };
 
@@ -328,6 +406,8 @@ export function ChatPage() {
     return <ErrorState body={t('errors.api.Chat room not found')} onRetry={() => window.location.reload()} />;
   }
 
+  const now = new Date();
+
   return (
     <PageTransition>
       <div className="flex h-[calc(100vh-7.5rem)] min-h-[28rem] overflow-hidden rounded-[22px] border border-navy-800/8 bg-paper-50 shadow-card">
@@ -336,7 +416,7 @@ export function ChatPage() {
           {rooms.length === 0 ? (
             <p className="px-4 pb-4 text-sm text-ink-400">{t('chat.emptyInbox')}</p>
           ) : (
-          rooms.map((item) => {
+          visibleRooms.map((item) => {
             const peer = item.otherUser;
             return (
               <button
@@ -345,13 +425,20 @@ export function ChatPage() {
                 onClick={() => navigate(`${chatBase}/${item.id}`)}
                 className={cn(
                   'flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-paper-100',
-                  item.id === roomId && 'bg-copper-50'
+                  chatThreadKey(item, String(user?.id || '')) === activeThreadKey && 'bg-copper-50'
                 )}
               >
                 <Avatar name={peer?.name || t('chat.crewFallback')} src={peer?.avatar} size="sm" />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-navy-800">
-                    {peer?.name || t('chat.crewFallback')}
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-navy-800">
+                      {peer?.name || t('chat.crewFallback')}
+                    </span>
+                    {validChatDate(item.lastMessageAt) ? (
+                      <time className="shrink-0 text-[10px] text-ink-400" dateTime={item.lastMessageAt}>
+                        {formatConversationTime(item.lastMessageAt, now, locale, t)}
+                      </time>
+                    ) : null}
                   </span>
                   <span className="block truncate text-xs text-ink-400">
                     {translateChatPreview(item.lastMessage)}
@@ -432,8 +519,14 @@ export function ChatPage() {
                 />
               </div>
             ) : null}
-            {messages.map((msg) => {
+            {messages.map((msg, index) => {
               const mine = String(msg.senderId) === String(user?.id);
+              const sourceRoom = roomById.get(String(msg.roomId));
+              const sourceRequestTitle =
+                sourceRoom && String(sourceRoom.id) !== String(room?.id) ? sourceRoom.request?.title : '';
+              const sentAt = validChatDate(msg.createdAt);
+              const previousSentAt = index > 0 ? validChatDate(messages[index - 1].createdAt) : null;
+              const showDay = sentAt && (!previousSentAt || !sameLocalDay(sentAt, previousSentAt));
               const parsed = parseMrlChat(msg.content);
               const live = parsed?.listId ? mrlById[parsed.listId] : null;
               const mrlPayload = parsed
@@ -447,50 +540,71 @@ export function ChatPage() {
                   }
                 : null;
               return (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={cn('flex', mine ? 'justify-end' : 'justify-start')}
-                >
-                  {msg.type === 'LOCATION' && msg.location ? (
-                    <LocationMessage location={msg.location} />
-                  ) : msg.type === 'QUOTATION' && msg.quotation ? (
-                    <div className="w-full max-w-sm">
-                      <QuotationCard
-                        quote={msg.quotation}
-                        compact
-                        href={
-                          isCustomer
-                            ? `/customer/quotation/${msg.quotation.id}`
-                            : `/contractor/quotation/create/${msg.quotation.requestId}`
-                        }
+                <Fragment key={msg.id}>
+                  {showDay && sentAt ? (
+                    <div role="separator" aria-label={formatChatDay(sentAt, now, locale, t)} className="flex justify-center py-3">
+                      <time dateTime={msg.createdAt} className="text-xs text-ink-400">
+                        {formatChatDay(sentAt, now, locale, t)}
+                      </time>
+                    </div>
+                  ) : null}
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}
+                  >
+                    {sourceRequestTitle ? (
+                      <p className={cn('mb-1 max-w-[75%] text-[10px] text-ink-400', mine ? 'text-right' : 'text-left')}>
+                        {t('chat.messageForRequest', { title: sourceRequestTitle })}
+                      </p>
+                    ) : null}
+                    {msg.type === 'LOCATION' && msg.location ? (
+                      <LocationMessage location={msg.location} />
+                    ) : msg.type === 'QUOTATION' && msg.quotation ? (
+                      <div className="w-full max-w-sm">
+                        <QuotationCard
+                          quote={msg.quotation}
+                          compact
+                          href={
+                            isCustomer
+                              ? `/customer/quotation/${msg.quotation.id}`
+                              : `/contractor/quotation/create/${msg.quotation.requestId}`
+                          }
+                        />
+                      </div>
+                    ) : mrlPayload ? (
+                      <MaterialChatCard
+                        payload={mrlPayload}
+                        role={user?.role}
+                        listStatus={live?.status || mrlPayload.status || mrl?.status}
+                        busy={mrlBusy}
                       />
-                    </div>
-                  ) : mrlPayload ? (
-                    <MaterialChatCard
-                      payload={mrlPayload}
-                      role={user?.role}
-                      listStatus={live?.status || mrlPayload.status || mrl?.status}
-                      busy={mrlBusy}
-                    />
-                  ) : (
-                    <div
-                      className={cn(
-                        'max-w-[75%] rounded-3xl px-4 py-2.5 text-sm shadow-card',
-                        mine ? 'rounded-br-md bg-navy-800 text-white' : 'rounded-bl-md bg-white text-ink-800'
-                      )}
-                    >
-                      {msg.type === 'IMAGE' ? (
-                        <img src={mediaUrl(msg.content)} alt="" loading="lazy" decoding="async" className="max-h-56 rounded-2xl" />
-                      ) : msg.type === 'VIDEO' ? (
-                        <video src={mediaUrl(msg.content)} controls className="max-h-56 rounded-2xl" />
-                      ) : (
-                        msg.content
-                      )}
-                    </div>
-                  )}
-                </motion.div>
+                    ) : (
+                      <div
+                        className={cn(
+                          'max-w-[75%] rounded-3xl px-4 py-2.5 text-sm shadow-card',
+                          mine ? 'rounded-br-md bg-navy-800 text-white' : 'rounded-bl-md bg-white text-ink-800'
+                        )}
+                      >
+                        {msg.type === 'IMAGE' ? (
+                          <img src={mediaUrl(msg.content)} alt="" loading="lazy" decoding="async" className="max-h-56 rounded-2xl" />
+                        ) : msg.type === 'VIDEO' ? (
+                          <video src={mediaUrl(msg.content)} controls className="max-h-56 rounded-2xl" />
+                        ) : (
+                          msg.content
+                        )}
+                      </div>
+                    )}
+                    {sentAt ? (
+                      <time
+                        dateTime={msg.createdAt}
+                        className={cn('mt-1 px-1 text-[11px] leading-4 text-ink-400', mine ? 'self-end' : 'self-start')}
+                      >
+                        {formatChatTime(sentAt, locale)}
+                      </time>
+                    ) : null}
+                  </motion.div>
+                </Fragment>
               );
             })}
             {typingName ? <TypingDots name={typingName} /> : null}

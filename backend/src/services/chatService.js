@@ -162,9 +162,21 @@ async function getRoom(roomId, userId) {
   };
 }
 
-async function listMessages(roomId, userId, { before, limit = 50 } = {}) {
-  await assertMember(roomId, userId);
+async function listMessages(roomId, userId, { before, limit = 50, includePeerRooms = false } = {}) {
+  const room = await assertMember(roomId, userId);
   const filter = { roomId };
+  const shouldIncludePeerRooms = includePeerRooms === true || String(includePeerRooms).toLowerCase() === 'true';
+  if (shouldIncludePeerRooms && roomKindOf(room) === ROOM_KIND.CUSTOMER_CONTRACTOR) {
+    const peerRooms = await ChatRoom.find({
+      customerId: room.customerId,
+      contractorId: room.contractorId,
+    });
+    const roomIds = peerRooms
+      .filter((peerRoom) => roomKindOf(peerRoom) === ROOM_KIND.CUSTOMER_CONTRACTOR && peerRoom.requestId)
+      .map((peerRoom) => String(peerRoom._id));
+    if (!roomIds.includes(String(room._id))) roomIds.push(String(room._id));
+    filter.roomId = { $in: roomIds };
+  }
   if (before) filter.createdAt = { $lt: new Date(before) };
   const rows = await Message.find(filter).sort({ createdAt: -1 }).limit(Math.min(Number(limit) || 50, 100));
   const quotes = await Quotation.find({
