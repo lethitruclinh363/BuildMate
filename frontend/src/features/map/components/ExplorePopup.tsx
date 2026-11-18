@@ -57,6 +57,11 @@ export function ExplorePopup({
   const profilePath = kind === 'contractor' ? paths.contractor(place.contractorId) : paths.store(place.id);
   const ratingLabel =
     place.reviewCount > 0 ? `${place.rating.toFixed(1)} (${place.reviewCount})` : t('explore.noRating');
+  const serviceRadiusKm = Number(place.serviceRadiusKm);
+  const deliveryRangeText =
+    Number.isFinite(serviceRadiusKm) && serviceRadiusKm > 0
+      ? t('explore.deliveryRadius', { km: serviceRadiusKm })
+      : t('explore.deliveryRangeUnknown');
 
   async function openChat() {
     const fallback = kind === 'contractor' ? repairCreatePath(place.contractorId) : paths.store(place.id);
@@ -112,7 +117,7 @@ export function ExplorePopup({
           {distance ? (
             <p className="inline-flex items-center gap-1 text-sm text-ink-500">
               <MapPin className="h-4 w-4 shrink-0 text-copper-500" />
-              <span className="whitespace-nowrap">{distance}</span>
+              <span className="whitespace-nowrap">{t('explore.searchDistance', { distance })}</span>
             </p>
           ) : null}
         </div>
@@ -126,25 +131,23 @@ export function ExplorePopup({
         {kind === 'store' ? (
           <div className="mt-3 space-y-1 text-sm leading-6 text-ink-600">
             {materials ? <p>{t('explore.materialLine')}: {materials}</p> : null}
-            <p>{t('explore.deliveryRadius', { km: place.serviceRadiusKm || 0 })}</p>
+            <p>{deliveryRangeText}</p>
           </div>
         ) : null}
       </div>
 {/* View Provider Information */}
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <Button asChild size="sm" className="h-10 min-h-10 px-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Button asChild size="sm" className="h-auto min-h-10 w-full min-w-0 whitespace-normal px-2 py-2 text-center leading-tight">
           <Link to={profilePath} state={back}>{kind === 'contractor' ? t('explore.viewProfile') : t('explore.viewStore')}</Link>
         </Button>
-        <Button type="button" size="sm" variant={mrlId && kind === 'store' ? 'copper' : 'outline'} className="h-10 min-h-10 px-2" onClick={() => void openChat()}>
+        <Button type="button" size="sm" variant={mrlId && kind === 'store' ? 'copper' : 'outline'} className="h-auto min-h-10 w-full min-w-0 whitespace-normal px-2 py-2 text-center leading-tight" onClick={() => void openChat()}>
           {mrlId && kind === 'store' ? t('explore.contactStore') : t('explore.chat')}
         </Button>
         {point ? (
-          <Button type="button" size="sm" variant="copper" className="h-10 min-h-10 px-2" onClick={() => openGoogleMapsDirections(point.lat, point.lng)}>
-            <Navigation className="h-4 w-4" /> {t('explore.directions')}
+          <Button type="button" size="sm" variant="copper" className="col-span-2 h-auto min-h-10 w-full min-w-0 whitespace-normal px-2 py-2 text-center leading-tight" onClick={() => openGoogleMapsDirections(point.lat, point.lng)}>
+            <Navigation className="h-4 w-4 shrink-0" /> {t('explore.directions')}
           </Button>
-        ) : (
-          <span />
-        )}
+        ) : null}
       </div>
     </div>
   );

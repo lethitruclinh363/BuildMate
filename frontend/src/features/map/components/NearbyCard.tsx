@@ -1,5 +1,5 @@
 import { ContractorCard } from '@/features/map/components/ContractorCard';
-import { MaterialStoreCard } from '@/features/map/components/MaterialStoreCard';
+import { MaterialStoreCard, type MaterialStoreMatchSummary } from '@/features/map/components/MaterialStoreCard';
 import type { LatLng } from '@/features/map/lib/location';
 import type { NearbyPlace } from '@/types/marketplace';
 
@@ -10,15 +10,25 @@ export function NearbyCard({
   active,
   onHover,
   origin,
+  requirementMatch,
 }: {
   place: NearbyPlace;
   kind: 'contractor' | 'store';
   active?: boolean;
   onHover?: () => void;
   origin?: LatLng | null;
+  requirementMatch?: MaterialStoreMatchSummary;
 }) {
   if (kind === 'store') {
-    return <MaterialStoreCard place={place} active={active} onHover={onHover} origin={origin} />;
+    return (
+      <MaterialStoreCard
+        place={place}
+        active={active}
+        onHover={onHover}
+        origin={origin}
+        requirementMatch={requirementMatch}
+      />
+    );
   }
   return <ContractorCard place={place} active={active} onHover={onHover} origin={origin} />;
 }

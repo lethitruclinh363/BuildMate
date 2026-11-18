@@ -79,6 +79,7 @@ export type EligibleStore = {
   city?: string;
   sampleMaterial?: string;
   samplePrice?: number;
+  matchedItemIds: string[];
 };
 
 export type CatalogMatch = {
